@@ -6,7 +6,7 @@ Companion to [PRD.md](PRD.md). Freeze these names with the four teammates in the
 
 Base URL: configured by `VITE_API_BASE_URL` on the client. Backend owns the single fictional demo workspace. JSON uses camelCase. IDs are opaque strings; timestamps are UTC ISO 8601. Use parameterized SQL and validate requests with FastAPI/Pydantic.
 
-Every write carries a client-generated UUID `requestId`. Keep that ID when retrying the same action. Store successful results for the demo session; replay returns the prior result without repeating the mutation. Reusing an ID for a different body returns 409. Rejected validation/conflict requests do not reserve the ID. For AI generation, disable repeated submission while pending and reuse a completed result rather than paying again on navigation; do not promise an interrupted provider call can never incur a second charge.
+Every write carries a client-generated UUID `requestId`. Keep that ID when retrying the same action. Record successful action IDs and change summaries for the demo session. Replay returns the same action metadata without repeating the mutation, alongside a fresh workspace snapshot so the UI cannot replace newer shared state with an old response. Reusing an ID for a different body returns 409. Rejected validation/conflict requests do not reserve the ID. For AI generation, disable repeated submission while pending and reuse a completed result rather than paying again on navigation; do not promise an interrupted provider call can never incur a second charge.
 
 Actor IDs identify fictional attribution only. They are not credentials or authorization. Do not use this prototype contract for private household data.
 
