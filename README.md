@@ -2,6 +2,10 @@
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 
+## Team development
+
+[Start here: owners, work branches, task workflow, and first checkpoints](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
+
 ## Run the demo
 
 Install Python 3 and Node.js 20 or newer. No package installation or build is needed.

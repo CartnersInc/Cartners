@@ -1,3 +1,5 @@
+Start with [the team workspace](docs/TEAM.md) for named owners, existing branches, and file boundaries.
+
 # Working together
 
 Clone this repository, create a short feature branch, and open a pull request for each small completed change. Include what changed, a screenshot for UI changes, and the checks you ran. Avoid editing the same files at the same time; agree on the four roles and 18-hour checkpoints in docs/PRD.md. Freeze docs/API_CONTRACT.md and its fixtures before splitting frontend, backend, and AI work.
