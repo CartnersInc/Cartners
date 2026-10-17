@@ -4,7 +4,7 @@ DubHacks 2026 concept: help families, roommates, and other shared households dec
 
 ## Team development
 
-[Start here: owners, work branches, task workflow, and first checkpoints](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
+**[Start here: copy your AI prompt and begin your assigned work](docs/START_HERE.md).** [Team guide: owners, branches, and workflow](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
 
 ## Run the demo
 

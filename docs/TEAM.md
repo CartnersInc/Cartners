@@ -2,6 +2,8 @@
 
 Repository: https://github.com/XavierGorriti/Groceries_fun_time_with_friends
 
+**[Start building: four copy-paste AI prompts and integration order](START_HERE.md).**
+
 Read [PRD v2 sections 1, 3, 4, and 9](PRD.md), then agree on the [API contract v2](API_CONTRACT.md) and [fixtures](fixtures/). The [final brainstorm](FINAL_BRAINSTORM.md) is the scope source. The static demo is a visual reference; the new React/FastAPI app still needs building.
 
 Five pages are places to find things, not five required steps. Build the connected AI → confirmed cart → shared store-run path first. Keep thin Plans, Spending, and Groups views; attempt weekly generation and background push only after core acceptance.
@@ -27,7 +29,7 @@ cd Groceries_fun_time_with_friends
 git switch YOUR-BRANCH-FROM-THE-TABLE
 ```
 
-The branches already exist remotely. Replace the last line with your branch, for example `git switch suyash/shopping-ui`. Keep existing commits and work. Once the PRD v2 pull request is merged, fetch and merge `origin/main` into your branch before using the new contract. In particular, v2 uses `/api/drafts/confirm` instead of `/api/meals/confirm`; coordinate any locally started callers.
+The branches already exist remotely. Replace the last line with your branch, for example `git switch suyash/shopping-ui`. Keep existing commits and work. Fetch and merge `origin/main` into your branch before using the new contract. In particular, v2 uses `/api/drafts/confirm` instead of `/api/meals/confirm`; coordinate any locally started callers.
 
 The old demo runs with `python3 -m http.server 4173 --directory demo/dist`. Follow the new frontend/backend setup when their owners add it; no production app is present yet.
 
