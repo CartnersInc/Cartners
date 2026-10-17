@@ -1,6 +1,6 @@
 # Common: decide dinner, share the shopping
 
-**PRD v1 · October 17, 2026 · 18-hour hackathon build**
+**PRD v1.1 · October 17, 2026 · 18-hour hackathon build**
 
 Status: a concrete build proposal for the team to review before implementation. It replaces the earlier broad feature scope and the navigation proposal in `UX_REVIEW.md`. The current demo remains a visual reference and a record of the interactions we are replacing. This document does not claim the overhaul is implemented or validated with users.
 
@@ -14,7 +14,7 @@ Common helps people sharing a household decide what to eat and get the right thi
 
 The 18-hour build proves one complete loop:
 
-**Request or food photo → two editable meal ideas → one confirmation → shared list → someone claims the trip.**
+**“What do you want to eat today?” → AI prepares a meal and shopping draft → refine if needed → Make this → shared list → someone claims the trip.**
 
 Adding milk directly remains faster than that loop. Recipes, votes, and AI are never prerequisites for a shopping list.
 
@@ -29,7 +29,7 @@ Adding milk directly remains faster than that loop. Recipes, votes, and AI are n
 
 ### Assumptions to test
 
-People will use a shared list often enough to keep it relevant; seeing two suitable meal ideas is easier than starting from a blank search; one review can replace several planning steps. These are product hypotheses, not established findings.
+People will use a shared list often enough to keep it relevant; an AI conversation can turn a vague food preference into a useful meal and shopping draft; one review can replace several planning steps. These are product hypotheses, not established findings.
 
 ## 2. Evidence and its limits
 
@@ -73,7 +73,7 @@ The full baseline review remains in `UX_REVIEW.md`. This table adds the conseque
 | Receipt entry requires purchased checkboxes and a price for every item. | The shopper performs bookkeeping after the trip. | Remove itemized accounting from P0. Optional trip total is the first extension. |
 | Spending and repayments occupy a main destination. | A family with pooled money sees work it does not need. | No Costs tab in P0. Later summaries live with completed trips and are optional. |
 | Saved hearts have no collection; themes mostly reorder the same results. | Controls promise more than they deliver. | Ship only controls with a clear result. Keep fun in the meal ideas and imagery. |
-| Food photo suggestions are always the same examples. | The apparent AI benefit is not real. | Connect one real text/image-to-meal endpoint; label fallback examples honestly. |
+| Food photo suggestions are always the same examples. | The apparent AI benefit is not real. | Replace the upload-led entry with a real AI conversation that prepares a meal and list. Photo inspiration is optional future work; label fallback examples honestly. |
 | Long headings and repeated explanatory notes compete with actions. | Shopping becomes reading. | Plain task headings, concise state labels, one obvious next action. |
 | Reloading or changing screens can lose the selected plan context. | People cannot trust where their work went. | The server stores the current meal and active trip; navigation does not create a new plan. |
 
@@ -81,23 +81,27 @@ Do not turn these fixes into sixteen new settings. Most are defaults, removals, 
 
 ## 5. The new experience
 
-### Dinner: start with something useful
+### Dinner: the AI is the front door
 
-Opening the app shows the current household, serving count, and either the chosen dinner or two starter meals. The primary action is **Find a dinner**. A secondary **Add food photo** control uses the same request surface.
+Home leads with **“What do you want to eat today?”** and one large input. It is an AI planning input, not keyword search against a recipe catalogue. Someone can type “Something cozy,” “Tacos for six,” or “A quick dinner, one vegetarian.” Small example prompts help people who do not know what to ask; tapping one submits that request. No upload, setup form, or separate Generate button is required to begin.
 
-The request is one short text field, with a real example: “Quick dinner for four, one vegetarian.” People can also tap a useful preset such as Quick dinner or Try something new; it populates the request rather than starting another workflow. Saved preferences and servings appear in a compact editable summary. No setup wizard.
+The household summary stays visible: **4 servings · vegetarian · about 30 minutes**. These are remembered explicit defaults from the fictional demo household, not information the AI magically knows. They can be changed inline, or overridden for this meal in ordinary language where compatible with saved restrictions. A first-time real household would need to supply its basics; the hackathon avoids onboarding by using a seeded group.
 
-Generate exactly two options. Each includes a name, approximate preparation time, serving count, one sentence explaining the fit, and a clearly marked illustration if a suitable image exists. Do not require generated photography; no image is better than a misleading dish photo. A result opens directly into its meal review. **Try another idea** is secondary and never regenerates on page load.
+AI interprets the request, considers those defaults, and prepares **one recommended meal plus the proposed shopping changes**. For a vague request, use the visible defaults and make a useful suggestion. Do not ask the user to choose a cuisine, theme, date, store, shopper, and ingredients before returning an answer.
 
-### Meal review: make one informed choice
+The response shows the dish, a short reason it fits, servings, approximate preparation time, and an ingredient/list preview. Optional toppings or a shared base can accommodate differing tastes without requiring everyone to vote. Do not call a generated meal an exact restaurant or creator recipe. An appropriate illustrative image may support the result, but generated photography and food-photo upload are not P0 requirements.
 
-Use an inline expanded area or a single full-height mobile sheet. Keep the meal name, servings, proposed list changes, and **Choose dinner & add items** together. Cooking steps are collapsed until needed.
+### Meal review: refine the answer, then act once
 
-Show new ingredients and any matching items already requested. For each match, show the required and listed quantities. Clear compatible shortfalls can be added; uncertain units, brands, or dietary constraints stay visible for review. A collapsed **Already have something?** section lets someone exclude specific ingredients from this addition. It is not an inventory database.
+Keep the recommendation and list preview together in the conversation. The primary action is **Make this — add items to list**. **Another idea** is secondary. The same input remains available for follow-ups such as “Make it quicker,” “No mushrooms,” or “Keep the tacos but use beans instead.” This updates the draft while retaining unchanged context; it does not make the user re-enter the whole request or visit a settings form.
 
-One confirmation chooses the dinner and updates the list. Show “Dinner chosen · 5 items added” with **View list** and **Undo**. Items already present are not blindly duplicated. The action does not start a payment, assign anyone a debt, or require other household members to react.
+Changing a soft preference affects this meal, not the entire household profile. Saved hard restrictions are not relaxed by inference. Ask at most one focused question when a real contradiction blocks a safe interpretation; do not turn ordinary uncertainty about taste into an interview. Show important interpreted facts, such as serving count, in the answer so the user can correct them.
 
-Before confirmation, **Back to ideas** preserves the draft. After confirmation, P0 offers the chosen recipe, list, and Undo for the addition; it does not offer a second meal-calendar system. Choosing a replacement must not silently delete purchases or unrelated list items.
+Cooking steps are collapsed until wanted. List rows distinguish new ingredients, compatible quantity shortfalls, and items already requested. A collapsed **Already have something?** control lets someone exclude an ingredient from this addition. It is not a pantry database, and existing requests are not proof that food is at home.
+
+Nothing is written to the shared list during generation or refinement. **Make this** is the one consequential confirmation: choose dinner and apply the visible list changes together. Show “Dinner chosen · 5 items added” with **View list** and **Undo**. This does not buy anything, create debt, or require another household member to react.
+
+Keep the current draft when the user navigates away and back; do not pay for another model call just to redraw it. Refinements replace the current uncommitted draft, with a **Previous version** link for the immediately preceding recommendation. After confirmation, show the chosen meal; a change request prepares a new draft without silently removing purchased or unrelated list items. Undo remains available for the existing addition.
 
 ### Shopping: work immediately, even without a meal
 
@@ -115,14 +119,14 @@ Rows show item name, quantity, and relevant notes. The main row action is a larg
 | --- | --- | --- |
 | P0 | Responsive React app with Dinner and Shopping | Both work on a phone; no onboarding or dead controls. |
 | P0 | One seeded demo household | At least two fictional actors, four default servings, editable relevant preferences. A small actor selector is labeled as a demo control, not authentication. |
-| P0 | Real text or food-photo meal generation | One server-side AI integration returns two validated editable options. Photo results are plausible adaptations, not an assertion that the exact original recipe was recovered. |
+| P0 | AI-first meal discovery and refinement | The main input asks what the household wants to eat. A server-side AI call produces one complete meal and shopping draft; follow-up text adapts it without starting over. |
 | P0 | One review and ingredient-to-list confirmation | Existing requests and constraints are considered; repeated confirmation cannot duplicate the batch; Undo is available. |
 | P0 | Direct item entry and shared list | One required field; another browser can see a successful addition. |
 | P0 | One trip claim, bought status, finish | Two simultaneous claim attempts cannot both win. Unbought items survive completion. |
 | P0 | Honest failure and demo fallback | AI failure preserves work and offers retry, direct entry, or labeled sample ideas. |
 | P1 | Optional group reactions | “Like this idea” records preference without preventing the organizer from proceeding or implying cost consent. |
 | P1 | Optional trip spend | One actual total; optional equal split among explicitly selected adults. No account linking or transfers. Build only after all P0 checks pass. |
-| P2 | Receipt extraction, payments, event calendar, recurring menus, saved collections | Explicitly outside the 18-hour commitment. |
+| P2 | Food-photo inspiration, receipt extraction, payments, event calendar, recurring menus, saved collections | Explicitly outside the 18-hour commitment. |
 | P2 | Store routing, live offers/prices, linked memberships, full pantry, automatic habit learning | Deferred; none may be implied by the demo. |
 
 Direct additions may include snacks, cleaning supplies, or party items. Specialized furniture purchasing, subscription management, and household chores are not separate features in this build.
@@ -131,7 +135,7 @@ Direct additions may include snacks, cleaning supplies, or party items. Speciali
 
 1. **AI proposes; the user commits.** A generated idea cannot write to the shared list before confirmation. The server checks the response structure, limits, and list changes.
 2. **Remember confirmed preferences, not guessed habits.** P0 uses editable explicit preferences. A preference is not a guarantee of allergy safety; the result must name relevant ingredient uncertainty.
-3. **No silent restrictions override.** If a request conflicts with a saved restriction, explain the conflict and ask for a change. Do not automatically relax it. Never call a photo-derived meal allergen-free.
+3. **No silent restrictions override.** If a request conflicts with a saved restriction, explain the conflict and ask for a change. Do not automatically relax it. Never call a generated meal allergen-free based only on the model’s response.
 4. **A list request is not kitchen inventory.** “Already on list” and “Already have” are separate states. Exclusions apply to this meal addition only.
 5. **Compatible quantities only.** Normalize case/spacing and known singular/plural units. Compare quantities only in the same supported unit. Keep oat milk and dairy milk, and distinct brand/restriction notes, separate. Do not build a general food ontology in 18 hours.
 6. **Explicit consequential actions.** Choosing dinner does not charge anyone. Claiming a trip means responsibility, not proof of purchase. Bought status is not a financial ledger.
@@ -140,22 +144,27 @@ Direct additions may include snacks, cleaning supplies, or party items. Speciali
 
 ## 8. AI contract and failure behavior
 
-Use one provider and a vision-capable model through FastAPI. Keep the provider/model configurable on the server, but do not build a provider framework. Agree on the response contract before frontend implementation. OpenAI image inputs and structured outputs are one suitable documented option; another provider can be used if already available to the team.
+Use one provider and a text model supporting structured results through FastAPI. Keep the provider/model configurable on the server, but do not build a provider framework. The same endpoint handles initial requests and follow-ups; the last server-stored draft supplies the context. No vector database, agent swarm, image pipeline, or model training is needed.
 
-Inputs: a short request, serving count, relevant explicit preferences, and an optional user-selected food photo. Do not send names, repayment records, live locations, or unrelated list history. Label the photo upload as being sent to the AI service before submission; retain no photo file or image contents in application logs. Never place the provider key in React or Git.
+AI owns interpreting the food request, proposing a suitable meal, suggesting a group-friendly base or substitutions, and adapting the draft to feedback. Regular server code validates the response and computes list matching, quantities, mutations, and shopper state. The user's simple interface should not expose those implementation boundaries as more steps.
 
-Outputs: two meal options with ingredients, quantities, units, cooking steps, approximate preparation time, fit explanation, and specific uncertainties. No merchant price claim. A user's dollar budget is a planning target; without verified price data, say **Cost not verified** and offer ingredient substitutions rather than inventing an exact total.
+Inputs: the current message, relevant explicit household preferences, serving default, and the immediately preceding draft for a follow-up. The current recommendation and its interpreted requirements carry context forward; no full chat-history infrastructure is required. Do not send real names, repayment records, live locations, or unrelated shopping history. Never place the provider key in React or Git.
+
+A normal result is one recommendation with ingredients, quantities, units, cooking steps, approximate preparation time, a fit explanation, specific uncertainties, and a short explanation of changes after refinement. Important constraints remain visible in a request summary. If a hard contradiction blocks a recommendation, the result can instead ask one specific clarification question in the same conversation, with no shopping changes.
+
+No merchant price claim. A user's dollar budget is a planning target; without verified prices, say **Cost not verified** and suggest simpler or lower-cost ingredients rather than inventing an exact total. Generation does not prove allergy safety, available pantry stock, or what everyone will enjoy.
 
 Failure handling:
 
-- Blank request with no photo: inline prompt to enter an idea or choose a preset.
-- Non-food or unreadable photo: explain that a recipe cannot be inferred and offer text entry; do not fabricate a confident match.
-- Invalid/incomplete model output or conflicting restrictions: reject it as unusable, keep inputs, and offer retry or sample ideas.
-- Request takes longer than 3 seconds: show that suggestions are still being prepared. Stop waiting at 25 seconds and offer retry; these are implementation targets, not measured latency claims.
-- Provider unavailable or quota exhausted: show **Live suggestions unavailable**. Labeled samples can demonstrate the rest of the flow. Never present a sample as a live result.
-- Reject files over 5 MB or outside JPEG/PNG/WebP before upload and at the server. Show a readable recovery action.
+- Empty input: show example prompts and the current draft, if any. No automatic paid call on a blank page load.
+- Vague request such as “I don’t know”: use visible household defaults to propose a meal; do not demand a detailed prompt.
+- Explicitly conflicting requirements: ask one focused clarification, keep context, and let the user answer in the same input.
+- Invalid output, an obvious restriction violation, or an unusable revision: retain the last valid draft and user message; offer retry or another idea.
+- Request takes longer than 3 seconds: show that the meal is still being prepared. End waiting at 25 seconds with a recovery action. These are implementation targets, not measured latency claims.
+- Provider unavailable or quota exhausted: show **Live suggestions unavailable**. Labeled samples can demonstrate the remaining flow; never present them as a live conversation.
+- Direct shopping remains usable while AI fails. Do not block Add an item behind the assistant.
 
-Do not log raw prompts or photos. Log request ID, duration, provider outcome, and schema validation result only. Confirm provider retention behavior before inviting real personal data; the judging demo uses samples.
+Disable repeated submission while pending and preserve the input on failure. Only an explicit new request, refinement, or Another idea starts another generation. Log request ID, duration, provider outcome, and schema validation result, not raw prompts. Confirm provider data handling before inviting real personal data; the judging demo uses samples. Food-photo inspiration is deferred to P2 for people who already have a dish they want to recreate.
 
 ## 9. Architecture and shared contract
 
@@ -181,17 +190,17 @@ No accounts means no private user boundary. The demo actor selector is an attrib
 - Phone targets at least 44×44 CSS pixels. Quantity and price inputs use appropriate keyboards. Desktop keyboard users can add items with Enter.
 - Give every input a visible label. Errors identify the problem and recovery. Focus enters a sheet/dialog and returns to its trigger when closed.
 - Announce saved/error states accessibly; never use color alone to communicate bought or claimed status.
-- Preserve form inputs when interrupted or a request fails. Return from meal review to the same options without another paid generation call.
+- Preserve form inputs when interrupted or a request fails. Return to the same recommendation without another paid generation call.
 - Keep the shopping trip action visible without requiring scrolling through the entire list. Respect reduced motion. Food photography supports appetite; it must not obscure ingredients, notes, or actions.
 
 ## 11. The four-person build plan
 
 | Owner | Owns | Must agree before splitting | First usable handoff |
 | --- | --- | --- | --- |
-| A: Dinner frontend | React shell, request/photo input, result cards, one meal review, preference summary | Snapshot and suggestion fixtures; confirm/Undo states | Entire flow working against fixtures by H3. |
+| A: Dinner frontend | React shell, primary AI input, conversational refinement, one meal/list review, preference summary | Snapshot and suggestion fixtures; confirm/Undo states | Entire flow working against fixtures by H3. |
 | B: Shopping frontend | Direct entry, list rows, trip strip, bought/finish states, mobile layout | Item IDs, trip states, conflict/error responses | Shopping interactions against fixtures by H3. |
 | C: Backend/data | FastAPI routes, SQLite state, list rules, trip concurrency, deployment of API | Endpoint names, revisions, action IDs, seeded household | Health + shared snapshot by H1; real add/claim by H3. |
-| D: AI and integration checks | One AI adapter, response validation, food-photo path, deterministic fallback fixtures, demo evidence | Same schema as fixture; timeout and restriction rules | Validated live text/photo result by H5; error cases documented. |
+| D: AI and integration checks | One AI adapter, intent/context interpretation, follow-up refinement, response validation, deterministic fixtures, demo evidence | Same schema as fixture; timeout and restriction rules | Live initial recommendation and a coherent refinement by H5; error cases documented. |
 
 A owns shared frontend files; B contributes shopping components without simultaneously rewriting the shell. C owns route/data files; D supplies a small meal-generation function and schema rather than editing C's router. Put shared examples in `docs/fixtures/` first. Announce contract changes before changing keys. Integrate early; do not wait for all four branches to be “finished.”
 
@@ -201,13 +210,13 @@ A owns shared frontend files; B contributes shopping components without simultan
 | --- | --- | --- |
 | H0–H1 | Read this PRD together, freeze P0 contract, seed the household, run both apps, smoke-test hosting. | Remove disputed optional features now. |
 | H1–H3 | Fixture-based meal → list flow; real API list visible in two browsers. | Fix connectivity and state before visual refinements. |
-| H3–H6 | Live text/photo AI reaches the meal review; real confirm and trip claim connected. | At H6, drop P1 if any core path remains disconnected. |
+| H3–H6 | Live AI discovery and refinement reach the combined meal/list review; real confirm and trip claim connected. | At H6, drop P1 if any core path remains disconnected. |
 | H6–H10 | Complete vertical flow, safe retries, bought/finish, Undo; deploy the same build used in testing. | No new feature families after H10. |
 | H10–H13 | Three short usability sessions and targeted fixes; verify family and roommate scenarios. | Remove confusing controls instead of adding explanations/settings. |
 | H13–H15 | Run acceptance checks, test phone/desktop, create resettable demo and fallback recording. | Freeze functionality at H15. |
 | H15–H18 | Submission, demo rehearsal, evidence capture, bug fixes, buffer. | No accounts, payments, framework changes, or bonus integrations. |
 
-**If P0 slips:** cut every P1 first, then use seeded preferences instead of building their editor. If the photo path is still unreliable, ship a clearly labeled text-only live-AI demonstration rather than fake image understanding, and record that the full P0 image check was not met. Do not trade away the shared list or the honest fallback state to finish decorative controls.
+**If P0 slips:** cut every P1 first, then use seeded preferences instead of building their editor. Photo input is already outside P0. If refinement slips, retain a reliable first recommendation and say that the follow-up acceptance check was not met; do not fake conversational understanding. Do not trade away the shared list or the honest fallback state to finish decorative controls.
 
 Adjust the clock to the actual remaining submission time. These checkpoints include integration and submission work; they are not eighteen hours of uninterrupted feature coding.
 
@@ -220,7 +229,7 @@ These are release gates and evaluation targets, not results already achieved.
 | U1 | Someone just needs milk. | One field + submit adds it, with no required date, store, diner, or AI call. |
 | U2 | Family of four, two adults using the app. | Four servings work without four accounts or a debt screen. |
 | U3 | Roommates, only two diners. | Serving count changes before generation; no household-wide voting gate. |
-| U4 | A request or sample food photo is submitted. | Live API produces two usable structured options, or an honest failure/fallback state. |
+| U4 | Someone types “Something cozy for four” and follows with “Make it quicker.” | Live AI prepares one usable meal/list draft, then returns a faster revision while retaining servings and restrictions; failures are explicit. |
 | U5 | One option is chosen. | One review + one commit creates the chosen dinner and correct list changes; repeated submit adds nothing twice. |
 | U6 | Some ingredients are already requested or explicitly excluded. | Compatible shortfalls are considered; constrained products remain distinct; excluded ingredients are not added. |
 | U7 | Two people claim simultaneously. | Exactly one claim wins; the other sees the current shopper and cannot silently replace them. |
@@ -236,13 +245,13 @@ Instrument only what the demo needs: generation requested/succeeded/failed, meal
 
 ## 13. The judging story
 
-Use one ordinary scenario: “Two adults are feeding four people, and one can shop on the way home.” Enter a short request or use a food photo. Show the preference-aware result, confirm one meal into the shared list, then use a second browser to claim and finish part of the trip. Add a non-recipe item to demonstrate that the list stands on its own.
+Use one ordinary scenario: “Two adults are feeding four people, and one can shop on the way home.” Type “Something fun for dinner.” Show the draft using the saved four servings and preferences. Follow with “Make it quicker,” show what changed, then confirm the meal into the shared list, then use a second browser to claim and finish part of the trip. Add a non-recipe item to demonstrate that the list stands on its own.
 
 For Visa Reimagine Shopping, the transformation is discovery and decision-making flowing into a coordinated shopping list. Show the real model call and why the result fits the supplied request. Describe fewer handoffs as the intended commerce benefit, not a quantified conversion or merchant-sales claim. Based on the supplied challenge text, a Visa payment API is not a stated requirement.
 
 The pasted rubric contains conflicting UX weights: the top table says 20%, while the detailed entry says 25%. Confirm that with organizers; do not invent a corrected scoring formula. A polished, functioning journey and honest treatment of AI uncertainty serve either version.
 
-Prepare a 2–3 minute run, a sample photo with permission to use it, a reset script for fictional state, and a short fallback recording. If using cached samples, say so. Do not perform a real payment during judging.
+Prepare a 2–3 minute run, a short initial request and a follow-up that visibly changes the draft, a reset script for fictional state, and a short fallback recording. If using cached samples, say so. Do not perform a real payment during judging.
 
 ## 14. What happens after submission
 
@@ -251,9 +260,9 @@ Prioritize observed adoption problems before adding features. If people use the 
 ## 15. Decisions the team must settle in the first hour
 
 1. Who owns A/B/C/D, and who can run/debug SQL? If nobody can, consult a mentor and choose the documented emergency storage fallback before building around it.
-2. Which single AI provider/model has a working key and image-input support? Verify with one sample, not an architecture debate.
+2. Which single AI provider/model has a working key and structured-output support? Verify with one sample, not an architecture debate.
 3. Which known host provides a single writable backend process and a reachable frontend? Prove it early.
-4. What fictional preferences and sample photo tell the demo story clearly? Avoid personally identifying household data.
+4. What fictional preferences and two-turn conversation tell the demo story clearly? Avoid personally identifying household data.
 
 The rest of P0 is specified so these choices do not reopen the product scope.
 
@@ -264,4 +273,4 @@ The rest of P0 is specified so these choices do not reopen the product scope.
 - [Baseline UX review](UX_REVIEW.md). Superseded by this PRD where navigation or scope differs.
 - [React: Sunsetting Create React App](https://react.dev/blog/2025/02/14/sunsetting-create-react-app). The supplied guide's CRA recommendation is dated; use the team's existing Vite decision.
 - [Vite getting started](https://vite.dev/guide/) and [FastAPI CORS](https://fastapi.tiangolo.com/tutorial/cors/) for the client/API boundary. Check current runtime requirements at setup; do not assume the old demo's Node minimum is the Vite minimum.
-- [OpenAI image inputs](https://developers.openai.com/api/docs/guides/images-vision) and [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) support the proposed integration shape; they do not guarantee recipe correctness or safe ingredients.
+- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) support the proposed meal/list draft shape; schema compliance does not guarantee recipe correctness or safe ingredients.

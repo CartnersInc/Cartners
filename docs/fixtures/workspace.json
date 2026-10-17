@@ -57,5 +57,6 @@
     "claimedAt": null,
     "claimedItemIds": [],
     "completedTrips": []
-  }
+  },
+  "discoveryDraftId": null
 }

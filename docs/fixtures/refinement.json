@@ -1,0 +1,100 @@
+{
+  "kind": "recommendation",
+  "draftId": "draft-sample-2",
+  "previousDraftId": "draft-sample-1",
+  "sourceMode": "sample",
+  "sampleNotice": "Curated contract fixture, not a live AI response.",
+  "inputSummary": {
+    "message": "Make it quicker",
+    "summary": "Vegetarian dinner for four, about 15 minutes.",
+    "servings": 4,
+    "restrictions": [
+      "vegetarian"
+    ],
+    "maxPrepMinutes": 15
+  },
+  "listRevision": 1,
+  "costStatus": "unverified",
+  "changesSummary": "Reduced preparation from about 25 to 15 minutes; kept four servings and the vegetarian base.",
+  "recommendation": {
+    "title": "Quick black bean wraps",
+    "servings": 4,
+    "prepMinutesApprox": 15,
+    "fitReason": "A faster version of the vegetarian dinner, with the same four servings.",
+    "ingredients": [
+      {
+        "id": "ing-tortillas",
+        "name": "Tortillas",
+        "quantity": 8,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-beans",
+        "name": "Black beans",
+        "quantity": 2,
+        "unit": "can",
+        "note": ""
+      },
+      {
+        "id": "ing-tomatoes",
+        "name": "Tomatoes",
+        "quantity": 3,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-avocado",
+        "name": "Avocado",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-lime",
+        "name": "Lime",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      }
+    ],
+    "steps": [
+      "Warm the ready-to-eat canned beans using the package instructions.",
+      "Chop the tomatoes and avocado while warming the tortillas.",
+      "Assemble wraps with the warmed beans, vegetables, and lime."
+    ],
+    "uncertainties": [
+      "Check packaged tortillas and seasonings against household dietary restrictions."
+    ],
+    "listPreview": [
+      {
+        "ingredientId": "ing-tortillas",
+        "action": "increase",
+        "existingItemId": "item-tortillas",
+        "existingQuantity": 6,
+        "deltaQuantity": 2,
+        "reason": "8 needed; 6 already requested."
+      },
+      {
+        "ingredientId": "ing-beans",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-tomatoes",
+        "action": "add",
+        "deltaQuantity": 3
+      },
+      {
+        "ingredientId": "ing-avocado",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-lime",
+        "action": "add",
+        "deltaQuantity": 2
+      }
+    ]
+  }
+}

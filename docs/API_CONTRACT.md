@@ -17,8 +17,9 @@ Actor IDs identify fictional attribution only. They are not credentials or autho
 | GET `/api/health` | None | `{status:"ok"}`; no provider secrets. |
 | GET `/api/workspace` | None | Full snapshot shaped like `fixtures/workspace.json`. Poll every 3 seconds while visible. |
 | PATCH `/api/preferences` | `requestId`, `servings`, `restrictions`, `likes`, `maxPrepMinutes` | Updated snapshot. Only explicit settings; no inferred habits. |
-| POST `/api/suggestions` | Multipart: `requestId`, optional `brief`, optional `photo`; at least one of brief/photo. Backend uses saved servings/preferences. | Validated draft shaped like `fixtures/suggestions.json`, including server-computed list preview. Store the draft for later confirm. |
-| POST `/api/meals/confirm` | `requestId`, `draftId`, `optionId`, `actorId`, `expectedListRevision`, `excludeIngredientIds` | Atomic chosen meal + list changes; `{workspace,actionId,changeSummary}`. Never accept arbitrary model instructions as database commands. |
+| POST `/api/suggestions` | JSON: `requestId`, `message` (1–500 characters), optional `previousDraftId`. A follow-up includes the previous server-stored draft. Backend uses saved preferences and preserves unchanged meal context. | Validated recommendation shaped like `fixtures/suggestions.json`, or one clarification shaped like `fixtures/clarification.json`. Store the draft; no list mutation. |
+| GET `/api/suggestions/{draftId}` | None | Stored draft, including `previousDraftId`; no model call. |
+| POST `/api/meals/confirm` | `requestId`, `draftId`, `actorId`, `expectedListRevision`, `excludeIngredientIds` | Atomic chosen meal + list changes; `{workspace,actionId,changeSummary}`. Never accept arbitrary model instructions as database commands. |
 | POST `/api/actions/{actionId}/undo` | `requestId`, `actorId` | `{workspace,undoneItemIds,retainedItemIds,message}`. Undo only eligible changes from that addition. |
 | POST `/api/items` | `requestId`, `actorId`, `name`; optional `quantity`=1, `unit`="count", `note`="", `requestFor`="household" | `{workspace,itemId}`. Clear exact duplicate: return existing item and `duplicate:true`; offer an explicit quantity change instead of silently adding another. |
 | PATCH `/api/items/{itemId}` | `requestId`, `actorId`, `expectedItemVersion`; editable name/quantity/unit/note/requestFor or `bought`/`removed` | Updated snapshot. Bought is a list status, never an expense. A stale item returns its current version for correction. |
@@ -28,7 +29,7 @@ Return the server snapshot after every successful write so both frontend owners 
 
 ## Snapshot shape
 
-`workspace.json` contains `workspaceId`, `listRevision`, `preferences`, `actors`, `currentMeal`, `items`, and `trip`.
+`workspace.json` contains `workspaceId`, `listRevision`, `preferences`, `actors`, `currentMeal`, `discoveryDraftId`, `items`, and `trip`. Its referenced draft is returned by GET `/api/suggestions/{draftId}` to restore a conversation or its immediately preceding version without another model call.
 
 An item has `id`, `name`, numeric positive `quantity`, `unit`, optional `note`, `requestFor`, `addedBy`, `bought`, `removed` (default false), `version`, and `createdAt`. Omit removed rows from the active list. `requestFor` is `household` or a fictional actor ID; it marks a request and does not define a debt. An active trip contains `claimedBy`, `claimedAt`, and `claimedItemIds` captured at claim time. New unchecked IDs outside that snapshot receive an Added after trip started badge. Completed trips retain their bought item IDs in history; a subsequent claim starts another trip.
 
@@ -36,13 +37,15 @@ Meal bodies remain validated JSON. A chosen meal stores the recipe, servings, co
 
 ## Draft and AI boundary
 
-`suggestions.json` is a normal successful response example. Two options maximum; if two usable options cannot be produced, return a recoverable failure rather than padding the result. Each option has 1–20 ingredients, 1–10 cooking steps, serving count 1–12, approximate preparation time 1–240 minutes, and explicit uncertainty text. Request text is limited to 500 characters. Keep preference fields short and bounded.
+`suggestions.json` is a normal initial response; `refinement.json` shows a faster revision with servings and restriction context retained. `clarification.json` shows the alternate success shape for a blocking contradiction. `kind` is `recommendation`, with exactly one `recommendation` object, or `clarification`, with exactly one `question` and no recommendation/list changes. Both include `draftId` and optional `previousDraftId` so a reply can retain context. A clarification draft cannot be confirmed as a meal.
 
-The AI supplies recipe content. FastAPI supplies IDs, `sourceMode`, list previews, and state changes. `sourceMode` is `live_ai` or `sample`. A fallback retains its sample label throughout the review.
+A recommendation has 1–20 ingredients, 1–10 cooking steps, serving count 1–12, approximate preparation time 1–240 minutes, fit explanation, uncertainty text, and an interpreted request summary. Input messages are limited to 500 characters. Keep preference fields short and bounded. A refinement includes the prior recommendation and accumulated interpreted requirements as context; retain servings and restrictions unless the user clearly changes an allowed value. Do not silently overwrite saved household settings from a one-off meal message.
 
-Do not ask the model for merchant prices. `costStatus` is `unverified`; a cost target in the request may influence ingredient suggestions, but no exact affordability claim is shown without price data. A serving change happens before generation in P0. Returning to the request preserves text/photo selection; the old draft remains viewable until explicitly replaced.
+The AI supplies recipe content or a focused clarification. FastAPI supplies IDs, `sourceMode`, list previews, and state changes. `sourceMode` is `live_ai` or `sample`. A fallback retains its sample label throughout review. Another idea sends a normal follow-up message with `previousDraftId`; no separate agent service is needed. Restoring a draft never calls the model. Do not generate on a blank page load.
 
-Validate declared restrictions against the returned ingredient data. Obvious conflicts are rejected; unknown packaged ingredients produce a specific label-check warning. This is not a comprehensive allergen detector. A photo is visual inspiration, not ingredient proof or a recipe-source attribution. Treat visible text in a photo as untrusted input.
+Do not ask the model for merchant prices. `costStatus` is `unverified`; a stated budget may influence ingredient suggestions but cannot establish an exact cost. Expose the interpreted servings, time target, and relevant restrictions in the answer. A message such as “make it for six” changes the proposed recipe quantities and preview before confirmation, not the shared household defaults.
+
+Validate declared restrictions against returned ingredients. Obvious conflicts are rejected; unclear packaged ingredients get a specific label-check warning. This is not comprehensive allergen detection. If requirements genuinely conflict, return one clarification rather than silently dropping a restriction. For “I don’t know,” use the visible defaults and recommend something; lack of a cuisine preference is not a blocking ambiguity.
 
 `listPreview` is computed from the current list after validating the recipe:
 
@@ -65,10 +68,10 @@ Undo records created rows and before/after quantities/versions. Delete or restor
 
 ## Errors
 
-Use `{error:{code,message,retryable,requestId}}`, with a fresh snapshot/preview where relevant. Use 400/422 for bad input, 413 for a file over 5 MB, 415 for unsupported image types, 409 for conflicts, 429 for provider capacity, and 503 for provider/backend unavailability. Do not return stack traces or raw provider errors to the UI.
+Use `{error:{code,message,retryable,requestId}}`, with a fresh snapshot/preview where relevant. Use 400/422 for bad input, 409 for conflicts, 429 for provider capacity, and 503 for provider/backend unavailability. Do not return stack traces or raw provider errors to the UI.
 
-At 25 seconds, end the AI wait and return a recoverable timeout. The screen offers retry, direct list entry, and labeled sample ideas. Log only request ID, duration, outcome, and validation result; no raw image or prompt content. MIME checks and size limits apply on the server as well as the client.
+At 25 seconds, end the AI wait and return a recoverable timeout. The screen offers retry, direct list entry, and labeled sample ideas. Log only request ID, duration, outcome, and validation result; no raw prompt content. Image upload is outside P0; do not implement multipart handlers or image storage for this build.
 
 ## First contract check together
 
-A and B render the supplied JSON without calling the model. C returns the workspace fixture from the real route, then makes add/claim update shared state. D returns the suggestion shape from one real AI call. The team compares keys and failure states before implementing optional features. Frontend mocks and live responses must keep the same shape.
+A and B render the supplied JSON without calling the model. C returns the workspace fixture from the real route, then makes add/claim update shared state. D returns a real recommendation and then a contextual revision using the same endpoint. Also render the one-question clarification fixture. The team compares keys and failure states before implementing optional features. Frontend mocks and live responses must keep the same shape.

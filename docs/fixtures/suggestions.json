@@ -1,163 +1,100 @@
 {
+  "kind": "recommendation",
   "draftId": "draft-sample-1",
+  "previousDraftId": null,
   "sourceMode": "sample",
   "sampleNotice": "Curated contract fixture, not a live AI response.",
   "inputSummary": {
-    "brief": "Quick vegetarian dinner for four",
+    "message": "Something fun for dinner",
+    "summary": "Vegetarian dinner for four, about 30 minutes.",
     "servings": 4,
-    "hasPhoto": false
+    "restrictions": [
+      "vegetarian"
+    ],
+    "maxPrepMinutes": 30
   },
   "listRevision": 1,
   "costStatus": "unverified",
-  "options": [
-    {
-      "id": "option-tacos",
-      "title": "Build-your-own black bean tacos",
-      "servings": 4,
-      "prepMinutesApprox": 25,
-      "fitReason": "A vegetarian base with toppings served separately.",
-      "ingredients": [
-        {
-          "id": "ing-tortillas",
-          "name": "Tortillas",
-          "quantity": 8,
-          "unit": "count",
-          "note": ""
-        },
-        {
-          "id": "ing-beans",
-          "name": "Black beans",
-          "quantity": 2,
-          "unit": "can",
-          "note": ""
-        },
-        {
-          "id": "ing-tomatoes",
-          "name": "Tomatoes",
-          "quantity": 3,
-          "unit": "count",
-          "note": ""
-        },
-        {
-          "id": "ing-avocado",
-          "name": "Avocado",
-          "quantity": 2,
-          "unit": "count",
-          "note": ""
-        },
-        {
-          "id": "ing-lime",
-          "name": "Lime",
-          "quantity": 2,
-          "unit": "count",
-          "note": ""
-        }
-      ],
-      "steps": [
-        "Warm the beans with a little water and seasoning.",
-        "Chop the vegetables and warm the tortillas.",
-        "Serve the fillings separately so people can build their own tacos."
-      ],
-      "uncertainties": [
-        "Check packaged tortillas and seasonings against household dietary restrictions."
-      ],
-      "listPreview": [
-        {
-          "ingredientId": "ing-tortillas",
-          "action": "increase",
-          "existingItemId": "item-tortillas",
-          "existingQuantity": 6,
-          "deltaQuantity": 2,
-          "reason": "8 needed; 6 already requested."
-        },
-        {
-          "ingredientId": "ing-beans",
-          "action": "add",
-          "deltaQuantity": 2
-        },
-        {
-          "ingredientId": "ing-tomatoes",
-          "action": "add",
-          "deltaQuantity": 3
-        },
-        {
-          "ingredientId": "ing-avocado",
-          "action": "add",
-          "deltaQuantity": 2
-        },
-        {
-          "ingredientId": "ing-lime",
-          "action": "add",
-          "deltaQuantity": 2
-        }
-      ]
-    },
-    {
-      "id": "option-rice",
-      "title": "Vegetable rice bowls",
-      "servings": 4,
-      "prepMinutesApprox": 30,
-      "fitReason": "A simple vegetarian dinner with separate toppings.",
-      "ingredients": [
-        {
-          "id": "ing-rice",
-          "name": "Rice",
-          "quantity": 300,
-          "unit": "g",
-          "note": ""
-        },
-        {
-          "id": "ing-carrots",
-          "name": "Carrots",
-          "quantity": 3,
-          "unit": "count",
-          "note": ""
-        },
-        {
-          "id": "ing-chickpeas",
-          "name": "Chickpeas",
-          "quantity": 2,
-          "unit": "can",
-          "note": ""
-        },
-        {
-          "id": "ing-lemon",
-          "name": "Lemon",
-          "quantity": 1,
-          "unit": "count",
-          "note": ""
-        }
-      ],
-      "steps": [
-        "Cook the rice using the package directions.",
-        "Chop the carrots and cook until tender, then warm the chickpeas.",
-        "Serve in bowls with lemon and the toppings on the side."
-      ],
-      "uncertainties": [
-        "Review packaged toppings or sauces before using them."
-      ],
-      "listPreview": [
-        {
-          "ingredientId": "ing-rice",
-          "action": "add",
-          "deltaQuantity": 300
-        },
-        {
-          "ingredientId": "ing-carrots",
-          "action": "add",
-          "deltaQuantity": 3
-        },
-        {
-          "ingredientId": "ing-chickpeas",
-          "action": "add",
-          "deltaQuantity": 2
-        },
-        {
-          "ingredientId": "ing-lemon",
-          "action": "add",
-          "deltaQuantity": 1
-        }
-      ]
-    }
-  ]
+  "changesSummary": null,
+  "recommendation": {
+    "title": "Build-your-own black bean tacos",
+    "servings": 4,
+    "prepMinutesApprox": 25,
+    "fitReason": "A vegetarian base with toppings served separately.",
+    "ingredients": [
+      {
+        "id": "ing-tortillas",
+        "name": "Tortillas",
+        "quantity": 8,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-beans",
+        "name": "Black beans",
+        "quantity": 2,
+        "unit": "can",
+        "note": ""
+      },
+      {
+        "id": "ing-tomatoes",
+        "name": "Tomatoes",
+        "quantity": 3,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-avocado",
+        "name": "Avocado",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-lime",
+        "name": "Lime",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      }
+    ],
+    "steps": [
+      "Warm the beans with a little water and seasoning.",
+      "Chop the vegetables and warm the tortillas.",
+      "Serve the fillings separately so people can build their own tacos."
+    ],
+    "uncertainties": [
+      "Check packaged tortillas and seasonings against household dietary restrictions."
+    ],
+    "listPreview": [
+      {
+        "ingredientId": "ing-tortillas",
+        "action": "increase",
+        "existingItemId": "item-tortillas",
+        "existingQuantity": 6,
+        "deltaQuantity": 2,
+        "reason": "8 needed; 6 already requested."
+      },
+      {
+        "ingredientId": "ing-beans",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-tomatoes",
+        "action": "add",
+        "deltaQuantity": 3
+      },
+      {
+        "ingredientId": "ing-avocado",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-lime",
+        "action": "add",
+        "deltaQuantity": 2
+      }
+    ]
+  }
 }
