@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {seed,split,balance,missingIngredients,addIngredients,recipes} from '../dist/model.js';
+assert.deepEqual(split(100,['alex','maya','riley']),{alex:34,maya:33,riley:33});
+for(const n of [1,2,3,4])for(const amount of [1,99,7400,100001])assert.equal(Object.values(split(amount,['a','b','c','d'].slice(0,n))).reduce((a,b)=>a+b,0),amount);
+assert.throws(()=>split(100,[]));assert.throws(()=>split(-1,['a']));assert.throws(()=>split(1.2,['a']));
+const s=seed();assert.deepEqual(balance(s,'alex'),[['maya',1850]]);
+s.expenses.push({id:'personal',payer:'alex',cents:600,members:['jordan']});
+assert.deepEqual(balance(s,'alex'),[['maya',1850],['jordan',-600]]);
+s.payments.push({from:'alex',to:'maya',cents:1850,confirmed:false});assert.equal(balance(s,'alex')[0][1],1850);
+s.payments[0].confirmed=true;assert.deepEqual(balance(s,'alex'),[['jordan',-600]]);
+const t=seed();assert.equal(missingIngredients(t,recipes[0]).filter(i=>!i.stock&&!i.listed).length,2);
+const before=structuredClone(t.items);assert.equal(addIngredients(t,recipes[0],['alex','maya']),2);assert.equal(t.items.length,6);assert.deepEqual(t.items.slice(0,4),before);assert.deepEqual(t.items[4].members,['alex','maya']);assert.equal(addIngredients(t,recipes[0],['alex','maya']),0);assert.throws(()=>addIngredients(t,recipes[1],[]));
+console.log('PASS: exact-cent splits, personal allocations, repayment confirmation, ingredient deduplication and repeat confirmation.');
