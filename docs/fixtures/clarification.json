@@ -1,0 +1,8 @@
+{
+  "kind": "clarification",
+  "draftId": "draft-sample-clarification",
+  "previousDraftId": "draft-sample-1",
+  "sourceMode": "sample",
+  "sampleNotice": "Curated contract fixture, not a live AI response.",
+  "question": "Your saved restriction is vegetarian, but this request asks for chicken. Would you like a vegetarian alternative?"
+}

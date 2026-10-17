@@ -1,0 +1,62 @@
+{
+  "workspaceId": "demo-household",
+  "listRevision": 1,
+  "preferences": {
+    "servings": 4,
+    "restrictions": [
+      "vegetarian"
+    ],
+    "likes": [
+      "Mexican food"
+    ],
+    "maxPrepMinutes": 30
+  },
+  "actors": [
+    {
+      "id": "leila",
+      "name": "Leila"
+    },
+    {
+      "id": "sam",
+      "name": "Sam"
+    }
+  ],
+  "currentMeal": null,
+  "items": [
+    {
+      "id": "item-tortillas",
+      "name": "Tortillas",
+      "quantity": 6,
+      "unit": "count",
+      "note": "",
+      "requestFor": "household",
+      "addedBy": "leila",
+      "bought": false,
+      "version": 1,
+      "createdAt": "2026-10-17T18:00:00Z",
+      "removed": false
+    },
+    {
+      "id": "item-milk",
+      "name": "Oat milk",
+      "quantity": 1,
+      "unit": "pack",
+      "note": "Unsweetened",
+      "requestFor": "sam",
+      "addedBy": "sam",
+      "bought": false,
+      "version": 1,
+      "createdAt": "2026-10-17T18:01:00Z",
+      "removed": false
+    }
+  ],
+  "trip": {
+    "id": null,
+    "version": 0,
+    "claimedBy": null,
+    "claimedAt": null,
+    "claimedItemIds": [],
+    "completedTrips": []
+  },
+  "discoveryDraftId": null
+}

@@ -1,0 +1,100 @@
+{
+  "kind": "recommendation",
+  "draftId": "draft-sample-1",
+  "previousDraftId": null,
+  "sourceMode": "sample",
+  "sampleNotice": "Curated contract fixture, not a live AI response.",
+  "inputSummary": {
+    "message": "Something fun for dinner",
+    "summary": "Vegetarian dinner for four, about 30 minutes.",
+    "servings": 4,
+    "restrictions": [
+      "vegetarian"
+    ],
+    "maxPrepMinutes": 30
+  },
+  "listRevision": 1,
+  "costStatus": "unverified",
+  "changesSummary": null,
+  "recommendation": {
+    "title": "Build-your-own black bean tacos",
+    "servings": 4,
+    "prepMinutesApprox": 25,
+    "fitReason": "A vegetarian base with toppings served separately.",
+    "ingredients": [
+      {
+        "id": "ing-tortillas",
+        "name": "Tortillas",
+        "quantity": 8,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-beans",
+        "name": "Black beans",
+        "quantity": 2,
+        "unit": "can",
+        "note": ""
+      },
+      {
+        "id": "ing-tomatoes",
+        "name": "Tomatoes",
+        "quantity": 3,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-avocado",
+        "name": "Avocado",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      },
+      {
+        "id": "ing-lime",
+        "name": "Lime",
+        "quantity": 2,
+        "unit": "count",
+        "note": ""
+      }
+    ],
+    "steps": [
+      "Warm the beans with a little water and seasoning.",
+      "Chop the vegetables and warm the tortillas.",
+      "Serve the fillings separately so people can build their own tacos."
+    ],
+    "uncertainties": [
+      "Check packaged tortillas and seasonings against household dietary restrictions."
+    ],
+    "listPreview": [
+      {
+        "ingredientId": "ing-tortillas",
+        "action": "increase",
+        "existingItemId": "item-tortillas",
+        "existingQuantity": 6,
+        "deltaQuantity": 2,
+        "reason": "8 needed; 6 already requested."
+      },
+      {
+        "ingredientId": "ing-beans",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-tomatoes",
+        "action": "add",
+        "deltaQuantity": 3
+      },
+      {
+        "ingredientId": "ing-avocado",
+        "action": "add",
+        "deltaQuantity": 2
+      },
+      {
+        "ingredientId": "ing-lime",
+        "action": "add",
+        "deltaQuantity": 2
+      }
+    ]
+  }
+}
