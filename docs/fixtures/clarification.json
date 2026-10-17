@@ -4,5 +4,16 @@
   "previousDraftId": "draft-sample-1",
   "sourceMode": "sample",
   "sampleNotice": "Curated contract fixture, not a live AI response.",
-  "question": "Your saved restriction is vegetarian, but this request asks for chicken. Would you like a vegetarian alternative?"
+  "question": "Your saved restriction is vegetarian, but this request asks for chicken. Would you like a vegetarian alternative?",
+  "workspaceId": "demo-family",
+  "schemaVersion": 2,
+  "listRevision": 1,
+  "inputSummary": {
+    "message": "Chicken for dinner",
+    "servings": 4,
+    "restrictions": [
+      "vegetarian"
+    ],
+    "maxPrepMinutes": 30
+  }
 }

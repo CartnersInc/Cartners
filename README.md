@@ -4,7 +4,7 @@ DubHacks 2026 concept: help families, roommates, and other shared households dec
 
 ## Team development
 
-[Start here: owners, work branches, task workflow, and first checkpoints](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
+**[Start here: copy your AI prompt and begin your assigned work](docs/START_HERE.md).** [Team guide: owners, branches, and workflow](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
 
 ## Run the demo
 
@@ -25,8 +25,9 @@ npm test
 
 - `demo/dist/`: runnable HTML/CSS/JavaScript interface, photos, and local sample data.
 - `demo/test/`: tests for money splits, repayment state, and ingredient deduplication.
-- [18-hour overhaul PRD](docs/PRD.md): current proposed scope, new interactions, team ownership, and release gates.
-- [P0 API contract and fixtures](docs/API_CONTRACT.md): frontend/backend integration agreement.
+- [Final-brainstorm PRD v2](docs/PRD.md): AI-first flow, all five page areas, build priorities, owners, and acceptance checks.
+- [Final brainstorm source](docs/FINAL_BRAINSTORM.md): the team’s requirements and their scope mapping.
+- [API contract v2 and fixtures](docs/API_CONTRACT.md): frontend/backend integration agreement.
 - [Baseline UX review](docs/UX_REVIEW.md): the original prototype findings; the new PRD takes precedence.
 - [Contribution guide](CONTRIBUTING.md): how the four teammates can work together.
 

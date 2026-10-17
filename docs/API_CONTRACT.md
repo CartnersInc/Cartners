@@ -1,77 +1,74 @@
-# P0 API contract
+# API contract v2 — final brainstorm
 
-Companion to [PRD.md](PRD.md). Freeze these names with the four teammates in the first hour. These are proposed interfaces and example payloads, not implemented endpoints. The existing static demo does not call them.
+Proposed integration contract for [PRD v2](PRD.md). The static demo does not implement it. Agree on these changes before coding against v1: five page areas share one group-scoped snapshot; AI can return a meal or grocery draft; run deadlines and expenses are now specified. Examples are fictional fixtures, never live results.
 
-## Shared conventions
+## Boundaries
 
-Base URL: configured by `VITE_API_BASE_URL` on the client. Backend owns the single fictional demo workspace. JSON uses camelCase. IDs are opaque strings; timestamps are UTC ISO 8601. Use parameterized SQL and validate requests with FastAPI/Pydantic.
+React owns view/form state; FastAPI owns committed group data, revision checks, AI/provider calls, run deadlines, and money calculations. Use one API base URL, one backend process, and SQLite. No per-page services, event bus, or authentication system for the judging demo.
 
-Every write carries a client-generated UUID `requestId`. Keep that ID when retrying the same action. Record successful action IDs and change summaries for the demo session. Replay returns the same action metadata without repeating the mutation, alongside a fresh workspace snapshot so the UI cannot replace newer shared state with an old response. Reusing an ID for a different body returns 409. Rejected validation/conflict requests do not reserve the ID. For AI generation, disable repeated submission while pending and reuse a completed result rather than paying again on navigation; do not promise an interrupted provider call can never incur a second charge.
+Every write carries `workspaceId`, a known fictional `actorId`, and a client UUID `requestId`. Retry the same action with the same ID. Replays return original action metadata and a fresh snapshot; they cannot duplicate list entries, plans, runs, or expenses. Reusing an ID for a different action is a 409. Actor selection is attribution, not security. All queries must filter by workspace; real private use needs access control later.
 
-Actor IDs identify fictional attribution only. They are not credentials or authorization. Do not use this prototype contract for private household data.
+Snapshots include `schemaVersion:2`, `workspaceId`, `serverNow`, available `groups`, `actors`, `preferences`, `listRevision`, `plans`, current draft/meal references, `items`, `trip`, `expenses`, `balances`, and recent `activity`. Poll the selected workspace every three seconds while visible, and refresh after writes. Show stale state on failed reads. Drafts and prices carry a live/sample label.
 
 ## Routes
 
-| Method / path | Request | Response / responsibility |
+| Route | Input beyond common write fields | Responsibility |
 | --- | --- | --- |
-| GET `/api/health` | None | `{status:"ok"}`; no provider secrets. |
-| GET `/api/workspace` | None | Full snapshot shaped like `fixtures/workspace.json`. Poll every 3 seconds while visible. |
-| PATCH `/api/preferences` | `requestId`, `servings`, `restrictions`, `likes`, `maxPrepMinutes` | Updated snapshot. Only explicit settings; no inferred habits. |
-| POST `/api/suggestions` | JSON: `requestId`, `message` (1–500 characters), optional `previousDraftId`. A follow-up includes the previous server-stored draft. Backend uses saved preferences and preserves unchanged meal context. | Validated recommendation shaped like `fixtures/suggestions.json`, or one clarification shaped like `fixtures/clarification.json`. Store the draft; no list mutation. |
-| GET `/api/suggestions/{draftId}` | None | Stored draft, including `previousDraftId`; no model call. |
-| POST `/api/meals/confirm` | `requestId`, `draftId`, `actorId`, `expectedListRevision`, `excludeIngredientIds` | Atomic chosen meal + list changes; `{workspace,actionId,changeSummary}`. Never accept arbitrary model instructions as database commands. |
-| POST `/api/actions/{actionId}/undo` | `requestId`, `actorId` | `{workspace,undoneItemIds,retainedItemIds,message}`. Undo only eligible changes from that addition. |
-| POST `/api/items` | `requestId`, `actorId`, `name`; optional `quantity`=1, `unit`="count", `note`="", `requestFor`="household" | `{workspace,itemId}`. Clear exact duplicate: return existing item and `duplicate:true`; offer an explicit quantity change instead of silently adding another. |
-| PATCH `/api/items/{itemId}` | `requestId`, `actorId`, `expectedItemVersion`; editable name/quantity/unit/note/requestFor or `bought`/`removed` | Updated snapshot. Bought is a list status, never an expense. A stale item returns its current version for correction. |
-| PATCH `/api/trip` | `requestId`, `actorId`, `expectedTripVersion`, `action`="claim" / "release" / "finish" | Updated snapshot. Claim uses an atomic compare-and-set; only current shopper releases/finishes. Finish records checked items and leaves unchecked ones. |
+| GET `/api/health` | None | Health only; no credentials. |
+| GET `/api/workspace?workspaceId=…` | Selected group | Full group-scoped snapshot. |
+| PATCH `/api/preferences` | Servings, restrictions, likes, time target; optional pooled/split mode | Validate explicit saved changes; update the group. |
+| POST `/api/suggestions` | `message`, optional `previousDraftId`, optional `planDate` | Generate/refine a validated meal, grocery, or clarification draft; P1 weekly draft. No committed list/expense writes. |
+| GET `/api/suggestions/{draftId}?workspaceId=…` | Draft and group | Restore a stored draft/previous version without a model call. |
+| POST `/api/drafts/confirm` | `draftId`, `expectedListRevision`, optional excluded ingredient IDs, `target` | Meal + `cart`: save its dated plan and apply visible list changes. Grocery + `cart`: apply its list changes only. P1 weekly + `plans`: save dated plans, never a week's groceries. Clarifications cannot be confirmed. |
+| POST `/api/actions/{actionId}/undo` | Action ID | Reverse only this action's eligible untouched changes; preserve earlier requests and subsequent edits/buys. Return any retained changes and an explanation. |
+| POST `/api/items` | Name; quantity=1, unit=count, note empty, requestFor=household by default | Add direct requests; exact duplicate returns existing row and an explicit quantity-change option. Name is the only required user-entered field. |
+| PATCH `/api/items/{itemId}` | `expectedItemVersion`; editable details, bought, or removed | Safe row update; do not infer any debt. |
+| PATCH `/api/trip` | `expectedTripVersion`, action=start/release/finish; start includes store name and requestWindowMinutes=10 | Atomic one-shopper run per group; deadline assigned by server. Finish preserves unbought requests and requires no price. |
+| POST `/api/expenses` | Run ID if applicable, totalCents, payerId, mode, sharedMemberIds, personalAllocations, status | Validate actual purchase and allocations; only confirmed split records affect balances. |
+| POST `/api/baskets/compare` | Selected cart item IDs and ZIP/postal code | One authorized provider if available; otherwise explicit sample/unavailable response. Rank only complete comparable baskets. |
 
-Return the server snapshot after every successful write so both frontend owners use the same data. A global `listRevision` protects a meal confirmation preview; each item has its own `version` for ordinary edits, and trip actions use `trip.version`. Trip-only changes must not invalidate a meal preview.
+Provider-dependent payment transfers, repayment reconciliation, real group invitations/accounts, and background push have no P0 endpoints. Group switching selects an existing seeded workspace and fetches its snapshot. Ordinary reads are not writes and do not require request IDs.
 
-## Snapshot shape
+Return `{workspace,actionId,changeSummary}` after a committed write; direct add may also return `itemId,duplicate`. API v1's `/api/meals/confirm` is replaced by the unified draft confirmation in this proposal. No production callers exist in this repository yet; if a teammate has started one locally, coordinate the change before merging.
 
-`workspace.json` contains `workspaceId`, `listRevision`, `preferences`, `actors`, `currentMeal`, `discoveryDraftId`, `items`, and `trip`. Its referenced draft is returned by GET `/api/suggestions/{draftId}` to restore a conversation or its immediately preceding version without another model call.
+## Draft shapes and list rules
 
-An item has `id`, `name`, numeric positive `quantity`, `unit`, optional `note`, `requestFor`, `addedBy`, `bought`, `removed` (default false), `version`, and `createdAt`. Omit removed rows from the active list. `requestFor` is `household` or a fictional actor ID; it marks a request and does not define a debt. An active trip contains `claimedBy`, `claimedAt`, and `claimedItemIds` captured at claim time. New unchecked IDs outside that snapshot receive an Added after trip started badge. Completed trips retain their bought item IDs in history; a subsequent claim starts another trip.
+Normal meal: retain `kind:"recommendation"` and `recommendation` from the initial fixtures. Add `planDate` (today by default). Grocery: `kind:"grocery_list"`, `items`, and `listPreview`, with no recipe required. Clarification: `kind:"clarification"` and one question, with no list mutation. P1 weekly: `kind:"weekly_plan"` and exactly seven dated meal drafts; saving plans does not generate cart requests.
 
-Meal bodies remain validated JSON. A chosen meal stores the recipe, servings, confirming actor, and its list-add action ID. The client renders that state after refresh instead of keeping the only copy of a selected recipe locally.
+All drafts have IDs, workspace, previous-draft reference, sourceMode=`live_ai`/`sample`, interpreted request context, and the relevant list revision. A model supplies proposed content; the server supplies IDs, list previews, and state changes. Keep servings, explicit restrictions, and valid context across refinements. Do not persist a one-off soft preference as a household setting. Reject obvious restriction conflicts; unclear packaged ingredients get a label-check warning, not an allergy-safety guarantee.
 
-## Draft and AI boundary
+Cap message length at 500 characters, each meal at 20 ingredients/10 steps, servings at 1–12, and grocery drafts at 30 requests. Only use supported count/g/ml/can/pack units in core matching. `requestFor` is `household` or a valid workspace actor ID for a personal request. Never merge different scope, note/brand constraints, or incompatible units. Compare only active unbought requests, not history or kitchen stock. Never reuse a quantity already committed to another saved meal; combine those needs or return review.
 
-`suggestions.json` is a normal initial response; `refinement.json` shows a faster revision with servings and restriction context retained. `clarification.json` shows the alternate success shape for a blocking contradiction. `kind` is `recommendation`, with exactly one `recommendation` object, or `clarification`, with exactly one `question` and no recommendation/list changes. Both include `draftId` and optional `previousDraftId` so a reply can retain context. A clarification draft cannot be confirmed as a meal.
+`listPreview` uses add/increase/keep/review. Its `ingredientId` references a recipe ingredient or, for a grocery draft, an entry in `items`. Increase means only the compatible quantity shortfall; review preserves ambiguous variants. Excluding an ingredient affects this addition, not another person's existing request. Confirmation checks the current list revision atomically and records deltas for safe Undo. Changed preferences/restrictions must also be revalidated before confirmation. A 409 returns the fresh snapshot/preview without another AI call.
 
-A recommendation has 1–20 ingredients, 1–10 cooking steps, serving count 1–12, approximate preparation time 1–240 minutes, fit explanation, uncertainty text, and an interpreted request summary. Input messages are limited to 500 characters. Keep preference fields short and bounded. A refinement includes the prior recommendation and accumulated interpreted requirements as context; retain servings and restrictions unless the user clearly changes an allowed value. Do not silently overwrite saved household settings from a one-off meal message.
+Undo removes/restores only changes still matching the action's after-state and not bought. A complete meal-add Undo removes that action's saved plan; a partial Undo keeps the plan with a visible explanation. Do not remove unrelated plans or requests. Store completed Undo deltas so a retry cannot reverse them twice.
 
-The AI supplies recipe content or a focused clarification. FastAPI supplies IDs, `sourceMode`, list previews, and state changes. `sourceMode` is `live_ai` or `sample`. A fallback retains its sample label throughout review. Another idea sends a normal follow-up message with `previousDraftId`; no separate agent service is needed. Restoring a draft never calls the model. Do not generate on a blank page load.
+## Store runs and in-app alerts
 
-Do not ask the model for merchant prices. `costStatus` is `unverified`; a stated budget may influence ingredient suggestions but cannot establish an exact cost. Expose the interpreted servings, time target, and relevant restrictions in the answer. A message such as “make it for six” changes the proposed recipe quantities and preview before confirmation, not the shared household defaults.
+A trip has an ID, version, claimedBy, storeName, claimedAt, requestDeadlineAt, state, and request IDs. The server permits request windows of 5, 10, or 15 minutes. Use server timestamps, not a browser-only timer.
 
-Validate declared restrictions against returned ingredients. Obvious conflicts are rejected; unclear packaged ingredients get a specific label-check warning. This is not comprehensive allergen detection. If requirements genuinely conflict, return one clarification rather than silently dropping a restriction. For “I don’t know,” use the visible defaults and recommend something; lack of a cuisine preference is not a blocking ambiguity.
+At start, currently unbought/unassigned requests join the run. While the window is open, accepted new requests get that run ID. After the server deadline or run completion, new requests remain in the cart with no current run assignment and a Next run label. Do not reject or hide them. The shopper sees which requests arrived after start.
 
-`listPreview` is computed from the current list after validating the recipe:
+The snapshot derives the countdown/closed state at read time. Other open pages see a banner through polling. No background worker is required for the timer. Only the current shopper can release/finish; simultaneous starts yield one winner. Finishing records bought request IDs, releases ownership, and leaves unchecked requests for the next run. Native/background push is separate P1 work.
 
-- `add`: no compatible current request exists.
-- `increase`: same normalized name, supported unit, note, and request scope, but existing quantity is less than this meal requires. Add only the shortfall, not a second full quantity.
-- `keep`: the compatible request already meets this meal's requirement.
-- `review`: quantities or constraints are ambiguous. Keep distinct variants separate and show why; do not silently merge them. Confirmation may add a distinct clearly labeled row after it is shown in the preview.
+## Spending
 
-Only outstanding, unbought, unremoved requests are eligible for list matching. A purchased item in trip history is not proof of stock at home.
+Use integer cents. Pooled mode records the purchase/payer, with no debt. Split mode requires known participants, actual receipt total, and personal subtotals where personal bought requests exist. Shared remainder = total minus personal allocations. Allocate it deterministically across selected members; add each personal amount to that person's allocation. All allocations must sum to the receipt total; the payer can be outside the participants if buying on their behalf.
 
-Only compare identical supported units in P0: count, g, ml, can, pack. Do not invent conversions between a pack and grams. This build handles one current dinner, not aggregate demand across a week of meals. Excluding an ingredient leaves pre-existing requests unchanged. Manually marking Already have means exclude from this addition, not delete it from someone else's list.
+Unknown personal subtotals may be saved as `needs_review`, excluded from balances. Only `confirmed` split expenses create balance entries. Do not reuse the same completed run to accidentally post another receipt; an additional distinct receipt must be explicit. Replay protection is required. Tax/fees are included in the actual entered total, not silently estimated.
 
-## Concurrency, retry, and Undo
+Balances report who owes whom from confirmed allocations. Member-supplied HTTPS Venmo/PayPal profile links are optional. Display the recorded recipient and amount to copy; opening a provider link never records a completed payment. Do not invent addresses, auto-send money, or verify repayment without provider evidence/manual reconciliation. No bank or payment SDK is required.
 
-Confirmation checks `expectedListRevision` in one SQL transaction, applies the confirmed deltas, records the chosen meal and replay/Undo data, then increments `listRevision`. A transport retry cannot add the same batch twice. Disabling the button is useful but insufficient.
+## Pricing boundary
 
-A 409 `LIST_CHANGED` includes a fresh `workspace` and updated `listPreview`; highlight changes and let the user confirm again without another AI call. Never discard the user's exclusions. A 409 `TRIP_CLAIMED` includes the current trip; show the existing shopper, not a generic error. Preserve item input on failed writes.
+Return live_api/sample/unavailable status, checked time, store/location IDs, product/brand identifiers, package size/unit, package count, current price in cents/currency, missing products, and explicit fee uncertainty. Calculate package count with compatible quantities; unknown conversions require review. Zero must never stand in for an unknown price.
 
-Undo records created rows and before/after quantities/versions. Delete or restore only rows still matching this action's after-state and not bought. Retain rows changed by someone else and return a clear partial-Undo explanation. Do not undo subsequent edits or delete pre-existing requests. Keep the Undo entry accessible with the chosen meal after a toast disappears. A complete Undo clears that chosen meal; a partial Undo keeps it with a Partially undone status and lists retained changes. Record which deltas were reversed so another click cannot reverse them twice.
+A complete basket has all required products. Rank complete baskets by the comparable known subtotal, with the included/excluded fees stated; missing fees mean a final checkout total is unverified. Incomplete baskets remain visible but cannot win. An optional cheapest-per-item view must not conceal extra trips or different product constraints. ZIP-based retailer names alone cannot establish branch distance, prices, or stock.
 
-## Errors
+The fixture is a sample comparison of two selected cart items after meal confirmation, with listRevision=2; it is not the entire recipe basket. It demonstrates full package costs and excludes unknown fees; it is not a store quote. Verify the provider's authorized location/product/price access before implementing live results.
 
-Use `{error:{code,message,retryable,requestId}}`, with a fresh snapshot/preview where relevant. Use 400/422 for bad input, 409 for conflicts, 429 for provider capacity, and 503 for provider/backend unavailability. Do not return stack traces or raw provider errors to the UI.
+## Errors and first integration
 
-At 25 seconds, end the AI wait and return a recoverable timeout. The screen offers retry, direct list entry, and labeled sample ideas. Log only request ID, duration, outcome, and validation result; no raw prompt content. Image upload is outside P0; do not implement multipart handlers or image storage for this build.
+Use `{error:{code,message,retryable,requestId}}`. Validation errors use 400/422; conflict 409; provider capacity 429; unavailable/timeout 503. Return refreshed state for LIST_CHANGED, TRIP_CLAIMED, or stale item versions. Preserve user input. A twenty-five-second AI timeout offers retry, direct entry, or honestly labeled samples. Log request ID/duration/outcome, not secrets or raw prompts.
 
-## First contract check together
-
-A and B render the supplied JSON without calling the model. C returns the workspace fixture from the real route, then makes add/claim update shared state. D returns a real recommendation and then a contextual revision using the same endpoint. Also render the one-question clarification fixture. The team compares keys and failure states before implementing optional features. Frontend mocks and live responses must keep the same shape.
+Frontend owners render the supplied fixtures first. Xavier returns the snapshot shape and real item/run state; Ethan returns the AI draft shape and pricing status. Before more features, prove meal/grocery confirmation and a store-run banner across two browsers. Confirm exact-cent fixtures and run cutoff rules before exposing balances or countdown commitments.
