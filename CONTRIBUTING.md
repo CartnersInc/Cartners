@@ -2,7 +2,7 @@ Start with [the team workspace](docs/TEAM.md) for named owners, existing branche
 
 # Working together
 
-Clone this repository, create a short feature branch, and open a pull request for each small completed change. Include what changed, a screenshot for UI changes, and the checks you ran. Avoid editing the same files at the same time; agree on the four roles and 18-hour checkpoints in docs/PRD.md. Freeze docs/API_CONTRACT.md and its fixtures before splitting frontend, backend, and AI work.
+Clone this repository, use your existing work branch from the team guide, and open a pull request for each small completed change. Include what changed, a screenshot for UI changes, and the checks you ran. Avoid editing the same files at the same time; use the assigned GitHub issues and PRD v2 build order. Agree on docs/API_CONTRACT.md v2 and its fixtures before splitting frontend, backend, and AI work. Reconcile any locally started v1 callers before changing endpoints.
 
 Run the static demo from the root with `python3 -m http.server 4173 --directory demo/dist`. It has no dependencies or build. Run `cd demo` then `npm test` for the model checks. Reload the browser after source edits.
 

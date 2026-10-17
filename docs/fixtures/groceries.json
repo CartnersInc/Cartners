@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "workspaceId": "demo-family",
+  "kind": "grocery_list",
+  "draftId": "draft-grocery-sample",
+  "previousDraftId": null,
+  "sourceMode": "sample",
+  "sampleNotice": "Curated contract fixture, not a live AI response.",
+  "inputSummary": {
+    "message": "Milk for Sam and paper plates for everyone",
+    "summary": "One personal oat-milk request and one shared supply request."
+  },
+  "listRevision": 1,
+  "items": [
+    {
+      "id": "g1",
+      "name": "Oat milk",
+      "quantity": 1,
+      "unit": "pack",
+      "note": "Unsweetened",
+      "requestFor": "sam"
+    },
+    {
+      "id": "g2",
+      "name": "Paper plates",
+      "quantity": 1,
+      "unit": "pack",
+      "note": "",
+      "requestFor": "household"
+    }
+  ],
+  "listPreview": [
+    {
+      "ingredientId": "g1",
+      "action": "keep",
+      "existingItemId": "item-milk",
+      "existingQuantity": 1,
+      "deltaQuantity": 0
+    },
+    {
+      "ingredientId": "g2",
+      "action": "add",
+      "deltaQuantity": 1
+    }
+  ]
+}
