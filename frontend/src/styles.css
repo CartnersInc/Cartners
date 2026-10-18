@@ -322,3 +322,63 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
   .idea-page-heading { align-items: start; flex-direction: column; gap: 3px; }
   .composer textarea { font-size: 1rem; }
 }
+
+/* First visit follows one decision at a time, in the existing garden palette. */
+.setup-page { min-height: 100dvh; padding: clamp(24px, 5vw, 72px); background: var(--bg, #faf9f2); color: #243e2b; }
+.setup-logo { display: inline-block; font-size: clamp(38px, 5vw, 64px); margin-bottom: 40px; }
+.setup-layout { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(40px, 7vw, 100px); align-items: start; }
+.setup-story { padding: 34px; background: #dce8cd; border-radius: 16px; }
+.setup-story > svg { width: 40px; height: 40px; margin-bottom: 26px; }
+.setup-story h1 { font-size: clamp(32px, 3.4vw, 48px); line-height: 1.12; letter-spacing: -.03em; text-wrap: balance; }
+.setup-story p, .setup-content > p { line-height: 1.6; max-width: 52ch; }
+.setup-example { margin-top: 48px; border-top: 1px solid #b4c8a5; padding-top: 24px; }
+.setup-example p { font-size: 23px; font-style: italic; }
+.setup-example span { color: #435a3a; font-size: 14px; }
+.setup-content { padding: 12px 0 40px; }
+.setup-content h2 { font-size: clamp(26px, 3vw, 36px); line-height: 1.2; margin: 12px 0 20px; letter-spacing: -.025em; }
+.setup-content form, .setup-content label { display: grid; gap: 10px; }
+.setup-content form { gap: 20px; }
+.setup-content input:not([type=radio]), .setup-content textarea { width: 100%; padding: 14px; border: 1px solid #a7b99a; border-radius: 9px; background: #fffef8; font: inherit; color: #243e2b; }
+.setup-content fieldset, .preferences-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.setup-content legend { margin-bottom: 12px; font-weight: 600; }
+.setup-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.setup-choices label { display: flex; align-items: center; padding: 12px 16px; background: #f0f2e7; border: 1px solid #bdcbb0; border-radius: 9px; cursor: pointer; }
+.setup-choices label:has(input:checked) { background: #dce8cd; border-color: #397b43; }
+.setup-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.setup-progress { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #52624a; }
+.setup-demo { display: block; margin: 20px 0; }
+.setup-content .button { min-height: 48px; width: fit-content; }
+.setup-content .muted { font-weight: 400; }
+.household-link { display: inline-flex; gap: 10px; align-items: center; }
+.demo-notice { margin-bottom: 22px; }
+.invite-code { display: block; width: 100%; min-height: 90px; margin: 16px 0; overflow-wrap: anywhere; font: inherit; padding: 12px; }
+.shopping-flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 32px; align-items: start; }
+.shopping-list > .rm-h2 { margin: 28px 0 14px; }
+.shopping-next { background: #e7eddc; border-radius: 14px; padding: 22px; display: grid; gap: 14px; }
+.shopping-next .rm-card { background: transparent; border: 0; padding: 0; }
+.shopping-flow + .rm-compare { margin-top: 32px; }
+.purchased-list { margin: 28px 0; }
+.purchased-list > summary, .household-spending > summary, .receipt-review > summary { padding: 16px 0; cursor: pointer; font-weight: 600; }
+.plan-another { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 26px 0; }
+.plan-another label { display: grid; gap: 8px; }
+.plan-another input { border: 1px solid #a7b99a; border-radius: 8px; padding: 12px; font: inherit; color: inherit; background: #fffef8; }
+.saved-meals { list-style: none; padding: 0; }
+.saved-meals > li { border-bottom: 1px solid #d4ddc9; padding: 20px 0 28px; }
+.empty-week { padding: 32px 0; max-width: 60ch; }
+.empty-week .button { margin-top: 16px; }
+.preferences-form fieldset { display: grid; gap: 16px; }
+.receipt-review > .rm-fieldset { margin-top: 10px; }
+@media (max-width: 760px) {
+  .setup-layout, .shopping-flow { grid-template-columns: 1fr; gap: 24px; }
+  .setup-story { padding: 22px; }
+  .setup-story > svg, .setup-example { display: none; }
+  .setup-story h1 { font-size: 28px; }
+  .setup-logo { margin-bottom: 24px; }
+  .setup-content { padding: 0; }
+  .setup-fields { gap: 12px; }
+  .shopping-next { padding: 20px; }
+  .topbar { flex-wrap: wrap; gap: 12px; }
+  .week-toolbar { flex-wrap: wrap; gap: 12px; }
+}
+.household-settings { max-width: 900px; }
+.household-settings .rm-main { display: grid; gap: 24px; }

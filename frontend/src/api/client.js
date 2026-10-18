@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
+export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch, getToken = () => null } = {}) {
   return {
     async request(path, { method = 'GET', body, formData, signal } = {}) {
       const controller = new AbortController();
@@ -19,7 +19,7 @@ export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
       try {
         const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}${path}`, {
           method, signal: controller.signal,
-          headers: { Accept: 'application/json', ...(formData || body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          headers: { Accept: 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}), ...(formData || body === undefined ? {} : { 'Content-Type': 'application/json' }) },
           ...(formData ? { body: formData } : body === undefined ? {} : { body: JSON.stringify(body) }),
         });
         let payload;

@@ -75,3 +75,15 @@ The fixture is a sample comparison of two selected cart items after meal confirm
 Use `{error:{code,message,retryable,requestId}}`. Validation errors use 400/422; conflict 409; provider capacity 429; unavailable/timeout 503. Return refreshed state for LIST_CHANGED, TRIP_CLAIMED, or stale item versions. Preserve user input. A twenty-five-second AI timeout offers retry, direct entry, or honestly labeled samples. Log request ID/duration/outcome, not secrets or raw prompts.
 
 Frontend owners render the supplied fixtures first. Xavier returns the snapshot shape and real item/run state; Ethan returns the AI draft shape and pricing status. Before more features, prove meal/grocery confirmation and a store-run banner across two browsers. Confirm exact-cent fixtures and run cutoff rules before exposing balances or countdown commitments.
+
+## First-use draft extension (ibrahiim/first-use-flow)
+
+New households no longer use seeded actors. `POST /api/households` accepts `name`, `householdName`, `kind` (family/roommates/friends/other), `servings`, `restrictions`, `likes`, `maxPrepMinutes`, and two client-generated cryptographically random 32-byte hex secrets: `sessionToken` and `inviteCode`. It creates an empty household and member, returning `{workspace, actorId}`. `POST /api/households/join` takes `name`, a new `sessionToken`, and an existing `inviteCode`, returning the same shape. Retrying with the same session token returns the same membership. Both secrets are stored as hashes on the server.
+
+For non-demo households, all workspace-scoped requests require `Authorization: Bearer <sessionToken>`. The token must belong to that workspace and any supplied actorId must match its member. Snapshots list only that household. Seeded demo-family/demo-roommates remain explicitly public sample workspaces. Browser storage retains the member token and invitation; this is device membership, not an email account. Recovery, revocation, and ownership roles are not implemented.
+
+`bought` again means actually purchased. New items start false; removed is separate. Matching and new trips exclude purchased items, and Undo preserves purchased items. The UI has no selected-for-checkout state. No existing database rows are rewritten: legacy demo rows whose bought flags previously meant selection remain ambiguous and need explicit review/reset, not an inferred migration.
+
+The active UI no longer imports sample checkout/payment proposals or generated prices. Store quotes apply only to the checked list revision. Expenses still require review and explicit confirmation; AI drafts do not save them.
+
+Deployment limitation: the checked-in free Render service uses SQLite on its local filesystem. Durable hosting/storage is required before promising that household memberships and records survive replacement/redeployment. This draft does not provision paid infrastructure.

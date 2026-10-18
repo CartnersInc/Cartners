@@ -12,8 +12,8 @@ def normalize_name(name: str) -> str:
 
 
 def active_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # "bought" means checked / in the cart for checkout UI — still active for matching.
-    return [item for item in items if not item.get("removed")]
+    # Purchased groceries are history, not proof of pantry stock.
+    return [item for item in items if not item.get("removed") and not item.get("bought")]
 
 
 def find_compatible(
@@ -175,8 +175,8 @@ def _new_cart_item(
         "note": source.get("note") or "",
         "requestFor": request_for,
         "addedBy": actor_id,
-        # New cart rows start checked (green); unchecking removes them in the UI.
-        "bought": True,
+        # Adding a request never records a purchase.
+        "bought": False,
         "version": 1,
         "createdAt": now,
         "removed": False,
