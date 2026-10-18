@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 Unit = Literal["count", "g", "ml", "can", "pack"]
 Kind = Literal["recommendation", "clarification"]
 
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 DEFAULT_TIMEOUT_SECONDS = 25.0
 MAX_MESSAGE_CHARS = 500
 # Gemini 429/503 are capacity spikes. Retry a few times inside the wait budget.
