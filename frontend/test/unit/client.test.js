@@ -17,7 +17,7 @@ test('writes preserve the caller action ID and structured conflicts', async () =
 });
 test('HTML fallback and connection failure never count as success', async () => {
   const htmlApi = createApi({ fetchImpl: async () => new Response('<html>Vite</html>') });
-  await assert.rejects(htmlApi.request('/api/workspace'), error => error.code === 'INVALID_RESPONSE');
+  await assert.rejects(htmlApi.request('/api/workspace'), error => error.code === 'INVALID_RESPONSE' && error.message.includes('backend to be deployed and connected'));
   const offline = createApi({ fetchImpl: async () => { throw new TypeError('offline'); } });
   await assert.rejects(offline.request('/api/workspace'), /Cannot reach/);
 });
