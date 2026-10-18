@@ -22,7 +22,6 @@ def find_compatible(
     unit: str,
     note: str,
     request_for: str,
-    match_note: bool = True,
 ) -> dict[str, Any] | None:
     target = normalize_name(name)
     note_n = (note or "").strip().lower()
@@ -34,7 +33,7 @@ def find_compatible(
             continue
         if item.get("unit") != unit:
             continue
-        if match_note and (item.get("note") or "").strip().lower() != note_n:
+        if (item.get("note") or "").strip().lower() != note_n:
             continue
         if item.get("requestFor") != request_for:
             continue
@@ -47,7 +46,6 @@ def find_combinable(
     *,
     name: str,
     unit: str,
-    note: str,
     request_for: str,
     open_run_id: str | None,
 ) -> dict[str, Any] | None:
@@ -100,7 +98,6 @@ def build_list_preview(
             unit=unit,
             note=row.get("note") or "",
             request_for=request_for,
-            match_note=not combine_reserved,
         )
         needed = float(row["quantity"])
         if existing is None and combine_reserved:
@@ -108,7 +105,6 @@ def build_list_preview(
                 cart_items,
                 name=row["name"],
                 unit=unit,
-                note=row.get("note") or "",
                 request_for=request_for,
                 open_run_id=open_run_id,
             )

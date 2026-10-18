@@ -134,3 +134,28 @@ def test_unknown_person_is_rejected(client: TestClient):
     ).json()
     response = client.post("/api/drafts/confirm", json={"workspaceId": "demo-family", "actorId": "leila", "requestId": str(uuid.uuid4()), "draftId": draft["draftId"], "expectedListRevision": draft["listRevision"], "target": "cart", "requestFor": "nobody"})
     assert response.status_code == 400
+
+
+def test_recipe_preview_uses_the_selected_shared_or_personal_scope(client: TestClient):
+    client.post(
+        "/api/items",
+        json={"workspaceId": "demo-family", "actorId": "leila", "requestId": str(uuid.uuid4()), "name": "Dragonfruit", "quantity": 2, "requestFor": "leila"},
+    ).raise_for_status()
+    draft = {
+        "draftId": "scope-preview",
+        "workspaceId": "demo-family",
+        "kind": "recommendation",
+        "recommendation": {
+            "title": "Dragonfruit bowl",
+            "servings": 1,
+            "ingredients": [{"id": "dragonfruit", "name": "Dragonfruit", "quantity": 1, "unit": "count", "note": ""}],
+            "steps": ["Slice."],
+        },
+    }
+    client.app.state.store.save_draft(draft)
+
+    personal = client.get("/api/suggestions/scope-preview", params={"workspaceId": "demo-family", "requestFor": "leila"}).json()
+    shared = client.get("/api/suggestions/scope-preview", params={"workspaceId": "demo-family", "requestFor": "household"}).json()
+
+    assert personal["recommendation"]["listPreview"][0]["action"] == "keep"
+    assert shared["recommendation"]["listPreview"][0]["action"] == "add"

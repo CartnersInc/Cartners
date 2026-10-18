@@ -283,25 +283,6 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
 .home-page .recipe-meta { flex-wrap: wrap; }
 .home-page .refinement-actions { display: flex; margin: 18px 0 5px; }
 
-.first-use-page { max-width: 820px; margin: 28px auto; }
-.first-use { background: var(--white); border: 1px solid var(--line); border-radius: 16px; padding: clamp(22px, 4vw, 42px); }
-.first-use h1 { margin: 0; font-size: 2.25rem; letter-spacing: -.03em; }
-.first-use > .intro { max-width: 58ch; margin: 10px 0 24px; color: var(--muted); }
-.first-use form { display: grid; gap: 20px; }
-.first-use-row { display: flex; flex-wrap: wrap; gap: 14px; }
-.first-use .date-control { display: grid; gap: 7px; color: var(--ink); font-size: .82rem; font-weight: 700; }
-.first-use .date-control input, .first-use .date-control select { min-height: 46px; min-width: 150px; border: 1px solid #b9c7ad; border-radius: 8px; background: var(--white); padding: 9px 12px; color: var(--ink); font: inherit; }
-.first-use-diets { border: 0; padding: 0; margin: 0; }
-.first-use-diets legend { margin-bottom: 8px; font-size: .82rem; font-weight: 750; }
-.first-use-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.first-use-chips label { position: relative; }
-.first-use-chips input { position: absolute; opacity: 0; inset: 0; }
-.first-use-chips span { display: flex; align-items: center; min-height: 42px; padding: 8px 13px; border: 1px solid #bdcbb2; border-radius: 22px; background: transparent; font-size: .8rem; font-weight: 700; cursor: pointer; }
-.first-use-chips input:checked + span { border-color: var(--dark); background: var(--dark); color: var(--white); }
-.first-use-chips input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 3px; }
-.first-use-likes { max-width: 520px; }
-.first-use-actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 16px; }
-@media (max-width: 700px) { .first-use-page { margin: 8px 0 24px; } .first-use { padding: 20px; } .first-use h1 { font-size: 1.8rem; } .first-use-row { display: grid; } .first-use .date-control input, .first-use .date-control select { width: 100%; } .first-use-actions .button { width: 100%; justify-content: center; } }
 .compact-cart { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 22px; }
 .cart-summary { color: var(--muted); font-size: .85rem; line-height: 1.8; }
 .compact-cart > details { margin-top: 6px; }

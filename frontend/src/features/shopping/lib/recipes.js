@@ -9,12 +9,19 @@ const ingredientsOf = plan => plan.recommendation?.ingredients || plan.plan?.ing
 export function recipeLookup(workspace) {
   const plans = workspace.plans || [];
   const byId = new Map(plans.map(plan => [plan.id, plan]));
-  const index = plans.map(plan => ({ plan, names: new Set(ingredientsOf(plan).map(ingredient => norm(ingredient.name))) }));
+  const index = plans.map(plan => ({
+    plan,
+    scope: plan.recommendation?.requestFor || 'household',
+    ingredients: ingredientsOf(plan).map(ingredient => ({ name: norm(ingredient.name), unit: ingredient.unit || 'count' })),
+  }));
   return item => {
+    if (!item.reservedPlanId) return [];
     const found = [];
     const add = plan => { if (plan && !found.includes(plan)) found.push(plan); };
     add(byId.get(item.reservedPlanId));
-    for (const { plan, names } of index) if (names.has(norm(item.name))) add(plan);
+    for (const { plan, scope, ingredients } of index) {
+      if (scope === (item.requestFor || 'household') && ingredients.some(ingredient => ingredient.name === norm(item.name) && ingredient.unit === (item.unit || 'count'))) add(plan);
+    }
     return found;
   };
 }

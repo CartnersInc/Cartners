@@ -6,7 +6,6 @@ import { readFile } from 'node:fs/promises';
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
 async function serve(page, handlers) {
-  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
   const calls = [];
@@ -263,12 +262,12 @@ test('cart rows name the saved recipes each request is for', async ({ page }) =>
   const workspace = {
     ...base, serverNow: new Date().toISOString(), trip: null,
     plans: [
-      { id: 'plan-tacos', date: '2026-10-18', title: 'Black bean tacos', recommendation: { ingredients: [{ name: 'Lime' }, { name: 'Black beans' }] } },
-      { id: 'plan-pad-thai', date: '2026-10-19', title: 'Pad Thai', recommendation: { ingredients: [{ name: 'lime' }, { name: 'Rice noodles' }] } },
+      { id: 'plan-tacos', date: '2026-10-18', title: 'Black bean tacos', recommendation: { requestFor: 'household', ingredients: [{ name: 'Lime', unit: 'count' }, { name: 'Black beans', unit: 'can' }] } },
+      { id: 'plan-pad-thai', date: '2026-10-19', title: 'Pad Thai', recommendation: { requestFor: 'household', ingredients: [{ name: 'lime', unit: 'count' }, { name: 'Rice noodles', unit: 'pack' }] } },
     ],
     items: [
       item('i-beans', 'Black beans', { reservedPlanId: 'plan-tacos' }),
-      item('i-lime', 'Lime'),
+      item('i-lime', 'Lime', { reservedPlanId: 'plan-tacos' }),
       item('i-milk', 'Oat milk'),
     ],
   };
