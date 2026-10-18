@@ -1,15 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
-import { fallbackRecipes, loadRandomRecipes } from '../../api/discovery.js';
 import { sampleDrafts, starterPrompts } from '../../samples.js';
-
-function featuredItem(value) {
-  if (!value || typeof value.id !== 'string' || typeof value.title !== 'string' || !value.title.trim()
-    || typeof value.thumbnailUrl !== 'string' || typeof value.sourceUrl !== 'string') return false;
-  try { return new URL(value.thumbnailUrl).protocol === 'https:' && new URL(value.sourceUrl).protocol === 'https:'; }
-  catch { return false; }
-}
+import { activeTrip, liveItems } from '../shopping/lib/trip.js';
+import RecipeCarousel from './RecipeCarousel.jsx';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
@@ -21,68 +15,14 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
-  const photoRef = useRef(null);
-  const [photoName, setPhotoName] = useState('');
   const busy = useRef(false);
-  const [featuredItems, setFeaturedItems] = useState(fallbackRecipes);
-  const [featuredStatus, setFeaturedStatus] = useState('loading');
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-  const [featuredPaused, setFeaturedPaused] = useState(() => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
-  const [featuredInteracting, setFeaturedInteracting] = useState(false);
-  const [featuredImageFailed, setFeaturedImageFailed] = useState(false);
-  const [featuredRetry, setFeaturedRetry] = useState(0);
   const draft = entry?.draft;
   const meal = draft?.recommendation;
-  const featured = featuredItems[featuredIndex];
   const rows = meal?.ingredients || draft?.items || [];
   const previews = meal?.listPreview || draft?.listPreview || [];
   const recoveringSave = !!attempt.current;
   const locked = !!pending || recoveringSave;
   const staleDraft = draft && !entry.localOnly && !recoveringSave && draft.listRevision !== workspace.listRevision;
-
-  useEffect(() => {
-    if (!active || draft) return;
-    const controller = new AbortController();
-    setFeaturedStatus('loading');
-    loadRandomRecipes({ signal: controller.signal })
-      .then(items => {
-        const validItems = items.filter(featuredItem).slice(0, 8);
-        if (!validItems.length) throw new Error('No recipe picks came back.');
-        setFeaturedItems(validItems);
-        setFeaturedIndex(0);
-        setFeaturedImageFailed(false);
-        setFeaturedStatus('ready');
-      })
-      .catch(() => { if (!controller.signal.aborted) setFeaturedStatus('fallback'); });
-    return () => controller.abort();
-  }, [active, draft, featuredRetry]);
-
-  useEffect(() => {
-    if (!active || !featured || featuredPaused || featuredInteracting || featuredItems.length < 2) return;
-    const timer = setInterval(() => {
-      setFeaturedIndex(index => (index + 1) % featuredItems.length);
-      setFeaturedImageFailed(false);
-    }, 12000);
-    return () => clearInterval(timer);
-  }, [active, featured, featuredIndex, featuredInteracting, featuredItems.length, featuredPaused]);
-
-  useEffect(() => {
-    if (!featured || featuredItems.length < 2) return;
-    const next = featuredItems[(featuredIndex + 1) % featuredItems.length];
-    const image = new Image();
-    image.src = next.thumbnailUrl;
-  }, [featured, featuredIndex, featuredItems]);
-
-  function moveFeatured(direction) {
-    setFeaturedIndex(index => (index + direction + featuredItems.length) % featuredItems.length);
-    setFeaturedImageFailed(false);
-  }
-
-  function planFeatured() {
-    const prompt = featured?.prompt || `Help us make ${featured?.title || 'this recipe'} for our group, using our saved preferences.`;
-    setMessage(prompt);
-    requestSuggestion(prompt);
-  }
 
   function showDraft(nextDraft, localOnly, aiPreviewOnly = false) {
     onEntryChange({ draft: nextDraft, localOnly, aiPreviewOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
@@ -94,62 +34,24 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     // shortcut: fixtures preview one fictional family; never reinterpret them as another group's preferences.
     showDraft(sample, true);
   }
-  function choosePhoto(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Choose a JPEG, PNG, or WebP photo.'); return; }
-    if (file.size > 5 * 1024 * 1024) { setError('Use a photo under 5 MB.'); return; }
-    photoRef.current = file;
-    setPhotoName(file.name);
-    setError('');
-  }
-  function clearPhoto() {
-    photoRef.current = null;
-    setPhotoName('');
-  }
   async function requestSuggestion(text) {
     if (busy.current || recoveringSave || !text.trim()) return;
     setMessage(text);
     if (!planDate || Number.isNaN(new Date(`${planDate}T12:00:00`).getTime())) { setError('Choose a meal date before asking for an idea.'); return; }
-    const photo = photoRef.current;
     busy.current = true; setPending('suggestion'); setError('');
-    const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}), ...(photo ? { photo: `${photo.name}:${photo.size}:${photo.lastModified}` } : {}) };
+    const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}) };
     const key = JSON.stringify(input);
     const previewOnly = !connected;
     if (suggestionAttempt.current?.key !== key) suggestionAttempt.current = { key, body: { ...input, requestId: crypto.randomUUID() } };
     try {
-      let next;
-      if (photo) {
-        const formData = new FormData();
-        const fields = suggestionAttempt.current.body;
-        formData.set('workspaceId', fields.workspaceId);
-        formData.set('actorId', fields.actorId);
-        formData.set('requestId', fields.requestId);
-        formData.set('message', fields.message);
-        formData.set('planDate', fields.planDate);
-        if (connected) {
-          if (fields.previousDraftId && !entry?.aiPreviewOnly) formData.set('previousDraftId', fields.previousDraftId);
-          formData.set('image', photo);
-          next = await api.request('/api/suggestions', { method: 'POST', formData });
-        } else {
-          formData.set('listRevision', String(workspace.listRevision));
-          formData.set('preferences', JSON.stringify(workspace.preferences));
-          if (draft && !entry.localOnly) formData.set('previousDraft', JSON.stringify(draft));
-          formData.set('image', photo);
-          next = await api.request('/api/ai/suggestions', { method: 'POST', formData });
-        }
-      } else {
-        const body = previewOnly ? {
-          ...suggestionAttempt.current.body,
-          listRevision: workspace.listRevision,
-          preferences: workspace.preferences,
-          ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
-        } : suggestionAttempt.current.body;
-        next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
-      }
+      const body = previewOnly ? {
+        ...suggestionAttempt.current.body,
+        listRevision: workspace.listRevision,
+        preferences: workspace.preferences,
+        ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
+      } : suggestionAttempt.current.body;
+      const next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
       if (!isDraft(next, workspace.workspaceId)) throw new Error('The backend returned an unsupported draft. Your previous idea is still here.');
-      clearPhoto();
       showDraft(next, false, previewOnly); suggestionAttempt.current = null;
     } catch (err) { setError(err.message); }
     finally { busy.current = false; setPending(''); }
@@ -166,8 +68,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       const result = await api.request('/api/drafts/confirm', { method: 'POST', body: attempt.current });
       if (!result.workspace || !result.actionId) throw new Error('The save response was incomplete. Retry to check the same action.');
       onWorkspaceChange(result.workspace);
-      onEntryChange({ ...entry, confirmAttempt: null, saved: { actionId: result.actionId, message: typeof result.changeSummary === 'string' ? result.changeSummary : 'Saved to your cart.' } });
-      notify('Saved to your cart.'); attempt.current = null;
+      onEntryChange({ ...entry, confirmAttempt: null, saved: { actionId: result.actionId, actorId, message: typeof result.changeSummary === 'string' ? result.changeSummary : 'Saved to your cart.' } });
+      notify('Saved to your cart.'); attempt.current = null; navigate('shopping');
     } catch (err) {
       if (err.status === 409) {
         attempt.current = null;
@@ -204,6 +106,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   }
 
   const cartChanges = rows.filter(item => !excluded.includes(item.id) && previews.find(row => row.ingredientId === item.id)?.action !== 'keep');
+  const neededItems = liveItems(workspace).filter(item => !item.bought);
+  const trip = activeTrip(workspace);
+  const shopper = trip && workspace.actors.find(person => person.id === trip.claimedBy);
   const cartSummary = cartChanges.map(item => {
     const preview = previews.find(row => row.ingredientId === item.id);
     const amount = preview?.deltaQuantity ?? item.quantity;
@@ -220,19 +125,15 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     </div>
   </details>;
   const composer = <form className={`composer ${draft ? 'followup-composer' : ''}`} onSubmit={event => { event.preventDefault(); requestSuggestion(message); }} aria-busy={pending === 'suggestion'}>
-    <label className="sr-only" htmlFor="meal-request">{draft ? 'Change this idea' : 'What do you want to eat today?'}</label>
+    <label className="sr-only" htmlFor="meal-request">{draft ? 'Change this idea' : 'What do you want to cook or buy?'}</label>
     <textarea id="meal-request" value={message} maxLength={500} rows={2}
       onChange={e => setMessage(e.target.value)} disabled={locked}
       onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); requestSuggestion(message); } }}
-      placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'Pasta tonight? Something quick? Groceries for the weekend?'} />
+      placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'A craving, ingredient, or grocery request…'} />
     <div className="composer-bottom">
-      <label className="text-button photo-picker">{photoName ? 'Change photo' : 'Add a photo'}
-        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={locked} />
-      </label>
-      {photoName && <span className="small muted photo-name">{photoName}<button type="button" className="text-button" onClick={clearPhoto} disabled={locked}>Remove</button></span>}
-      <span className="small muted">{draft ? 'Tell us what to change.' : 'Or pick an idea below. A photo needs a short note, like “healthier version of this.”'}</span>
+      <span className="small muted">{draft ? 'Tell us what to change.' : 'We’ll check the shared list before anything is added.'}</span>
       <button className="button primary" disabled={!message.trim() || locked}>
-        {pending === 'suggestion' ? 'Thinking…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
+        {pending === 'suggestion' ? 'Working…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
       </button>
     </div>
   </form>;
@@ -242,35 +143,22 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   </div>;
 
   return <div className="home-page">
-    {!draft ? <div className="discovery">
-      <div className="discovery-main">
-        <h1>What do you want<br className="desktop-break" /> to eat today?</h1>
-        <p className="intro">Tell us what sounds good. We’ll help with the meal and the grocery list.</p>
+    {!draft ? <div className="discovery discovery-focused">
+      <div className="home-request">
+        <h1>What are we eating?</h1>
+        <p className="intro">Tell us a craving or what you need. Cartners suggests dinner or builds a grocery list, then checks what’s already requested.</p>
         {composer}{starters}{options}
       </div>
-      <section className="featured-recipes" aria-label="Featured recipes" aria-roledescription="carousel"
-        onMouseEnter={() => setFeaturedInteracting(true)} onMouseLeave={() => setFeaturedInteracting(false)}
-        onFocusCapture={() => setFeaturedInteracting(true)}
-        onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFeaturedInteracting(false); }}>
-        <div className="featured-heading"><div><span className="eyebrow">A little inspiration</span><h2>Something new to try</h2></div><span>{featuredIndex + 1} of {featuredItems.length}</span></div>
-        {featured ? <article key={featured.id} className="featured-slide" aria-roledescription="slide" aria-label={(featuredIndex + 1) + ' of ' + featuredItems.length + ': ' + featured.title}>
-          <div className="featured-media">{!featuredImageFailed ? <img src={featured.thumbnailUrl} alt={'Recipe for ' + featured.title} loading="eager" referrerPolicy="no-referrer" onError={() => setFeaturedImageFailed(true)} /> : <div className="featured-image-fallback"><Icon name="leaf" /><span>{featured.title}</span></div>}<span className="featured-badge">{featured.sourceType === 'article' ? 'Recipe find' : 'Video find'}</span></div>
-          <div className="featured-copy"><p className="featured-source">{[featured.cuisine, featured.sourceName].filter(Boolean).join(' · ') || 'A recipe to discover'}</p><h3>{featured.title}</h3>
-            <div className="featured-actions"><button className="button primary" disabled={!!pending} onClick={planFeatured}>Make this tonight<Icon name="arrow" /></button>
-              <a className="featured-link" href={featured.sourceUrl} target="_blank" rel="noopener noreferrer">{featured.sourceType === 'article' ? 'Open recipe' : 'Watch video'}<Icon name="arrow" /></a>
-            </div>
-          </div>
-        </article> : <div className="featured-empty" aria-live="polite" aria-busy={featuredStatus === 'loading'}>
-          <h3>Finding a fresh idea…</h3><p>Recipes and cooking videos from around the table.</p>
-        </div>}
-        {featuredItems.length > 1 && <div className="featured-controls">
-          <button className="text-button" onClick={() => moveFeatured(-1)} aria-label="Previous recipe">Previous</button>
-          <button className="text-button" onClick={() => setFeaturedPaused(value => !value)} aria-pressed={featuredPaused}>{featuredPaused ? 'Play slideshow' : 'Pause slideshow'}</button>
-          <button className="text-button" onClick={() => moveFeatured(1)} aria-label="Next recipe">Next</button>
-        </div>}
-        <div className="featured-refresh"><span>{featuredStatus === 'loading' ? 'Finding fresh picks…' : featuredStatus === 'fallback' ? 'Showing saved picks while discovery reconnects.' : 'Recipe data by TheMealDB'}</span><button className="text-button" disabled={featuredStatus === 'loading'} onClick={() => setFeaturedRetry(value => value + 1)}>Surprise us<Icon name="arrow" /></button></div>
-      </section>
+      <aside className="home-list" aria-labelledby="home-list-title">
+        <div className="home-list-heading"><div><h2 id="home-list-title">Already on your list</h2><p>{neededItems.length ? `${neededItems.length} ${neededItems.length === 1 ? 'thing' : 'things'} to pick up` : 'Nothing to pick up yet'}</p></div><Icon name="shopping" /></div>
+        {neededItems.length ? <ul>{neededItems.slice(0, 4).map(item => <li key={item.id}><span>{item.name}</span><small>{item.quantity} {item.unit}</small></li>)}</ul> : <p className="home-list-empty">Your list will appear here. Cartners checks it before adding new ingredients.</p>}
+        {neededItems.length > 4 && <p className="home-list-more">and {neededItems.length - 4} more</p>}
+        <p className="home-run-status">{trip ? <><strong>{shopper?.name || 'Someone'} is at {trip.storeName}.</strong> New requests {trip.requestDeadlineAt && Date.parse(trip.requestDeadlineAt) > Date.now() ? 'can still join this run.' : 'will wait for the next run.'}</> : 'No one is shopping right now.'}</p>
+        <button className="text-button" onClick={() => navigate('shopping')}>Open shared list<Icon name="arrow" /></button>
+      </aside>
     </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}</div>}
+
+    {!draft && <RecipeCarousel active={active} pending={!!pending} onTry={requestSuggestion} />}
 
     {error && <div className="notice error" role="alert"><p>{error}</p>{!recoveringSave && !saved && !undoAttempt.current && <button className="text-button" onClick={() => showSample('meal')}>Explore a sample meal<Icon name="arrow" /></button>}</div>}
     {entry?.undoMessage && <p className="notice" role="status">{entry.undoMessage}</p>}

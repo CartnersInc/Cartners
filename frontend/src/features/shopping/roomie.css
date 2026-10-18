@@ -127,6 +127,10 @@
 
 /* Spending */
 .rm-form { display: grid; gap: 4px; }
+.receipt-ai { display: grid; gap: 8px; margin-bottom: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--pale); }
+.receipt-ai > label { font-size: .8rem; font-weight: 750; }
+.receipt-ai textarea { width: 100%; min-height: 68px; resize: vertical; border: 1px solid #b9c7ae; border-radius: 8px; background: var(--white); padding: 10px 12px; font-size: .85rem; }
+.receipt-ai .rm-actions { justify-content: flex-start; margin: 0; }
 .rm-form .rm-field { margin-top: 12px; }
 .rm-exception { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .rm-exception-who { flex: 1 1 100%; font-size: .85rem; }
