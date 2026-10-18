@@ -72,6 +72,7 @@ function TabPage({ title, children }) {
 function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
   const [promptRunId] = useState(pendingPurchasePrompt);
   const [recording, setRecording] = useState(promptRunId != null);
+  const [editingId, setEditingId] = useState(null);
   const { name } = people(workspace, actorId);
   const mode = spendingModeOf(workspace);
   const expenses = workspace.expenses || [];
@@ -80,7 +81,9 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
   const paidBy = {};
   for (const expense of expenses) if (expense.status !== 'needs_review') paidBy[expense.payerId] = (paidBy[expense.payerId] || 0) + expense.totalCents;
   const reviewCount = expenses.filter(expense => expense.status === 'needs_review').length;
+  const editing = expenses.find(expense => expense.id === editingId && expense.status === 'needs_review') || null;
   const showSample = !connected && expenses.length === 0;
+  const closeForm = () => { clearPurchasePrompt(); setRecording(false); setEditingId(null); };
 
   return (
     <div className="rm-page">
@@ -95,13 +98,13 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
 
       <div className="rm-columns">
         <div className="rm-main">
-          {recording
-            ? <ReceiptForm key={`${workspace.workspaceId}-${actorId}-${promptRunId || 'new'}`} workspace={workspace} actorId={actorId} api={api} onWorkspaceChange={onWorkspaceChange} connected={connected} notify={notify} mode={mode} initialRunId={promptRunId} onDone={() => { clearPurchasePrompt(); setRecording(false); }} />
+          {recording || editing
+            ? <ReceiptForm key={editing ? editing.id : `${workspace.workspaceId}-${actorId}-${promptRunId || 'new'}`} workspace={workspace} actorId={actorId} api={api} onWorkspaceChange={onWorkspaceChange} connected={connected} notify={notify} mode={mode} initialRunId={promptRunId} expense={editing} onDone={closeForm} />
             : <div className="rm-actions"><button type="button" className="rm-btn" disabled={!connected} onClick={() => setRecording(true)}>Record a purchase</button>{!connected && <span className="rm-help">Needs the backend.</span>}</div>}
 
           <h2 className="rm-h2 rm-section">Receipts</h2>
           {expenses.length === 0 && !showSample && <p className="rm-empty">No receipts yet. Record one after a store run; it's optional.</p>}
-          {[...expenses].reverse().map(expense => <ExpenseCard key={expense.id} expense={expense} name={name} run={runs.find(run => run.id === expense.runId)} />)}
+          {[...expenses].reverse().map(expense => <ExpenseCard key={expense.id} expense={expense} name={name} run={runs.find(run => run.id === expense.runId)} onResolve={expense.status === 'needs_review' && connected ? () => { setRecording(false); setEditingId(expense.id); } : null} />)}
 
           {showSample && (
             <section className="rm-sample" aria-labelledby="rm-sample-title">

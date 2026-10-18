@@ -144,6 +144,44 @@ test('AI fills a receipt draft, but the user must review and save it', async ({ 
   expect(calls.find(call => call.path === '/api/expenses').body).toMatchObject({ totalCents: 4218, payerId: 'leila', mode: 'split', personalAllocations: { sam: 800 } });
 });
 
+test('a needs-review receipt can be filled in and confirmed', async ({ page }) => {
+  const review = {
+    id: 'e-review', runId: null, totalCents: 2000, currency: 'USD', payerId: 'leila', mode: 'split',
+    sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: null }, allocations: {},
+    status: 'needs_review', createdAt: '2026-10-18T08:00:00Z',
+  };
+  const calls = await serve(page, ({ path, method, body, workspace, set }) => {
+    if (path === '/api/preferences') {
+      const next = { ...workspace, preferences: { ...workspace.preferences, spendingMode: 'split' }, expenses: [review] };
+      set(next);
+      return { json: { workspace: next, actionId: 'p1', changeSummary: 'Spending is now split.' } };
+    }
+    if (method === 'PATCH' && path === '/api/expenses/e-review') {
+      const next = {
+        ...workspace,
+        expenses: [{ ...review, personalAllocations: body.personalAllocations, status: 'confirmed', allocations: { leila: 700, sam: 1300 } }],
+        balances: [{ from: 'sam', to: 'leila', cents: 1300 }],
+      };
+      set(next);
+      return { json: { workspace: next, actionId: 'e-review', changeSummary: 'Receipt confirmed. Balances now include it.', expenseId: 'e-review' } };
+    }
+    return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
+  });
+
+  await page.goto('/#groups');
+  await page.getByRole('radio', { name: 'Split' }).check();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.goto('/#spending');
+  await page.getByRole('button', { name: 'Fill in the missing amount' }).click();
+  await expect(page.getByRole('heading', { name: 'Resolve this receipt' })).toBeVisible();
+  await page.getByRole('checkbox', { name: /Don.t know/ }).uncheck();
+  await page.getByLabel('Sam personal subtotal').fill('6');
+  await page.getByRole('button', { name: /Confirm \$20\.00 receipt/ }).click();
+  await expect(page.getByText('Sam owes you')).toBeVisible();
+  const update = calls.find(call => call.method === 'PATCH' && call.path === '/api/expenses/e-review');
+  expect(update.body).toMatchObject({ totalCents: 2000, payerId: 'leila', personalAllocations: { sam: 600 }, status: 'confirmed' });
+});
+
 test('price comparison includes the selected actor and request ID', async ({ page }) => {
   const pricing = await fixture('pricing');
   const calls = await serve(page, ({ path }) => path === '/api/baskets/compare'

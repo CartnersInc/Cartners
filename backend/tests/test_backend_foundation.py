@@ -388,6 +388,69 @@ def test_expense_endpoint_split(client: TestClient):
     assert result["workspace"]["balances"] == [{"from": "sam", "to": "leila", "cents": 1300}]
 
 
+def test_needs_review_receipt_can_be_resolved(client: TestClient):
+    created = client.post(
+        "/api/expenses",
+        json={
+            "workspaceId": "demo-roommates",
+            "actorId": "leila",
+            "requestId": rid(),
+            "totalCents": 2000,
+            "payerId": "leila",
+            "mode": "split",
+            "sharedMemberIds": ["leila", "sam"],
+            "personalAllocations": {"sam": None},
+            "status": "needs_review",
+        },
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    expense_id = payload["expenseId"]
+    saved = next(item for item in payload["workspace"]["expenses"] if item["id"] == expense_id)
+    assert saved["status"] == "needs_review"
+    assert saved["personalAllocations"]["sam"] is None
+    assert payload["workspace"]["balances"] == []
+
+    resolved = client.patch(
+        f"/api/expenses/{expense_id}",
+        json={
+            "workspaceId": "demo-roommates",
+            "actorId": "leila",
+            "requestId": rid(),
+            "totalCents": 2000,
+            "payerId": "leila",
+            "mode": "split",
+            "sharedMemberIds": ["leila", "sam"],
+            "personalAllocations": {"sam": 600},
+            "status": "confirmed",
+        },
+    )
+    assert resolved.status_code == 200
+    body = resolved.json()
+    assert body["changeSummary"] == "Receipt confirmed. Balances now include it."
+    assert body["workspace"]["balances"] == [{"from": "sam", "to": "leila", "cents": 1300}]
+    updated = next(item for item in body["workspace"]["expenses"] if item["id"] == expense_id)
+    assert updated["status"] == "confirmed"
+    assert updated["allocations"]["sam"] == 1300
+
+    blocked = client.patch(
+        f"/api/expenses/{expense_id}",
+        json={
+            "workspaceId": "demo-roommates",
+            "actorId": "leila",
+            "requestId": rid(),
+            "totalCents": 2000,
+            "payerId": "leila",
+            "mode": "split",
+            "sharedMemberIds": ["leila", "sam"],
+            "personalAllocations": {"sam": 600},
+            "status": "confirmed",
+        },
+    )
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["code"] == "EXPENSE_CONFIRMED"
+
+
 def test_ingredients_catalog_shape(client: TestClient):
     payload = client.get("/api/ingredients").json()
     assert payload["ingredients"]

@@ -375,6 +375,10 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     def create_expense(body: ExpenseRequest, request: Request) -> dict[str, Any]:
         return store_of(request).create_expense(body.model_dump())
 
+    @application.patch("/api/expenses/{expenseId}")
+    def update_expense(expenseId: str, body: ExpenseRequest, request: Request) -> dict[str, Any]:
+        return store_of(request).update_expense(expenseId, body.model_dump())
+
     @application.post("/api/ai/expense-draft")
     async def ai_expense_draft(body: ExpenseDraftRequest, request: Request) -> dict[str, Any]:
         store = store_of(request)

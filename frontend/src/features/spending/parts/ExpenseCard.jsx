@@ -1,7 +1,7 @@
 import { formatCents, whenOf } from '../../shopping/lib/format.js';
 
 // One purchase exactly as the server returned it. Allocations are displayed, never recalculated.
-export default function ExpenseCard({ expense, name, run, sample }) {
+export default function ExpenseCard({ expense, name, run, sample, onResolve }) {
   const needsReview = expense.status === 'needs_review';
   const pooled = expense.mode === 'pooled';
   const currency = expense.currency || 'USD';
@@ -20,7 +20,12 @@ export default function ExpenseCard({ expense, name, run, sample }) {
         </div>
       </header>
       {pooled && <p className="rm-help">Pooled group spending. Nobody owes anyone for this receipt.</p>}
-      {needsReview && <p className="rm-notice"><strong>Needs review.</strong> A personal amount is missing, so this receipt doesn't affect balances.</p>}
+      {needsReview && (
+        <p className="rm-notice">
+          <span><strong>Needs review.</strong> A personal amount is missing, so this receipt doesn't affect balances.</span>
+          {onResolve && <button type="button" className="rm-btn rm-small" onClick={onResolve}>Fill in the missing amount</button>}
+        </p>
+      )}
       {!pooled && expense.sharedMemberIds?.length > 0 && <p className="rm-help">Shared by {expense.sharedMemberIds.map(name).join(', ')}{personal.length ? `; personal: ${personal.map(([id, cents]) => `${name(id)} ${Number.isInteger(cents) ? formatCents(cents, currency) : 'unknown'}`).join(', ')}` : ''}.</p>}
       {!pooled && !needsReview && allocations.length > 0 && (
         <table className="rm-alloc">
