@@ -59,6 +59,8 @@ def build_suggestion(
     preferences: dict[str, Any],
     previous_draft: dict[str, Any] | None,
     previous_draft_id: str | None,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
 ) -> dict[str, Any]:
     day = (plan_date or date.today()).isoformat()
     previous_id = previous_draft_id or (previous_draft or {}).get("draftId")
@@ -73,7 +75,13 @@ def build_suggestion(
             likes=list(preferences.get("likes") or []),
             maxPrepMinutes=int(preferences.get("maxPrepMinutes") or 30),
         )
-        result = generate_suggestion(message, preferences=prefs, previous_draft=previous_draft)
+        result = generate_suggestion(
+            message,
+            preferences=prefs,
+            previous_draft=previous_draft,
+            image_bytes=image_bytes,
+            image_mime_type=image_mime_type,
+        )
         draft = {
             "draftId": f"draft-{uuid.uuid4().hex[:10]}",
             "previousDraftId": previous_id,

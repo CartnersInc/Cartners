@@ -28,6 +28,30 @@ def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:10]}"
 
 
+def _positive_dollars(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    amount = float(value)
+    if amount <= 0:
+        return None
+    return amount
+
+
+def _priced_kroger_option(options: list[dict[str, Any]]) -> tuple[dict[str, Any], float] | None:
+    """First in-stock option with a real price. A promo of 0 is not a price."""
+    for candidate in options:
+        if not isinstance(candidate, dict):
+            continue
+        if str(candidate.get("stockLevel") or "").upper() == "TEMPORARILY_OUT_OF_STOCK":
+            continue
+        price = _positive_dollars(candidate.get("promoPrice"))
+        if price is None:
+            price = _positive_dollars(candidate.get("regularPrice"))
+        if price is not None:
+            return candidate, price
+    return None
+
+
 class Store:
     def __init__(self, conn) -> None:
         self.conn = conn
@@ -1413,30 +1437,31 @@ class Store:
         store = live.get("store") or {}
         store_id = str(store.get("locationId") or "kroger")
         store_name = store.get("name") or "Kroger"
+        from app.services.kroger_prices import packages_needed
+
         by_ingredient = {row["ingredient"]: row for row in live.get("ingredients") or []}
         lines = []
         missing = []
         subtotal = 0
         for item in items:
             match = by_ingredient.get(item["name"]) or {}
-            options = match.get("options") or []
-            option = None
-            for candidate in options:
-                price = candidate.get("promoPrice")
-                if price is None:
-                    price = candidate.get("regularPrice")
-                if price is not None:
-                    option = candidate
-                    break
-            if not option:
+            chosen = _priced_kroger_option(match.get("options") or [])
+            if not chosen:
                 missing.append(item["id"])
                 continue
-            price_dollars = option.get("promoPrice")
-            if price_dollars is None:
-                price_dollars = option.get("regularPrice")
-            price_cents = int(round(float(price_dollars) * 100))
-            packages = 1
-            line = price_cents * packages
+            option, price_dollars = chosen
+            plan = packages_needed(float(item["quantity"]), item["unit"], option.get("size"), option.get("soldBy"))
+            price_cents = int(round(price_dollars * 100))
+            packages = int(plan["packages"])
+            if packages == 1:
+                price_per = int(round(price_cents * float(plan["priceMultiplier"])))
+                line = price_per
+            else:
+                price_per = price_cents
+                line = price_cents * packages
+            if line <= 0:
+                missing.append(item["id"])
+                continue
             subtotal += line
             lines.append(
                 {
@@ -1444,9 +1469,9 @@ class Store:
                     "productId": option.get("productId") or new_id("kroger"),
                     "productName": option.get("description") or item["name"],
                     "description": option.get("description") or "",
-                    "packageSize": {"quantity": 1, "unit": item["unit"]},
+                    "packageSize": plan["packageSize"],
                     "packagesNeeded": packages,
-                    "pricePerPackageCents": price_cents,
+                    "pricePerPackageCents": price_per,
                     "lineTotalCents": line,
                 }
             )

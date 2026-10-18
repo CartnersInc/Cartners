@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -210,6 +212,161 @@ def _options(product: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return options
+
+
+# Kroger `size` is a label such as "1 gal" or "10 ct", not a structured quantity.
+_SIZE_RE = re.compile(
+    r"(?P<num>\d+\s*/\s*\d+|\d+(?:\.\d+)?)\s*"
+    r"(?P<unit>fl\.?\s*oz|fluid\s+ounces?|gallons?|gal|quarts?|qt|pints?|pt|"
+    r"liters?|litres?|l|milliliters?|ml|pounds?|lbs?|ounces?|oz|kilograms?|kg|grams?|"
+    r"count|ct|pk|packs?|cans?)\b",
+    re.IGNORECASE,
+)
+_UNIT_BASE = {
+    "ml": ("volume", 1.0),
+    "l": ("volume", 1000.0),
+    "fl oz": ("volume", 29.5735),
+    "gal": ("volume", 3785.411784),
+    "qt": ("volume", 946.352946),
+    "pt": ("volume", 473.176473),
+    "g": ("weight", 1.0),
+    "kg": ("weight", 1000.0),
+    "oz": ("weight", 28.3495),
+    "lb": ("weight", 453.59237),
+    "ct": ("each", 1.0),
+    "can": ("each", 1.0),
+}
+_CART_BASE = {
+    "ml": ("volume", 1.0),
+    "g": ("weight", 1.0),
+    "count": ("each", 1.0),
+    "can": ("each", 1.0),
+    "pack": ("each", 1.0),
+}
+_CANONICAL_UNIT = {
+    "fl oz": "fl oz",
+    "fluid ounce": "fl oz",
+    "fluid ounces": "fl oz",
+    "gallon": "gal",
+    "gallons": "gal",
+    "gal": "gal",
+    "quart": "qt",
+    "quarts": "qt",
+    "qt": "qt",
+    "pint": "pt",
+    "pints": "pt",
+    "pt": "pt",
+    "liter": "l",
+    "liters": "l",
+    "litre": "l",
+    "litres": "l",
+    "l": "l",
+    "milliliter": "ml",
+    "milliliters": "ml",
+    "ml": "ml",
+    "pound": "lb",
+    "pounds": "lb",
+    "lb": "lb",
+    "lbs": "lb",
+    "ounce": "oz",
+    "ounces": "oz",
+    "oz": "oz",
+    "kilogram": "kg",
+    "kilograms": "kg",
+    "kg": "kg",
+    "gram": "g",
+    "grams": "g",
+    "g": "g",
+    "count": "ct",
+    "ct": "ct",
+    "pk": "ct",
+    "pack": "ct",
+    "packs": "ct",
+    "can": "can",
+    "cans": "can",
+}
+
+
+def _canonical_unit(raw: str) -> str | None:
+    text = re.sub(r"[.\s]+", " ", raw.lower()).strip()
+    return _CANONICAL_UNIT.get(text)
+
+
+def parse_package_size(size: str | None) -> dict[str, Any] | None:
+    """Turn a Kroger size label into a quantity, unit, and comparable base amount."""
+    if not isinstance(size, str) or not size.strip():
+        return None
+    text = size.strip().lower()
+    if text in {"half gallon", "half gal"}:
+        quantity, unit = 0.5, "gal"
+    else:
+        match = _SIZE_RE.search(text)
+        if not match:
+            return None
+        raw_num = re.sub(r"\s+", "", match.group("num"))
+        if "/" in raw_num:
+            left, right = raw_num.split("/", 1)
+            if float(right) == 0:
+                return None
+            quantity = float(left) / float(right)
+        else:
+            quantity = float(raw_num)
+        unit = _canonical_unit(match.group("unit"))
+        if unit is None or quantity <= 0:
+            return None
+    dimension, factor = _UNIT_BASE[unit]
+    return {"quantity": quantity, "unit": unit, "dimension": dimension, "base": quantity * factor}
+
+
+def packages_needed(
+    quantity: float,
+    unit: str,
+    size: str | None,
+    sold_by: str | None = None,
+) -> dict[str, Any]:
+    """How many priced packages cover one cart line.
+
+    Compatible units use the package size (6 tortillas against a 10 ct pack is
+    one pack). A count of items against a weight or volume label is one
+    sellable package per item. Weighed goods use the requested weight against
+    a per-pound price. Unknown sizes do not invent a conversion.
+    """
+    requested = float(quantity) if quantity and float(quantity) > 0 else 1.0
+    cart = _CART_BASE.get(unit)
+    parsed = parse_package_size(size)
+    sold = (sold_by or "").strip().upper()
+
+    if sold == "WEIGHT" and cart and cart[0] == "weight":
+        pounds = (requested * cart[1]) / _UNIT_BASE["lb"][1]
+        return {
+            "packages": 1,
+            "packageSize": {"quantity": round(requested, 2), "unit": unit},
+            "priceMultiplier": pounds,
+        }
+
+    if parsed and cart and parsed["dimension"] == cart[0] and parsed["base"] > 0:
+        packages = max(1, math.ceil((requested * cart[1]) / parsed["base"] - 1e-9))
+        return {
+            "packages": packages,
+            "packageSize": {"quantity": parsed["quantity"], "unit": parsed["unit"]},
+            "priceMultiplier": float(packages),
+        }
+
+    if cart and cart[0] == "each":
+        packages = max(1, math.ceil(requested - 1e-9))
+        package_size = (
+            {"quantity": parsed["quantity"], "unit": parsed["unit"]}
+            if parsed
+            else {"quantity": 1, "unit": unit}
+        )
+        return {"packages": packages, "packageSize": package_size, "priceMultiplier": float(packages)}
+
+    display = (
+        {"quantity": parsed["quantity"], "unit": parsed["unit"]}
+        if parsed
+        else {"quantity": 1, "unit": unit or "count"}
+    )
+    return {"packages": 1, "packageSize": display, "priceMultiplier": 1.0}
 
 
 def _store_summary(store: dict[str, Any]) -> dict[str, Any]:

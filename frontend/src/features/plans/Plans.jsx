@@ -4,7 +4,7 @@ import { localDate, weekDates, shiftWeek } from './dates.js';
 import EventPlan from './EventPlan.jsx';
 
 const list = text => [...new Set(text.split(',').map(value => value.trim()).filter(Boolean))];
-export default function Plans({ workspace, actorId, api, onWorkspaceChange, notify, connected, onPlanDateChange }) {
+export default function Plans({ workspace, actorId, api, onWorkspaceChange, notify, connected, onPlanDateChange, onUseDraft }) {
   const [anchor, setAnchor] = useState(localDate);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -39,7 +39,7 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, noti
     } catch (err) { setError(err.message); }
     finally { setPending(false); busy.current = false; }
   }
-  if (eventDraft) return <EventPlan workspace={workspace} api={api} initial={eventDraft} onBack={() => setEventDraft(null)} />;
+  if (eventDraft) return <EventPlan workspace={workspace} actorId={actorId} api={api} connected={connected} initial={eventDraft} onBack={() => setEventDraft(null)} onUseDraft={onUseDraft} />;
   return <div className="plans-page">
     <div className="page-heading"><div><h1>A place for dinner plans.</h1><p className="intro">Keep what’s decided. Leave room for the rest.</p></div><button className="button primary" onClick={() => planFor(localDate())}>Plan a meal<Icon name="arrow" /></button></div>
     <div className="plans-layout"><section aria-labelledby="week-heading"><div className="week-toolbar"><h2 id="week-heading">{format(dates[0], { month: 'short', day: 'numeric' })} – {format(dates[6], { month: 'short', day: 'numeric', year: 'numeric' })}</h2><div><button className="text-button" aria-label="Previous week" onClick={() => setAnchor(shiftWeek(anchor, -1))}>Earlier</button><button className="text-button" onClick={() => setAnchor(localDate())}>This week</button><button className="text-button" aria-label="Next week" onClick={() => setAnchor(shiftWeek(anchor, 1))}>Later</button></div></div><ul className="week-list">{dates.map(date => {

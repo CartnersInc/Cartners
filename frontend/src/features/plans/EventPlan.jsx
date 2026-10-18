@@ -3,7 +3,7 @@ import Icon from '../../components/Icon.jsx';
 
 const THEMES = ['Weeknight dinner', 'Movie night', 'Game night', 'Friends over', 'Birthday', 'Potluck', 'Brunch', 'Other'];
 
-export default function EventPlan({ workspace, api, initial, onBack }) {
+export default function EventPlan({ workspace, actorId, api, connected, initial, onBack, onUseDraft }) {
   const [form, setForm] = useState(initial);
   const [customTheme, setCustomTheme] = useState('');
   const [pending, setPending] = useState(false);
@@ -52,6 +52,29 @@ export default function EventPlan({ workspace, api, initial, onBack }) {
     }
   }
 
+  async function useMeal(option) {
+    if (!connected || pending) return;
+    setPending(true);
+    setError('');
+    try {
+      const draft = await api.request('/api/event-drafts', {
+        method: 'POST',
+        body: {
+          workspaceId: workspace.workspaceId,
+          actorId,
+          requestId: crypto.randomUUID(),
+          planDate: form.planDate,
+          eventName: form.name.trim(),
+          option,
+        },
+      });
+      onUseDraft(draft);
+    } catch (err) {
+      setError(err.message || 'This meal could not be saved.');
+      setPending(false);
+    }
+  }
+
   return <div className="event-page">
     <div className="page-heading">
       <div>
@@ -86,6 +109,7 @@ export default function EventPlan({ workspace, api, initial, onBack }) {
           <p className="small muted">About {option.prepMinutesApprox} min · {option.servings} servings</p>
           <p>{option.fitReason}</p>
           <p className="small">{option.ingredients.map(item => item.name).join(', ')}</p>
+          {connected && <button type="button" className="button" disabled={pending} onClick={() => useMeal(option)}>Use this meal</button>}
         </li>)}
       </ul>
     </section>}
