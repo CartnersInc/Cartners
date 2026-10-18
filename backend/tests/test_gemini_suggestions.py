@@ -131,6 +131,65 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(response.json()["sourceMode"], "live_ai")
         self.assertEqual(response.json()["recommendation"]["title"], "Bean tacos")
 
+    def test_event_suggestions_use_the_occasion_and_past_meals(self):
+        response_json = '''{
+            "kind":"event_suggestions",
+            "eventSummary":"Shareable food for a 6:30 movie night.",
+            "options":[
+                {"title":"Sheet-pan nachos","servings":4,"prepMinutesApprox":20,"fitReason":"Easy to share at 18:30.","ingredients":[{"name":"Tortilla chips","quantity":1,"unit":"pack"}],"steps":["Bake until the cheese melts."]},
+                {"title":"Veggie wraps","servings":4,"prepMinutesApprox":15,"fitReason":"Handheld for a movie.","ingredients":[{"name":"Tortillas","quantity":8,"unit":"count"}],"steps":["Fill and roll."]},
+                {"title":"Bean quesadillas","servings":4,"prepMinutesApprox":25,"fitReason":"Hot food that can sit out.","ingredients":[{"name":"Black beans","quantity":1,"unit":"can"}],"steps":["Cook until crisp."]}
+            ]
+        }'''
+        from app.services.gemini_suggestions import EventSuggestionOutput, suggest_for_event
+
+        parsed = EventSuggestionOutput.model_validate_json(response_json)
+        response = type("Response", (), {"text": response_json, "parsed": parsed})()
+        with patch("google.genai.Client") as client_class:
+            client_class.return_value.models.generate_content.return_value = response
+            result = suggest_for_event(
+                {"name": "Movie night at ours", "planDate": "2026-10-18", "time": "18:30", "theme": "Movie night"},
+                preferences={"servings": 4, "restrictions": ["vegetarian"], "likes": ["Mexican food"], "maxPrepMinutes": 30},
+                saved_suggestions=[{"title": "Loaded black bean nachos", "planDate": "2026-10-12"}],
+                api_key="test-key",
+            )
+        prompt = client_class.return_value.models.generate_content.call_args.kwargs["contents"][0]
+        self.assertIn("Movie night at ours", prompt)
+        self.assertIn("18:30", prompt)
+        self.assertIn("Loaded black bean nachos", prompt)
+        self.assertEqual(result["kind"], "event_suggestions")
+        self.assertEqual(len(result["options"]), 3)
+        self.assertEqual(result["event"]["guestCount"], 4)
+
+    def test_event_route_returns_three_unsaved_options(self):
+        ai_result = {
+            "kind": "event_suggestions",
+            "eventSummary": "Shareable food for movie night.",
+            "options": [{
+                "title": "Veggie wraps", "servings": 4, "prepMinutesApprox": 15,
+                "fitReason": "Handheld at 18:30.",
+                "ingredients": [{"name": "Tortillas", "quantity": 8, "unit": "count"}],
+                "steps": ["Fill and roll."],
+            }],
+            "sourceMode": "live_ai",
+            "planDate": "2026-10-18",
+            "event": {"name": "Movie night", "time": "18:30", "theme": "Movie night", "guestCount": 4},
+        }
+        with patch("app.main.suggest_for_event", return_value=ai_result):
+            response = TestClient(app).post(
+                "/api/ai/event-suggestions",
+                json={
+                    "workspaceId": "demo-family", "name": "Movie night", "planDate": "2026-10-18",
+                    "time": "18:30", "theme": "Movie night",
+                    "preferences": {"servings": 4, "restrictions": ["vegetarian"], "likes": [], "maxPrepMinutes": 30},
+                    "savedSuggestions": [{"title": "Bean tacos", "planDate": "2026-10-12"}],
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIn("Nothing is saved", body["sampleNotice"])
+        self.assertTrue(body["options"][0]["ingredients"][0]["id"].startswith("ingredient-"))
+
 
 if __name__ == "__main__":
     unittest.main()
