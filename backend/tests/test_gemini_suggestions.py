@@ -131,6 +131,30 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(response.json()["sourceMode"], "live_ai")
         self.assertEqual(response.json()["recommendation"]["title"], "Bean tacos")
 
+    def test_photo_upload_reaches_the_suggestion_function(self):
+        ai_result = {
+            "kind": "recommendation",
+            "inputSummary": {"message": "healthier version of this", "summary": "Lighter pasta", "servings": 2, "restrictions": [], "maxPrepMinutes": 30},
+            "recommendation": {
+                "title": "Lighter pasta", "servings": 2, "prepMinutesApprox": 20,
+                "fitReason": "Based on the photo.", "ingredients": [{"name": "Pasta", "quantity": 200, "unit": "g"}],
+                "steps": ["Boil the pasta."],
+            },
+        }
+        with patch("app.main.generate_suggestion", return_value=ai_result) as generate:
+            response = TestClient(app).post(
+                "/api/ai/suggestions",
+                data={
+                    "workspaceId": "demo-family", "requestId": "photo-1", "message": "healthier version of this",
+                    "planDate": "2026-10-17", "listRevision": "1",
+                    "preferences": '{"servings":2,"restrictions":[],"likes":[],"maxPrepMinutes":30}',
+                },
+                files={"image": ("pasta.jpg", b"\xff\xd8\xff fake", "image/jpeg")},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(generate.call_args.kwargs["image_mime_type"], "image/jpeg")
+        self.assertTrue(generate.call_args.kwargs["image_bytes"].startswith(b"\xff\xd8\xff"))
+
     def test_event_suggestions_use_the_occasion_and_past_meals(self):
         response_json = '''{
             "kind":"event_suggestions",

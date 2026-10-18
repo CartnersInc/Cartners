@@ -10,7 +10,7 @@ export class ApiError extends Error {
 
 export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
   return {
-    async request(path, { method = 'GET', body, signal } = {}) {
+    async request(path, { method = 'GET', body, formData, signal } = {}) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 25000);
       const abort = () => controller.abort();
@@ -19,8 +19,8 @@ export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
       try {
         const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}${path}`, {
           method, signal: controller.signal,
-          headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          headers: { Accept: 'application/json', ...(formData || body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          ...(formData ? { body: formData } : body === undefined ? {} : { body: JSON.stringify(body) }),
         });
         let payload;
         try { payload = await response.json(); } catch {
