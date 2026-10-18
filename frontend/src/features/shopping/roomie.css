@@ -88,6 +88,16 @@
 .rm-banner .rm-btn { background: var(--white); color: var(--dark); border-color: var(--white); }
 .rm-banner-quiet .rm-btn { background: var(--green); color: white; border-color: var(--green); }
 .rm-dock { display: none; }
+.rm-dock-buy { display: flex; gap: 8px; margin: 12px 0 18px; flex-wrap: wrap; }
+.rm-dock-buy .rm-btn { flex: 1 1 160px; }
+.rm-checkout { margin-bottom: 18px; }
+.rm-checkout-lines { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.rm-checkout-line { display: flex; justify-content: space-between; gap: 12px; align-items: start; font-size: .9rem; }
+.rm-checkout-line .rm-help { display: block; }
+.rm-checkout-total { display: flex; justify-content: space-between; align-items: center; margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 750; }
+.rm-checkout-pay { flex-wrap: wrap; }
+.rm-cart-total { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--green); }
+.rm-item-removing { opacity: .7; }
 
 /* Items */
 .rm-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

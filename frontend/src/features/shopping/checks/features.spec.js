@@ -228,7 +228,7 @@ test('live Kroger matches show the product and prefill the store run', async ({ 
   await expect(page.getByRole('textbox', { name: 'Store' })).toHaveValue('QFC University Village');
 });
 
-test('clear list removes all needed requests after one clear confirmation', async ({ page }) => {
+test('clear list removes all cart requests after one clear confirmation', async ({ page }) => {
   const calls = await serve(page, ({ path, body, workspace, set }) => {
     if (path.startsWith('/api/items/') && body.removed) {
       const id = decodeURIComponent(path.split('/').pop());
@@ -240,21 +240,21 @@ test('clear list removes all needed requests after one clear confirmation', asyn
   });
   await page.goto('/#shopping');
   await page.getByRole('button', { name: 'Empty cart' }).click();
-  await expect(page.getByText('Remove all 2 items that still need buying?')).toBeVisible();
+  await expect(page.getByText('Remove all 2 items from the cart?')).toBeVisible();
   await page.getByRole('button', { name: 'Remove all 2' }).click();
   await expect(page.getByText('Your cart is empty.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
-  await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
+  await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the cart.');
 });
 
-test('bought requests are separated from the items still needed', async ({ page }) => {
+test('cart items start checked with price and buy opens spending checkout', async ({ page }) => {
   const base = await fixture('workspace');
   const workspace = {
     ...base,
     serverNow: new Date().toISOString(),
     trip: null,
-    items: base.items.map(item => item.id === 'item-milk' ? { ...item, bought: true } : item),
+    items: base.items.map(item => ({ ...item, bought: true, runId: null })),
   };
   await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(
     new URL(route.request().url()).pathname === '/api/workspace'
@@ -263,14 +263,16 @@ test('bought requests are separated from the items still needed', async ({ page 
   ));
 
   await page.goto('/#shopping');
-  const needed = page.locator('section[aria-labelledby="rm-waiting"]');
-  await expect(needed.locator('.rm-h2')).toContainText('Needed');
-  await expect(needed.locator('.rm-count')).toHaveText('1');
-  await expect(needed.getByText('Tortillas')).toBeVisible();
-  await expect(needed.getByText('Oat milk')).toHaveCount(0);
-  await expect(page.locator('.rm-bought-group > summary')).toHaveText('Bought 1');
-  await page.locator('.rm-bought-group > summary').click();
-  await expect(page.locator('.rm-bought-group').getByText('Oat milk')).toBeVisible();
+  const cart = page.locator('section[aria-labelledby="rm-cart"]');
+  await expect(cart.locator('.rm-h2')).toContainText('Your cart');
+  await expect(cart.getByText('Tortillas')).toBeVisible();
+  await expect(cart.getByText('Oat milk')).toBeVisible();
+  await expect(cart.locator('.rm-bought-label').first()).toHaveText('In cart');
+  await expect(cart.locator('.rm-item-price').first()).toBeVisible();
+  await page.getByRole('button', { name: /^Buy/ }).first().click();
+  await expect(page).toHaveURL(/#spending/);
+  await expect(page.getByRole('heading', { name: 'Buy this cart' })).toBeVisible();
+  await expect(page.getByText('Tortillas')).toBeVisible();
 });
 
 test('phone shopping makes the store-run action easy to find without covering the cart', async ({ page }) => {

@@ -19,8 +19,9 @@ export function parseDollars(text) {
 }
 
 export function quantityLabel(item) {
-  const unit = item.unit && item.unit !== 'count' ? ` ${item.unit}` : '';
-  return `${item.quantity}${unit}`;
+  const quantity = item?.quantity ?? '';
+  const unit = item?.unit && item.unit !== 'count' ? ` ${item.unit}` : '';
+  return `${quantity}${unit}`;
 }
 
 export function clock(ms) {
