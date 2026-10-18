@@ -1,4 +1,4 @@
-# Common — team AI instructions
+# Cartners — team AI instructions
 
 Read `docs/START_HERE.md`, `docs/TEAM.md`, `docs/PRD.md`, and `docs/API_CONTRACT.md` before implementation. They define the current scope, owners, and shared contract. The static `demo/` is a visual reference, not the production app.
 
