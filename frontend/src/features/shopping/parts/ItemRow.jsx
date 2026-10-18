@@ -5,7 +5,7 @@ import { PUNT_PROPOSAL } from '../lib/proposal.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
-// One request: a large Bought checkbox, name/quantity/scope/note, price, and Details for edits.
+// One request stays readable in the cart: item, amount, estimated price, and instructions.
 // Bought stays in place (green highlight) instead of moving to a separate Bought list.
 // Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
 export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price }) {
@@ -66,7 +66,6 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
   const scope = scopeLabel(item, name);
-
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
 
   return (
@@ -82,7 +81,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           {shownBought && <span className="rm-bought-label">Bought</span>}
           <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}{priceLabel ? `, about ${priceLabel}` : ''}</span>
         </label>
-        {priceLabel && <span className="rm-item-price" aria-hidden="true">{priceLabel}</span>}
+        <span className="rm-item-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
