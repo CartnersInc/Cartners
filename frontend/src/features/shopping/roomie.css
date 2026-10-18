@@ -149,6 +149,31 @@
 .rm-sample { border: 1px dashed #d8c89a; border-radius: 12px; padding: 14px; display: grid; gap: 10px; margin-top: 10px; }
 .rm-proposal { border-left: 3px solid #d8c89a; padding-left: 10px; }
 
+/* Spending tabs and the Payments / Your profile proposal (#8) */
+.rm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 6px 0 4px; overflow-x: auto; }
+.rm-tabs [role="tab"] { min-height: 44px; padding: 10px 14px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-size: .85rem; font-weight: 700; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.rm-tabs [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--green); }
+.rm-tabs [role="tab"]:hover { color: var(--ink); }
+.rm-tab-tag { font-size: .62rem; font-weight: 800; letter-spacing: .03em; color: #6a4f10; background: #f6ecd0; border-radius: 10px; padding: 1px 6px; }
+.rm-proposal-note { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin: 6px 0 2px; }
+.rm-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rm-stats > div { background: var(--pale); border-radius: 10px; padding: 12px 16px; display: grid; gap: 2px; }
+.rm-stats strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.rm-owe { color: #8a3b2b; }
+.rm-owed { color: var(--green); }
+.rm-debt { border-top: 1px solid var(--line); padding: 14px 0 4px; margin-top: 10px; display: grid; gap: 8px; }
+.rm-debt-head { display: flex; align-items: center; gap: 12px; }
+.rm-debt-who { flex: 1; min-width: 0; display: grid; }
+.rm-debt-who .rm-help { margin: 0; }
+.rm-debt-amount { font-size: 1.25rem; }
+.rm-breakdown { margin: 0; background: var(--ground); border-radius: 8px; padding: 8px 12px; display: grid; gap: 2px; font-size: .8rem; color: var(--muted); }
+.rm-breakdown > div { display: flex; justify-content: space-between; gap: 12px; }
+.rm-breakdown dt, .rm-breakdown dd { margin: 0; }
+.rm-breakdown dd { font-variant-numeric: tabular-nums; }
+.rm-profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; }
+.rm-error-text { color: #8a3b2b; font-size: .78rem; font-weight: 600; }
+@media (max-width: 700px) { .rm-debt-head { flex-wrap: wrap; } .rm-debt-amount { margin-left: auto; } }
+
 /* Phone */
 .rm-dock { display: none; }
 @media (max-width: 900px) {

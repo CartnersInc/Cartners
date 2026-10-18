@@ -3,12 +3,64 @@ import sampleExpense from '../../../../docs/fixtures/expense.json';
 import ReceiptForm, { runsOf } from './parts/ReceiptForm.jsx';
 import ExpenseCard from './parts/ExpenseCard.jsx';
 import Balances from './parts/Balances.jsx';
+import Payments from './proposal/Payments.jsx';
+import PayProfile from './proposal/PayProfile.jsx';
+import { PAYMENTS_PROPOSAL } from './proposal/payLinks.js';
 import { formatCents, people, spendingModeOf } from '../shopping/lib/format.js';
 import '../shopping/roomie.css';
 
 // Spending (#8): record the actual purchase after a run, then show who paid and who owes whom.
 // Allocations and balances come only from the server; this page never calculates them.
-export default function Spending({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
+const TABS = [['receipts', 'Receipts'], ['payments', 'Payments'], ['profile', 'Your profile']];
+const TAB_KEY = 'roomie:spendingTab';
+const readTab = () => { try { return sessionStorage.getItem(TAB_KEY) || 'receipts'; } catch { return 'receipts'; } };
+
+// The shell has five fixed pages, so the proposed Payments and Your profile views are tabs inside
+// Spending for now. If they get their own shell tab later, these components move unchanged.
+export default function Spending(props) {
+  const [tab, setTab] = useState(() => (PAYMENTS_PROPOSAL ? readTab() : 'receipts'));
+  if (!PAYMENTS_PROPOSAL) return <Receipts {...props} />;
+  function choose(next) {
+    setTab(next);
+    try { sessionStorage.setItem(TAB_KEY, next); } catch { /* Remembering the tab is only a convenience. */ }
+  }
+  function onKey(event) {
+    const index = TABS.findIndex(([id]) => id === tab);
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const next = TABS[(index + step + TABS.length) % TABS.length][0];
+    choose(next);
+    document.getElementById(`rm-tab-${next}`)?.focus();
+  }
+  return (
+    <div className="rm-page">
+      <div className="rm-tabs" role="tablist" aria-label="Spending views" onKeyDown={onKey}>
+        {TABS.map(([id, label]) => (
+          <button key={id} id={`rm-tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`rm-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => choose(id)}>
+            {label}{id !== 'receipts' && <span className="rm-tab-tag">proposal</span>}
+          </button>
+        ))}
+      </div>
+      <div id={`rm-panel-${tab}`} role="tabpanel" aria-labelledby={`rm-tab-${tab}`}>
+        {tab === 'payments' && <TabPage title="Payments"><Payments key={props.actorId} workspace={props.workspace} actorId={props.actorId} onEditProfile={() => choose('profile')} /></TabPage>}
+        {tab === 'profile' && <TabPage title="Your profile"><PayProfile key={props.actorId} workspace={props.workspace} actorId={props.actorId} /></TabPage>}
+        {tab === 'receipts' && <Receipts {...props} />}
+      </div>
+    </div>
+  );
+}
+
+function TabPage({ title, children }) {
+  return (
+    <div className="rm-page">
+      <div className="rm-title-row"><h1 className="rm-h1">{title}</h1></div>
+      {children}
+    </div>
+  );
+}
+
+function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
   const [recording, setRecording] = useState(false);
   const { name } = people(workspace, actorId);
   const mode = spendingModeOf(workspace);
