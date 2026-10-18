@@ -130,7 +130,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     <textarea id="meal-request" value={message} maxLength={500} rows={2}
       onChange={e => setMessage(e.target.value)} disabled={locked}
       onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); requestSuggestion(message); } }}
-      placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'A craving, ingredient, or grocery request…'} />
+      placeholder={draft ? 'Make it quicker? Swap an ingredient? Brand new idea?' : 'A craving, ingredient, or grocery request…'} />
     <div className="composer-bottom">
       <span className="small muted">{draft ? 'Tell us what to change.' : 'We’ll check the shared list before anything is added.'}</span>
       <button className="button primary" disabled={!message.trim() || locked}>
@@ -172,7 +172,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       {meal && draft.planDate && draft.planDate !== planDate && <p className="notice">This idea is for {draft.planDate}. A new request will use {planDate}; adding this idea keeps its original date.</p>}
       {draft.kind === 'clarification' ? <><h2 id="draft-title">{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : <>
         <div className="recipe-copy"><h2 id="draft-title">{meal?.title || 'Here’s what you asked for'}</h2>
-          {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span>{meal.servings} servings</span><span>For {draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
+          {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span className="recipe-servings"><Icon name="salad" />{meal.servings} servings</span><span className="recipe-date"><Icon name="plans" /><span className="sr-only">For </span>{draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
             {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}
             <div className="refinement-actions"><button className="chip" disabled={locked} onClick={() => requestSuggestion('Make it quicker')}>Make it quicker</button></div>
             <details><summary>How to make it</summary><ol className="recipe-steps">{meal.steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details>
