@@ -1327,9 +1327,9 @@ class Store:
         # Try live Kroger if credentials exist; otherwise sample catalog.
         live = None
         try:
-            from app.services.kroger_prices import KrogerError, lookup_ingredients
+            from app.services.kroger_prices import KrogerError, lookup_store_prices
 
-            live = lookup_ingredients([item["name"] for item in items], body["postalCode"])
+            live = lookup_store_prices([item["name"] for item in items], body["postalCode"], store_limit=3)
         except Exception:
             live = None
 
@@ -1337,7 +1337,7 @@ class Store:
             baskets = self._baskets_from_kroger(items, live)
             source_mode = "live_api"
             sample_notice = None
-            checked_at = live.get("retrievedAt") or iso(utc_now())
+            checked_at = live[0].get("retrievedAt") or iso(utc_now())
         else:
             baskets = self._baskets_from_sample(items, catalog, match_product)
             source_mode = "sample"
@@ -1433,10 +1433,17 @@ class Store:
             )
         return baskets
 
-    def _baskets_from_kroger(self, items: list[dict[str, Any]], live: dict[str, Any]) -> list[dict[str, Any]]:
+    def _baskets_from_kroger(self, items: list[dict[str, Any]], live: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if isinstance(live, list):
+            baskets = []
+            for one in live:
+                baskets.extend(Store._baskets_from_kroger(self, items, one))
+            return baskets
         store = live.get("store") or {}
         store_id = str(store.get("locationId") or "kroger")
         store_name = store.get("name") or "Kroger"
+        distance_miles = store.get("distanceMiles")
+        distance_km = round(float(distance_miles) * 1.60934, 2) if isinstance(distance_miles, (int, float)) else None
         from app.services.kroger_prices import packages_needed
 
         by_ingredient = {row["ingredient"]: row for row in live.get("ingredients") or []}
@@ -1480,7 +1487,7 @@ class Store:
                 "id": f"basket-{store_id}",
                 "storeId": store_id,
                 "storeName": store_name,
-                "distanceKm": None,
+                "distanceKm": distance_km,
                 "items": lines,
                 "missingItemIds": missing,
                 "complete": len(missing) == 0,

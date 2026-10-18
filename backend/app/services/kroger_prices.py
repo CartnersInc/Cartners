@@ -371,7 +371,7 @@ def packages_needed(
 
 def _store_summary(store: dict[str, Any]) -> dict[str, Any]:
     address = store.get("address") if isinstance(store.get("address"), dict) else {}
-    return {
+    summary = {
         "locationId": store.get("locationId"),
         "name": store.get("name"),
         "chain": store.get("chain"),
@@ -380,6 +380,78 @@ def _store_summary(store: dict[str, Any]) -> dict[str, Any]:
         "state": address.get("state"),
         "zipCode": address.get("zipCode"),
     }
+    distance = store.get("distance")
+    if isinstance(distance, (int, float)) and not isinstance(distance, bool):
+        summary["distanceMiles"] = float(distance)
+    return summary
+
+
+def _prices_for_store(
+    token: str,
+    store: dict[str, Any],
+    ingredients: list[str],
+    *,
+    zip_code: str,
+    options_per_ingredient: int,
+    retrieved_at: str,
+) -> dict[str, Any] | None:
+    location_id = str(store.get("locationId") or "")
+    if not location_id:
+        return None
+    results = []
+    for ingredient in ingredients:
+        products = search_products(token, ingredient, location_id, limit=options_per_ingredient)
+        options: list[dict[str, Any]] = []
+        for product in products:
+            options.extend(_options(product))
+            if len(options) >= options_per_ingredient:
+                break
+        results.append({"ingredient": ingredient, "options": options[:options_per_ingredient]})
+    return {
+        "retrievedAt": retrieved_at,
+        "zipCode": zip_code,
+        "store": _store_summary(store),
+        "ingredients": results,
+    }
+
+
+def lookup_store_prices(
+    ingredients: list[str],
+    zip_code: str,
+    *,
+    store_limit: int = 3,
+    options_per_ingredient: int = 3,
+    radius_miles: int = 20,
+) -> list[dict[str, Any]]:
+    """Priced options at each of the nearest Kroger-family stores, nearest first."""
+    cleaned = [item.strip() for item in ingredients if item and item.strip()]
+    if not cleaned:
+        raise KrogerError("Provide at least one ingredient")
+    zip_code = zip_code.strip()
+    if len(zip_code) < 5:
+        raise KrogerError("ZIP code must be at least 5 characters")
+
+    token = get_access_token()
+    stores = find_stores(token, zip_code, limit=max(store_limit, 1), radius_miles=radius_miles)
+    if not stores:
+        raise KrogerError(f"No Kroger-family store within {radius_miles} miles of {zip_code}")
+
+    retrieved_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    priced = []
+    for store in stores[: max(store_limit, 1)]:
+        one = _prices_for_store(
+            token,
+            store,
+            cleaned,
+            zip_code=zip_code,
+            options_per_ingredient=options_per_ingredient,
+            retrieved_at=retrieved_at,
+        )
+        if one:
+            priced.append(one)
+    if not priced:
+        raise KrogerError("Nearby stores did not include a locationId")
+    return priced
 
 
 def lookup_ingredients(
@@ -391,53 +463,17 @@ def lookup_ingredients(
     radius_miles: int = 20,
 ) -> dict[str, Any]:
     """
-    One nearby store, then a few priced options for each ingredient.
+    The nearest store, then a few priced options for each ingredient.
 
     retrievedAt is when this process finished the Kroger calls.
     A null price means Kroger did not return one for that package.
+    Pass store_limit only to widen the store search; the return value is still one store.
+    Use lookup_store_prices when each nearby store should be priced.
     """
-    cleaned = [item.strip() for item in ingredients if item and item.strip()]
-    if not cleaned:
-        raise KrogerError("Provide at least one ingredient")
-    zip_code = zip_code.strip()
-    if len(zip_code) < 5:
-        raise KrogerError("ZIP code must be at least 5 characters")
-
-    token = get_access_token()
-    stores = find_stores(token, zip_code, limit=max(store_limit, 1), radius_miles=radius_miles)
-    if not stores:
-        raise KrogerError(
-            f"No Kroger-family store within {radius_miles} miles of {zip_code}"
-        )
-
-    chosen = stores[0]
-    location_id = str(chosen.get("locationId") or "")
-    if not location_id:
-        raise KrogerError("Nearest store did not include a locationId")
-
-    results = []
-    for ingredient in cleaned:
-        products = search_products(
-            token,
-            ingredient,
-            location_id,
-            limit=options_per_ingredient,
-        )
-        options: list[dict[str, Any]] = []
-        for product in products:
-            options.extend(_options(product))
-            if len(options) >= options_per_ingredient:
-                break
-        results.append(
-            {
-                "ingredient": ingredient,
-                "options": options[:options_per_ingredient],
-            }
-        )
-
-    return {
-        "retrievedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "zipCode": zip_code,
-        "store": _store_summary(chosen),
-        "ingredients": results,
-    }
+    return lookup_store_prices(
+        ingredients,
+        zip_code,
+        store_limit=store_limit,
+        options_per_ingredient=options_per_ingredient,
+        radius_miles=radius_miles,
+    )[0]

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from app.services.kroger_prices import KrogerError, lookup_ingredients, packages_needed
+from app.services.kroger_prices import KrogerError, lookup_ingredients, lookup_store_prices, packages_needed
 from app.store import Store
 
 
@@ -103,6 +103,47 @@ class KrogerLookupTests(unittest.TestCase):
         self.assertEqual(line["lineTotalCents"], 700)
         self.assertEqual(basket["knownSubtotalCents"], 700)
         self.assertTrue(basket["complete"])
+
+    @patch("app.services.kroger_prices.search_products")
+    @patch("app.services.kroger_prices.find_stores")
+    @patch("app.services.kroger_prices.get_access_token", return_value="test-token")
+    def test_store_prices_cover_the_three_nearest_stores(self, token, stores, products):
+        stores.return_value = [
+            {"locationId": "1", "name": "Nearest", "distance": 0.4, "address": {}},
+            {"locationId": "2", "name": "Second", "distance": 1.1, "address": {}},
+            {"locationId": "3", "name": "Third", "distance": 2.0, "address": {}},
+            {"locationId": "4", "name": "Fourth", "address": {}},
+        ]
+        products.return_value = []
+        result = lookup_store_prices(["milk"], "45202", store_limit=3)
+        stores.assert_called_once_with("test-token", "45202", limit=3, radius_miles=20)
+        self.assertEqual([row["store"]["locationId"] for row in result], ["1", "2", "3"])
+        self.assertEqual(result[0]["store"]["distanceMiles"], 0.4)
+        self.assertEqual([call.args[2] for call in products.call_args_list], ["1", "2", "3"])
+        one = lookup_ingredients(["milk"], "45202")
+        self.assertEqual(one["store"]["locationId"], "1")
+
+    def test_each_nearby_store_becomes_its_own_basket(self):
+        def store(location_id, name, price):
+            return {
+                "store": {"locationId": location_id, "name": name, "distanceMiles": 1},
+                "ingredients": [{
+                    "ingredient": "Milk",
+                    "options": [{
+                        "productId": location_id,
+                        "description": "Milk",
+                        "size": "1 gal",
+                        "soldBy": "UNIT",
+                        "regularPrice": price,
+                        "stockLevel": "HIGH",
+                    }],
+                }],
+            }
+        items = [{"id": "item-milk", "name": "Milk", "quantity": 1, "unit": "count"}]
+        baskets = Store._baskets_from_kroger(None, items, [store("a", "Near", 3.00), store("b", "Far", 4.00)])
+        self.assertEqual([basket["storeName"] for basket in baskets], ["Near", "Far"])
+        self.assertEqual([basket["knownSubtotalCents"] for basket in baskets], [300, 400])
+        self.assertEqual(baskets[0]["distanceKm"], 1.61)
 
     @patch("app.services.kroger_prices.get_access_token")
     def test_rejects_empty_ingredients_before_network_access(self, token):
