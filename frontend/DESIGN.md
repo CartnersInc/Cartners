@@ -1,5 +1,5 @@
 ---
-name: Common
+name: Cartners
 description: Retained visual system for the shared shell, Home, and Plans.
 colors:
   ink: "#233c2c"
@@ -67,13 +67,13 @@ components:
     padding: "22px"
 ---
 
-# Design System: Common
+# Design System: Cartners
 
 ## Overview
 
-**Creative North Star: "Common's established warm green world"**
+**Creative North Star: "Cartners' established warm green world"**
 
-Common retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.
+Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.
 
 **Key Characteristics:**
 - Warm tonal surfaces and fine dividing lines.

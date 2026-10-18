@@ -1,4 +1,4 @@
-# Common frontend
+# Cartners frontend
 
 React/Vite foundation for Ibrahiim's issues #3 and #7. The original `demo/` remains untouched.
 

@@ -1,4 +1,4 @@
-name: Publish Common demo
+name: Publish Cartners demo
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: common-demo
+  group: cartners-demo
   cancel-in-progress: true
 
 jobs:

@@ -6,13 +6,13 @@ Anyone with the link can view the published frontend. No account is needed. Unti
 
 ## Automatic updates from GitHub
 
-The `Publish Common demo` workflow deploys the React frontend to GitHub Pages when frontend code or shared fixtures reach `main`. It runs unit checks before building, and uses the repository path for assets. Local edits and unmerged feature branches are not published.
+The `Publish Cartners demo` workflow deploys the React frontend to GitHub Pages when frontend code or shared fixtures reach `main`. It runs unit checks before building, and uses the repository path for assets. Local edits and unmerged feature branches are not published.
 
 Xavier, or someone with repository administration access, needs to complete this setup once:
 
 1. Review and merge frontend PR #11 when the team is ready.
 2. Open [repository Settings → Pages](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/settings/pages) and choose **GitHub Actions** as the build source. Enable Actions if the repository has disabled them.
-3. Open **Actions → Publish Common demo → Run workflow**, choose `main`, and run it if the initial merge happened before Pages was enabled.
+3. Open **Actions → Publish Cartners demo → Run workflow**, choose `main`, and run it if the initial merge happened before Pages was enabled.
 4. Share the deployment URL shown by the successful workflow. Future changes merged into `main` update that same Pages URL. Refresh the page after deployment to see them.
 
 Ibrahiim’s current GitHub access is Write, which is sufficient to push the workflow but cannot enable Pages. GitHub rejected Pages configuration, so the public Sites link above provides a working preview immediately. That Sites link is a published snapshot; it requires republishing and does not automatically follow GitHub commits. Use the Pages URL once the owner enables automatic deployment.

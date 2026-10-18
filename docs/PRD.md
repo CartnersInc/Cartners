@@ -1,4 +1,4 @@
-# Common — the final household shopping plan
+# Cartners — the final household shopping plan
 
 **PRD v2 · October 17, 2026 · planning specification, not implemented functionality**
 
@@ -8,7 +8,7 @@ Source of feature scope: [the team's final brainstorm](FINAL_BRAINSTORM.md). Thi
 
 ## 1. The job
 
-Common helps families, roommates, and other groups turn “what should we eat or buy?” into an agreed plan, a shared shopping run, and a clear record of spending.
+Cartners helps families, roommates, and other groups turn “what should we eat or buy?” into an agreed plan, a shared shopping run, and a clear record of spending.
 
 The problem is coordination work: remembering different tastes, assembling requests, checking what is already requested, figuring out who is shopping, and accounting for actual purchases. One person often does that work for everyone. The app should carry information forward instead of asking that person to enter it again on five different pages.
 

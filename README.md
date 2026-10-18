@@ -1,4 +1,4 @@
-# Common — shared household shopping
+# Cartners — shared household shopping
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 

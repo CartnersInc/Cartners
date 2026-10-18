@@ -1,4 +1,4 @@
-# Common product context
+# Cartners product context
 
 <!-- impeccable:product-schema 1 -->
 

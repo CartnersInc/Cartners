@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-18T00:11:32.293476+00:00",
-  "title": "Design System: Common",
+  "title": "Design System: Cartners",
   "extensions": {
     "shadows": [],
     "motion": [
@@ -86,8 +86,8 @@
     }
   ],
   "narrative": {
-    "northStar": "Common's established warm green world",
-    "overview": "Common retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.",
+    "northStar": "Cartners' established warm green world",
+    "overview": "Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.",
     "keyCharacteristics": [
       "Warm tonal surfaces and fine dividing lines.",
       "Rounded controls, restrained photography, and compact supporting text.",
