@@ -63,11 +63,17 @@ class SuggestionValidationTests(unittest.TestCase):
             })
 
     def test_provider_uses_configured_gemini_model_and_returns_live_label(self):
-        response = type("Response", (), {"text": '''{
+        response_json = '''{
             "kind":"recommendation",
             "inputSummary":{"message":"tacos","summary":"quick meal","servings":2,"restrictions":[],"maxPrepMinutes":30},
             "recommendation":{"title":"Bean tacos","servings":2,"prepMinutesApprox":20,"fitReason":"Fast","ingredients":[{"name":"Beans","quantity":1,"unit":"can"}],"steps":["Warm beans."]}
-        }'''})()
+        }'''
+        from app.services.gemini_suggestions import GeminiMealOutput
+
+        response = type("Response", (), {
+            "text": response_json,
+            "parsed": GeminiMealOutput.model_validate_json(response_json),
+        })()
         with patch("google.genai.Client") as client_class:
             client_class.return_value.models.generate_content.return_value = response
             from app.services.gemini_suggestions import generate_suggestion
@@ -78,7 +84,7 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(result["recommendation"]["title"], "Bean tacos")
         call = client_class.return_value.models.generate_content.call_args
         self.assertEqual(call.kwargs["model"], "gemini-3.5-flash-lite")
-        self.assertEqual(call.kwargs["config"].max_output_tokens, 2048)
+        self.assertEqual(call.kwargs["config"].response_schema, GeminiMealOutput)
 
     def test_ai_preview_has_review_rows_and_cannot_claim_to_be_saved(self):
         request = SuggestionRequest(
