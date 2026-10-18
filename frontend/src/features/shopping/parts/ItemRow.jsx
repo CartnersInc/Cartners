@@ -2,13 +2,14 @@ import { useEffect, useId, useState } from 'react';
 import { useWrite } from '../lib/useWrite.js';
 import { formatCents, people, quantityLabel, scopeLabel, UNITS } from '../lib/format.js';
 import { PUNT_PROPOSAL } from '../lib/proposal.js';
+import { recipeLabel } from '../lib/recipes.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
 // One request: a large Bought checkbox, name/quantity/scope/note, price, and Details for edits.
 // Bought stays in place (green highlight) instead of moving to a separate Bought list.
 // Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
-export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price }) {
+export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
@@ -77,6 +78,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <label htmlFor={checkId} className="rm-item-text">
           <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
           {item.note && <span className="rm-item-note">{item.note}</span>}
+          {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
           {shownBought && <span className="rm-bought-label">Bought</span>}

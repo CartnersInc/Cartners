@@ -8,6 +8,7 @@ import RunBanner from '../groups/parts/RunBanner.jsx';
 import { people, useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
 import { PUNT_PROPOSAL } from './lib/proposal.js';
+import { recipeLookup } from './lib/recipes.js';
 import './roomie.css';
 
 const byCreated = (a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0);
@@ -38,6 +39,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const isShopper = trip?.claimedBy === actorId;
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify };
   const [itemPrices, setItemPrices] = useState(() => pricesFromCompare(samplePricing));
+  const recipesFor = useMemo(() => recipeLookup(workspace), [workspace]);
 
   const onRun = useMemo(
     () => (trip ? items.filter(item => item.runId === trip.id).sort(byCreated) : []),
@@ -58,6 +60,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
       trip={trip}
       badge={itemBadge(item, trip, actorId)}
       price={itemPrices[item.id] || null}
+      recipes={recipesFor(item)}
     />
   );
   const focusAdd = () => { nameRef.current?.scrollIntoView({ block: 'center' }); nameRef.current?.focus(); };
