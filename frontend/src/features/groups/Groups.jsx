@@ -6,7 +6,7 @@ import { activeTrip } from '../shopping/lib/trip.js';
 import '../shopping/roomie.css';
 import Preferences from '../plans/Preferences.jsx';
 import { PAY_APPS, isValidHandle, cleanHandle } from '../spending/proposal/payLinks.js';
-import PersonName from '../spending/proposal/PayHandleMarks.jsx';
+import PersonName, { PayHandleMarks } from '../spending/proposal/PayHandleMarks.jsx';
 import { isFamilyTable, splitsCosts, withMemberPayLinks } from '../../household.js';
 import { readMembership, saveMembership } from '../onboarding/session.js';
 import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
@@ -39,7 +39,8 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
               {members.map(member => (
                 <li key={member.id}>
                   <span className="avatar" aria-hidden="true">{member.name[0]}</span>
-                  <PersonName workspace={workspace} actorId={member.id}>{member.name}{member.id === actorId ? ' (you)' : ''}</PersonName>
+                  <PersonName>{member.name}{member.id === actorId ? ' (you)' : ''}</PersonName>
+                  <PayHandleMarks payLinks={member.payLinks} />
                   {trip?.claimedBy === member.id && <span className="rm-badge rm-badge-new">Shopping now</span>}
                 </li>
               ))}

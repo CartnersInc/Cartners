@@ -246,7 +246,8 @@
 .rm-pay-marks { display: inline-flex; align-items: center; gap: 3px; }
 .rm-pay-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; line-height: 0; cursor: pointer; text-decoration: none; flex: 0 0 auto; }
 .rm-pay-mark:focus-visible { outline: 2px solid #4575a0; outline-offset: 2px; }
-.rm-pay-icon { width: 18px; height: 18px; display: block; }
+.rm-pay-icon { width: 18px; height: 18px; display: block; object-fit: contain; }
+.rm-btn .rm-pay-icon { width: 22px; height: 22px; }
 
 /* Spending */
 .rm-form { display: grid; gap: 4px; }
