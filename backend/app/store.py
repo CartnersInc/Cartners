@@ -287,6 +287,9 @@ class Store:
             (workspace_id,),
         ):
             recipe = loads(row["recipe_json"], {})
+            steps = recipe.get("steps") if isinstance(recipe.get("steps"), list) else []
+            if recipe.get("steps") is not steps:
+                recipe = {**recipe, "steps": steps}
             plans.append(
                 {
                     "id": row["id"],
@@ -295,7 +298,7 @@ class Store:
                     "planDate": row["plan_date"],
                     "title": row["event"],
                     "servings": row["servings"],
-                    "steps": recipe.get("steps") or [],
+                    "steps": steps,
                     "recommendation": recipe,
                     "plan": recipe,
                 }
