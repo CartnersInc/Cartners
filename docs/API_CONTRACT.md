@@ -22,7 +22,7 @@ Snapshots include `schemaVersion:2`, `workspaceId`, `serverNow`, available `grou
 | POST `/api/drafts/confirm` | `draftId`, `expectedListRevision`, optional excluded ingredient IDs, `target` | Meal + `cart`: save its dated plan and apply visible list changes. Grocery + `cart`: apply its list changes only. P1 weekly + `plans`: save dated plans, never a week's groceries. Clarifications cannot be confirmed. |
 | POST `/api/actions/{actionId}/undo` | Action ID | Reverse only this action's eligible untouched changes; preserve earlier requests and subsequent edits/buys. Return any retained changes and an explanation. |
 | POST `/api/items` | Name; quantity=1, unit=count, note empty, requestFor=household by default | Add direct requests; exact duplicate returns existing row and an explicit quantity-change option. Name is the only required user-entered field. |
-| PATCH `/api/items/{itemId}` | `expectedItemVersion`; editable details, bought, or removed | Safe row update; do not infer any debt. |
+| PATCH `/api/items/{itemId}` | `expectedItemVersion`; editable details, bought, removed, or `punted` (shopper only) | Safe row update; do not infer any debt. |
 | PATCH `/api/trip` | `expectedTripVersion`, action=start/release/finish; start includes store name and requestWindowMinutes=10 | Atomic one-shopper run per group; deadline assigned by server. Finish preserves unbought requests and requires no price. |
 | POST `/api/expenses` | Run ID if applicable, totalCents, payerId, mode, sharedMemberIds, personalAllocations, status | Validate actual purchase and allocations; only confirmed split records affect balances. |
 | POST `/api/ai/expense-draft` | `workspaceId`, `actorId`, `requestId`, `message`, `mode` | Extract receipt details into a review-only draft (`saved:false`); never writes an expense or calculates balances. User confirms by reviewing the form and submitting `/api/expenses`. |
@@ -49,6 +49,8 @@ Undo removes/restores only changes still matching the action's after-state and n
 A trip has an ID, version, claimedBy, storeName, claimedAt, requestDeadlineAt, state, and request IDs. The server permits request windows of 5, 10, or 15 minutes. Use server timestamps, not a browser-only timer.
 
 At start, currently unbought/unassigned requests join the run. While the window is open, accepted new requests get that run ID. After the server deadline or run completion, new requests remain in the cart with no current run assignment and a Next run label. Do not reject or hide them. The shopper sees which requests arrived after start.
+
+Proposed in #4: the current shopper can mark an unbought request on the active run as not available ("Not here") with `punted: true`. The server clears its run ID and records `punted: {by, at, storeName, runId}`; the next run claims it like any other unassigned request, and `punted` stays set ("Not found at QFC last time") until the request is bought. `punted: false` puts it back on the same run while that run is still active. Non-shoppers get 403 `NOT_SHOPPER`; requests not open on the active run get 422; stale versions get 409 with a fresh snapshot.
 
 The snapshot derives the countdown/closed state at read time. Other open pages see a banner through polling. No background worker is required for the timer. Only the current shopper can release/finish; simultaneous starts yield one winner. Finishing records bought request IDs, releases ownership, and leaves unchecked requests for the next run. Native/background push is separate P1 work.
 

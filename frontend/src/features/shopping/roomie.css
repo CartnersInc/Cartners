@@ -64,6 +64,7 @@
 .rm-badge { display: inline-block; border-radius: 6px; padding: 2px 8px; font-size: .7rem; font-weight: 800; background: var(--pale); }
 .rm-badge-new { background: #dff0c8; color: #2d5a1a; }
 .rm-badge-next { background: #f1ece0; color: #6a5a3a; }
+.rm-badge-punted { background: #fbefd9; color: #7a4a12; }
 
 /* Store run */
 .rm-sentence { font-size: 1rem; line-height: 2.4; margin: 8px 0 0; }
@@ -93,7 +94,35 @@
 .rm-item-meta { font-size: .75rem; color: var(--muted); }
 .rm-scope { font-weight: 750; color: var(--dark); }
 .rm-scope-personal { color: #6a4f10; }
-.rm-item-bought .rm-item-name { text-decoration: line-through; color: var(--muted); }
+.rm-item-bought {
+  background: #e7f3ea;
+  border-color: #9ec5a8;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+.rm-item-bought .rm-item-name { color: var(--dark); }
+.rm-bought-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.rm-item-price {
+  flex-shrink: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: .9rem;
+  color: var(--dark);
+  white-space: nowrap;
+}
+.rm-item-bought .rm-item-price { color: var(--green); }
 .rm-item-btns { display: flex; gap: 6px; flex-shrink: 0; }
 .rm-details-btn { min-height: 40px; padding: 6px 10px; border: 1px solid #c6d2bd; border-radius: 8px; background: transparent; font-size: .76rem; font-weight: 700; }
 .rm-details-btn:hover:not(:disabled) { background: var(--pale); }

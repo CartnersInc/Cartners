@@ -1,13 +1,14 @@
 import { useEffect, useId, useState } from 'react';
 import { useWrite } from '../lib/useWrite.js';
-import { people, quantityLabel, scopeLabel, UNITS } from '../lib/format.js';
+import { formatCents, people, quantityLabel, scopeLabel, UNITS } from '../lib/format.js';
 import { PUNT_PROPOSAL } from '../lib/proposal.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
-// One request: a large Bought checkbox, name/quantity/scope/note, and Details for edits.
+// One request: a large Bought checkbox, name/quantity/scope/note, price, and Details for edits.
+// Bought stays in place (green highlight) instead of moving to a separate Bought list.
 // Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
-export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge }) {
+export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
@@ -55,13 +56,18 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   }
 
   // Proposal only (#4): the shopper marks a request the store doesn't have; it leaves this run.
-  const canPunt = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought && item.runId === trip.id;
-  async function puntItem() {
-    await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: true });
+  // While the same run is going, the shopper can put it back.
+  const shopperHere = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought;
+  const canPunt = shopperHere && item.runId === trip.id;
+  const canUnpunt = shopperHere && item.punted?.runId === trip.id;
+  async function setPunted(next) {
+    await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: next });
   }
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
   const scope = scopeLabel(item, name);
+
+  const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
 
   return (
     <li className={`rm-item ${shownBought ? 'rm-item-bought' : ''}`}>
@@ -73,13 +79,16 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           {item.note && <span className="rm-item-note">{item.note}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
-          <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}</span>
+          {shownBought && <span className="rm-bought-label">Bought</span>}
+          <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}{priceLabel ? `, about ${priceLabel}` : ''}</span>
         </label>
+        {priceLabel && <span className="rm-item-price" aria-hidden="true">{priceLabel}</span>}
         <div className="rm-item-btns">
-          {canPunt && (
+          {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
-              aria-label={`Proposal: ${item.name} isn't at this store. Move it to the next run`} onClick={puntItem}>
-              {punt.saving ? 'Moving…' : 'Not here'}
+              aria-label={canPunt ? `Proposal: ${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
+              onClick={() => setPunted(canPunt)}>
+              {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
           <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Details for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Details</button>
