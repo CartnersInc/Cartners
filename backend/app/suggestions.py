@@ -96,6 +96,11 @@ def build_suggestion(
             for ingredient in draft["recommendation"]["ingredients"]:
                 ingredient.setdefault("id", f"ing-{uuid.uuid4().hex[:8]}")
                 ingredient.setdefault("note", "")
+        elif draft.get("kind") == "grocery_list":
+            for item in draft.get("items") or []:
+                item.setdefault("id", f"g-{uuid.uuid4().hex[:8]}")
+                item.setdefault("note", "")
+                item.setdefault("unit", "count")
         return draft
     except Exception as exc:
         # Missing key or provider failure → labeled sample, still useful for demos.

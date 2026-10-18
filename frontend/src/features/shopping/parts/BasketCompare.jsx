@@ -118,6 +118,7 @@ function Basket({ basket, best, nameOf, currency }) {
     <li className={`rm-basket ${best ? 'rm-basket-best' : ''}`}>
       <div className="rm-basket-head">
         <strong>{basket.storeName}</strong>
+        {Number.isFinite(basket.distanceKm) && <span className="rm-help">{basket.distanceKm} km</span>}
         {best && <span className="rm-pill rm-pill-best">Lowest complete basket checked</span>}
         <span className="rm-price">{formatCents(basket.knownSubtotalCents, currency)}{basket.complete ? '' : ' known'}</span>
       </div>
