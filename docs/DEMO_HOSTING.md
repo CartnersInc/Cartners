@@ -1,26 +1,19 @@
-# Shared team demo
+# One shared live demo
 
-**[Open the shared demo](https://common-table-household-demo.crisp-tide-4075.chatgpt.site)**
+`main` is the source of truth. Teammates build on their own branches and open pull requests; after a change is merged to `main`, GitHub Actions tests and deploys the React app to one stable URL:
 
-Anyone with the link can view the published frontend. No account is needed. Until Xavier’s backend and Ethan’s AI service are connected, the app uses explicitly labeled sample responses; it does not share saved cart data between visitors.
+**https://xaviergorriti.github.io/Groceries_fun_time_with_friends/**
 
-## Automatic updates from GitHub
+Branch previews are not published. Each successful deployment replaces the previous live app at that URL, so the team always shares the current `main` build.
 
-The `Publish Cartners demo` workflow deploys the React frontend to GitHub Pages when frontend code or shared fixtures reach `main`. It runs unit checks before building, and uses the repository path for assets. Local edits and unmerged feature branches are not published.
+## One-time setup
 
-Xavier, or someone with repository administration access, needs to complete this setup once:
+GitHub Pages is not enabled yet. A repository admin must open [Settings → Pages](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/settings/pages), set **Build and deployment → Source** to **GitHub Actions**, and save. Then open **Actions → Publish Cartners demo → Run workflow**, choose `main`, and run it once. Later pushes to `main` deploy automatically.
 
-1. Review and merge frontend PR #11 when the team is ready.
-2. Open [repository Settings → Pages](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/settings/pages) and choose **GitHub Actions** as the build source. Enable Actions if the repository has disabled them.
-3. Open **Actions → Publish Cartners demo → Run workflow**, choose `main`, and run it if the initial merge happened before Pages was enabled.
-4. Share the deployment URL shown by the successful workflow. Future changes merged into `main` update that same Pages URL. Refresh the page after deployment to see them.
+Ibrahiim has Write access, which cannot change the Pages setting. The existing `chatgpt.site` preview is a separate snapshot and can become stale; use the GitHub Pages URL as the team's shared demo once the first deployment succeeds.
 
-Ibrahiim’s current GitHub access is Write, which is sufficient to push the workflow but cannot enable Pages. GitHub rejected Pages configuration, so the public Sites link above provides a working preview immediately. That Sites link is a published snapshot; it requires republishing and does not automatically follow GitHub commits. Use the Pages URL once the owner enables automatic deployment.
+## What the hosted demo needs
 
-## Connect the shared backend
+GitHub Pages serves the frontend only. To use live AI, Kroger lookup, and shared saved changes, deploy the FastAPI backend separately and set repository variable `VITE_API_BASE_URL` to its HTTPS origin under **Settings → Secrets and variables → Actions → Variables**. Keep Gemini and Kroger credentials in the backend host's secret settings; never place them in frontend variables or source code.
 
-Deploy the FastAPI backend separately to an HTTPS address. In **Settings → Secrets and variables → Actions → Variables**, set the repository variable `VITE_API_BASE_URL` to that backend origin, then rerun the workflow. The backend must permit the exact Pages frontend origin through CORS. This is build-time configuration; changing it requires another deployment.
-
-Provider keys belong only in the backend environment. Never put an AI key in a `VITE_` variable, frontend source, or GitHub commit. The development proxy does not run on the hosted site.
-
-Before claiming shared collaboration works, open the same workspace from two devices and verify a confirmed cart change appears on both. Before claiming live AI works, verify a new request reaches Ethan’s provider rather than a fixture.
+The old `demo/` and `prototypes/` folders are local references, not deployment targets. Do not share their local server URLs as the team demo.

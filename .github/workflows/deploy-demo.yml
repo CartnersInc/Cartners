@@ -3,7 +3,6 @@ name: Publish Cartners demo
 on:
   push:
     branches: [main]
-    paths: ['frontend/**', 'docs/fixtures/**', '.github/workflows/deploy-demo.yml']
   workflow_dispatch:
 
 permissions:
@@ -37,6 +36,7 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_PAYMENTS_PROPOSAL: '1'
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
