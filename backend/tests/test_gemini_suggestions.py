@@ -1,11 +1,13 @@
 import unittest
 from unittest.mock import patch
+from fastapi.testclient import TestClient
 
 from app.services.gemini_suggestions import (
     GeminiMealOutput,
     Preferences,
     _normalize_message,
 )
+from app.main import app, SuggestionRequest, make_preview_draft
 from pydantic import ValidationError
 
 
@@ -77,6 +79,51 @@ class SuggestionValidationTests(unittest.TestCase):
         call = client_class.return_value.models.generate_content.call_args
         self.assertEqual(call.kwargs["model"], "gemini-3.8-flash")
         self.assertEqual(call.kwargs["config"].max_output_tokens, 2048)
+
+    def test_ai_preview_has_review_rows_and_cannot_claim_to_be_saved(self):
+        request = SuggestionRequest(
+            workspaceId="demo-family",
+            message="Dinner",
+            planDate="2026-10-17",
+            listRevision=1,
+            preferences={"servings": 2, "restrictions": []},
+        )
+        result = make_preview_draft({
+            "kind": "recommendation",
+            "inputSummary": {"message": "Dinner", "summary": "Quick dinner", "servings": 2, "restrictions": [], "maxPrepMinutes": 30},
+            "recommendation": {
+                "title": "Bean tacos", "servings": 2, "prepMinutesApprox": 20,
+                "fitReason": "Fast", "ingredients": [{"name": "Beans", "quantity": 1, "unit": "can"}],
+                "steps": ["Warm beans."],
+            },
+        }, request)
+        self.assertEqual(result["sourceMode"], "live_ai")
+        self.assertIn("not saved", result["sampleNotice"])
+        self.assertEqual(result["recommendation"]["listPreview"][0]["action"], "review")
+        self.assertTrue(result["recommendation"]["ingredients"][0]["id"].startswith("ingredient-"))
+
+    def test_ai_preview_route_returns_valid_draft(self):
+        ai_result = {
+            "kind": "recommendation",
+            "inputSummary": {"message": "Dinner", "summary": "Quick dinner", "servings": 2, "restrictions": [], "maxPrepMinutes": 30},
+            "recommendation": {
+                "title": "Bean tacos", "servings": 2, "prepMinutesApprox": 20,
+                "fitReason": "Fast", "ingredients": [{"name": "Beans", "quantity": 1, "unit": "can"}],
+                "steps": ["Warm beans."],
+            },
+        }
+        with patch("app.main.generate_suggestion", return_value=ai_result):
+            response = TestClient(app).post(
+                "/api/ai/suggestions",
+                json={
+                    "workspaceId": "demo-family", "requestId": "test", "message": "Dinner",
+                    "planDate": "2026-10-17", "listRevision": 1,
+                    "preferences": {"servings": 2, "restrictions": [], "likes": [], "maxPrepMinutes": 30},
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["sourceMode"], "live_ai")
+        self.assertEqual(response.json()["recommendation"]["title"], "Bean tacos")
 
 
 if __name__ == "__main__":

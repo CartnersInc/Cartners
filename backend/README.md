@@ -2,16 +2,20 @@
 
 The suggestion service uses `gemini-3.8-flash` with schema-constrained JSON and server-side validation. Google currently lists text input and output for this model as free on its Gemini API Free tier. Free access has limits and may change; free-tier prompts may be used to improve Google's products, so use fictional demo data rather than private household details.
 
-Get a key in [Google AI Studio](https://aistudio.google.com/apikey), then set it only in the backend environment:
+Get a key in [Google AI Studio](https://aistudio.google.com/apikey), then copy the example and add the key locally (never paste it into chat or commit it):
 
 ```sh
 cd backend
+cp .env.example .env
+# Edit .env and set GEMINI_API_KEY
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export GEMINI_API_KEY='your-key'
+uvicorn app.main:app --reload --port 8000
 ```
 
-The provider function is ready for Xavier's `POST /api/suggestions` route. It returns validated AI content (`recommendation` or `clarification`); the route still needs to add draft/workspace IDs, current list preview, and revision data per `docs/API_CONTRACT.md`. Do not expose the key through React/Vite or commit it.
+Run the Vite app in a second terminal with `cd frontend && npm run dev`, then open `http://127.0.0.1:5173`. The static hosted preview cannot reach a local-only backend.
+
+The local Home screen calls `POST /api/ai/suggestions` when the shared backend is offline. This returns a live AI recipe preview, but deliberately cannot save to the sample cart. The endpoint does not replace Xavier's `POST /api/suggestions` route or implement cart matching, persistence, confirmation, or Undo. When Xavier's shared backend is running, Home uses its contract route instead. Do not expose the key through React/Vite or commit it.
 
 Set `GEMINI_MODEL` to override the default model. The implementation retries temporary 429/503 capacity errors and caps each call at 25 seconds.

@@ -79,12 +79,11 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   function planFeatured() {
     const prompt = featured?.prompt || `Help us make ${featured?.title || 'this recipe'} for our group, using our saved preferences.`;
     setMessage(prompt);
-    if (connected) requestSuggestion(prompt);
-    else setError('This recipe is ready in your request. Connect AI to turn it into a meal plan and shared grocery list.');
+    requestSuggestion(prompt);
   }
 
-  function showDraft(nextDraft, localOnly) {
-    onEntryChange({ draft: nextDraft, localOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
+  function showDraft(nextDraft, localOnly, aiPreviewOnly = false) {
+    onEntryChange({ draft: nextDraft, localOnly, aiPreviewOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
     setExcluded([]); setError(''); attempt.current = null; undoAttempt.current = null;
   }
   function showSample(key) {
@@ -97,18 +96,21 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     if (busy.current || recoveringSave || !text.trim()) return;
     setMessage(text);
     if (!planDate || Number.isNaN(new Date(`${planDate}T12:00:00`).getTime())) { setError('Choose a meal date before asking for an idea.'); return; }
-    if (!connected) {
-      setError('AI isn’t connected yet. Your request is saved. Try one of the sample ideas below.');
-      return;
-    }
     busy.current = true; setPending('suggestion'); setError('');
     const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}) };
     const key = JSON.stringify(input);
+    const previewOnly = !connected;
     if (suggestionAttempt.current?.key !== key) suggestionAttempt.current = { key, body: { ...input, requestId: crypto.randomUUID() } };
     try {
-      const next = await api.request('/api/suggestions', { method: 'POST', body: suggestionAttempt.current.body });
+      const body = previewOnly ? {
+        ...suggestionAttempt.current.body,
+        listRevision: workspace.listRevision,
+        preferences: workspace.preferences,
+        ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
+      } : suggestionAttempt.current.body;
+      const next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
       if (!isDraft(next, workspace.workspaceId)) throw new Error('The backend returned an unsupported draft. Your previous idea is still here.');
-      showDraft(next, false); suggestionAttempt.current = null;
+      showDraft(next, false, previewOnly); suggestionAttempt.current = null;
     } catch (err) { setError(err.message); }
     finally { busy.current = false; setPending(''); }
   }
@@ -230,7 +232,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     {pending === 'suggestion' && <p className="notice" role="status">Finding something that fits your group…</p>}
 
     {draft && <section className="draft" aria-labelledby="draft-title" aria-busy={!!pending}>
-      <div className="draft-heading"><span className="source-label">{draft.sourceMode === 'sample' ? 'Sample idea' : 'AI suggestion'}</span>
+      <div className="draft-heading"><span className="source-label">{entry.aiPreviewOnly ? 'AI idea · preview only' : draft.sourceMode === 'sample' ? 'Sample idea' : 'AI suggestion'}</span>
         {entry.previous && !saved && <button className="text-button" disabled={locked} onClick={() => { onEntryChange({ ...entry.previous, previous: null }); setExcluded(entry.previous.excluded || []); setError(''); attempt.current = null; undoAttempt.current = null; }}>Previous idea</button>}
       </div>
       {meal && draft.planDate && draft.planDate !== planDate && <p className="notice">This idea is for {draft.planDate}. A new request will use {planDate}; adding this idea keeps its original date.</p>}
@@ -243,7 +245,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
             {meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}
           </> : <p>{draft.inputSummary?.summary || 'These requests are ready to review.'}</p>}
         </div>
-        <div className="cart-preview compact-cart"><h3>Ready for the cart</h3><p className="cart-summary">{cartSummary || (excluded.length === rows.length ? 'No new items selected.' : 'These items are already on your list.')}</p>
+        <div className="cart-preview compact-cart"><h3>{entry.aiPreviewOnly ? 'Ingredient preview' : 'Ready for the cart'}</h3>{entry.aiPreviewOnly && <p className="small muted">AI generated this idea; cart matching and saving need the shared backend.</p>}<p className="cart-summary">{cartSummary || (excluded.length === rows.length ? 'No new items selected.' : 'These items are already on your list.')}</p>
           <details><summary>Review {rows.length} ingredients and requests</summary><p className="small muted">Uncheck anything you already have.</p><ul className="ingredient-list">{rows.map(item => {
             const preview = previews.find(row => row.ingredientId === item.id);
             const owner = item.requestFor && item.requestFor !== 'household' ? workspace.actors.find(actor => actor.id === item.requestFor)?.name || item.requestFor : 'Shared';
@@ -256,8 +258,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         </div>
         {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">{meal ? 'Your meal plan was saved too.' : 'Your shared cart is up to date.'}</p></div>
           <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('shopping')}>View cart<Icon name="arrow" /></button>
-        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own idea when connected.</p> : staleDraft ? <><p className="small muted">The cart changed. Check the updated ingredients first.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh cart preview</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add anything twice.' : meal ? `Adds the reviewed items and saves dinner for ${draft.planDate || planDate}.` : 'Adds the reviewed requests to your cart.'}</p>}</div>
-          <button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Adding…' : recoveringSave ? 'Retry save' : 'Add to cart'}<Icon name="arrow" /></button>
+        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own idea when connected.</p> : entry.aiPreviewOnly ? <p className="small muted">Connect the shared backend to match and save these ingredients.</p> : staleDraft ? <><p className="small muted">The cart changed. Check the updated ingredients first.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh cart preview</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add anything twice.' : meal ? `Adds the reviewed items and saves dinner for ${draft.planDate || planDate}.` : 'Adds the reviewed requests to your cart.'}</p>}</div>
+          <button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Adding…' : recoveringSave ? 'Retry save' : entry.aiPreviewOnly ? 'Cart connection needed' : 'Add to cart'}<Icon name="arrow" /></button>
         </div>}
       </>}
     </section>}

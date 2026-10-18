@@ -32,6 +32,32 @@ test('sample meal, refinement, grocery, clarification, and draft restoration are
   await expect(page.getByRole('textbox', { name: 'Change this idea', exact: true })).toHaveValue('A quick dinner for tomorrow');
 });
 
+test('Home requests a live AI preview without pretending the sample cart is connected', async ({ page }) => {
+  const draft = await fixture('suggestions');
+  draft.sourceMode = 'live_ai';
+  draft.recommendation.listPreview = draft.recommendation.ingredients.map(item => ({ ingredientId: item.id, action: 'review' }));
+  let request;
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/workspace') return route.fulfill({ status: 503, json: { error: { message: 'No shared backend' } } });
+    if (path === '/api/ai/suggestions') {
+      request = route.request().postDataJSON();
+      return route.fulfill({ json: { ...draft, workspaceId: request.workspaceId, listRevision: request.listRevision, planDate: request.planDate, sampleNotice: 'AI-generated preview; cart not saved.' } });
+    }
+    return route.fulfill({ status: 503, json: { error: { message: 'Not available' } } });
+  });
+  await page.goto('/');
+  await page.getByRole('textbox', { name: /What do you want/ }).fill('Something quick and vegetarian');
+  await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
+  await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
+  await expect(page.getByText('AI idea · preview only', { exact: true })).toBeVisible();
+  await expect(page.getByText('AI generated this idea; cart matching and saving need the shared backend.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cart connection needed', exact: true })).toBeDisabled();
+  expect(request.message).toBe('Something quick and vegetarian');
+  expect(request.preferences.restrictions).toEqual(['vegetarian']);
+  expect(request.requestId).toBeTruthy();
+});
+
 test('live contract save retries the same action and Undo updates server state', async ({ page }) => {
   let workspace = await fixture('workspace');
   const draft = await fixture('suggestions'); draft.sourceMode = 'live_ai';
