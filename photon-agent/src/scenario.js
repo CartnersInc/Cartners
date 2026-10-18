@@ -8,12 +8,12 @@ const CANCEL_RUN = /\b(?:not going(?: anymore)?|false alarm|cancel(?:led)? the (
 const LIST_STATUS = /\b(?:what(?:'?s| is) on the (?:list|cart)|show (?:the )?(?:list|cart)|shopping list|what do we (?:need|have))\b/i;
 const NEED_PREFIX = /^(?:(?:please )?(?:can you )?(?:(?:i|we) )?(?:need|want|grab|get|add)(?: some)?\s+)/i;
 const MEALISH = /\b(?:taco|dinner|recipe|meal|cook|eat|for \d+|something (?:quick|easy|fun)|vegetarian|vegan)\b/i;
-const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|grocery list|groceries for)\b/i;
+const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|plan (?:this|our|the|my) week|week of meals|grocery list|groceries for)\b/i;
 
 export const HELP_REPLY = [
   'I’m Cartners, in this thread with your household.',
   'Heading to the store? Text “going to QFC — what do you guys need?” I’ll start a 10-minute run and read the shared list.',
-  'Everyone else: “need milk and eggs” adds it to this run. “Tacos for four” gets a meal draft; reply “add it” to confirm.',
+  'Everyone else: “need milk and eggs” adds it to this run. “Tacos for four” gets a meal draft; “plan this week” gets seven dinners on Plans — groceries stay off the cart. Reply “add it” to confirm.',
   '“What’s on the list?” anytime. “Done shopping” when you’re leaving.',
 ].join('\n\n');
 

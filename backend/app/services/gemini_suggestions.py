@@ -489,3 +489,64 @@ def suggest_for_event(
         "guestCount": occasion.guestCount or prefs.servings,
     }
     return payload
+
+
+class WeeklyDayMeal(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    servings: int = Field(ge=1, le=12)
+    prepMinutesApprox: int = Field(ge=1, le=240)
+    fitReason: str = Field(min_length=1, max_length=300)
+    ingredients: list[IngredientDraft] = Field(min_length=1, max_length=8)
+    steps: list[str] = Field(min_length=1, max_length=6)
+
+
+class WeeklyDay(BaseModel):
+    recommendation: WeeklyDayMeal
+
+
+class GeminiWeeklyOutput(BaseModel):
+    kind: Literal["weekly_plan"]
+    inputSummary: InputSummary
+    days: list[WeeklyDay] = Field(min_length=7, max_length=7)
+
+
+def generate_weekly_plan(
+    message: str,
+    *,
+    preferences: Preferences | dict[str, Any] | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
+    timeout_seconds: float = 40.0,
+) -> dict[str, Any]:
+    """Seven varied dinners for one week. Does not write the cart."""
+    cleaned = _normalize_message(message)
+    prefs = (
+        preferences
+        if isinstance(preferences, Preferences)
+        else Preferences.model_validate(preferences or DEFAULT_PREFERENCES)
+    )
+    prefs_block = json.dumps(prefs.model_dump(), indent=2)
+    prompt = f"""You plan seven shared household dinners for one week.
+
+Return kind "weekly_plan" with exactly 7 days in Monday–Sunday order.
+Each day is a different meal. Vary cuisine and main ingredient. Honor saved dietary restrictions. Never relax them.
+Keep prepMinutesApprox within the saved max unless the user clearly asks for a longer cook.
+Units must be count, g, ml, can, or pack. Do not invent prices or allergen-safety claims.
+Do not include shopping-list diffs or draft IDs. This preview is for the calendar only.
+
+Saved preferences:
+{prefs_block}
+
+User message:
+{cleaned}
+"""
+    payload = _complete_json(
+        [prompt],
+        GeminiWeeklyOutput,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+    ).model_dump()
+    payload["sourceMode"] = "live_ai"
+    payload["costStatus"] = "unverified"
+    return payload

@@ -111,7 +111,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
         requestId: pending.confirmRequestId,
         draftId: pending.draft.draftId,
         expectedListRevision: pending.draft.listRevision,
-        target: 'cart',
+        target: pending.draft.kind === 'weekly_plan' ? 'plans' : 'cart',
       });
       delete state.pendingBySpace[space.id];
       await state.save();

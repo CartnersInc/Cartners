@@ -30,7 +30,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const busy = useRef(false);
   const draft = entry?.draft;
   const draftMotion = useSurfaceMotion(draft?.draftId);
-  const meal = draft?.recommendation;
+  const week = draft?.kind === 'weekly_plan';
+  const meal = week ? null : draft?.recommendation;
+  const weekDays = week ? draft.days || [] : [];
   const rows = meal?.ingredients || draft?.items || [];
   const previews = meal?.listPreview || draft?.listPreview || [];
   const recoveringSave = !!attempt.current;
@@ -64,7 +66,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         preferences: workspace.preferences,
         ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
       } : suggestionAttempt.current.body;
-      const next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
+      const next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body, timeoutMs: /week/i.test(text) ? 45000 : 25000 });
       if (!isDraft(next, workspace.workspaceId)) throw new Error('The backend returned an unsupported draft. Your previous idea is still here.');
       showDraft(next, false, previewOnly); suggestionAttempt.current = null;
     } catch (err) { setError(err.message); }
@@ -75,7 +77,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     busy.current = true; setPending('confirm'); setError('');
     if (!attempt.current) attempt.current = {
       workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), draftId: draft.draftId,
-      expectedListRevision: draft.listRevision, excludedIngredientIds: excluded, target: 'cart',
+      expectedListRevision: draft.listRevision, excludedIngredientIds: excluded, target: week ? 'plans' : 'cart',
       ...(meal ? { requestFor: scope } : {}),
     };
     onEntryChange({ ...entry, confirmAttempt: attempt.current });
@@ -83,8 +85,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       const result = await api.request('/api/drafts/confirm', { method: 'POST', body: attempt.current });
       if (!result.workspace || !result.actionId) throw new Error('The save response was incomplete. Retry to check the same action.');
       onWorkspaceChange(result.workspace);
-      onEntryChange({ ...entry, confirmAttempt: null, saved: { actionId: result.actionId, actorId, message: typeof result.changeSummary === 'string' ? result.changeSummary : 'Saved to your cart.' } });
-      notify('Saved to your cart.'); attempt.current = null; navigate('shopping');
+      const savedMessage = typeof result.changeSummary === 'string' ? result.changeSummary : (week ? 'Saved this week’s meals. No groceries were added.' : 'Saved to your cart.');
+      onEntryChange({ ...entry, confirmAttempt: null, saved: { actionId: result.actionId, actorId, message: savedMessage } });
+      notify(savedMessage); attempt.current = null; navigate(week ? 'plans' : 'shopping');
     } catch (err) {
       if (err.status === 409) {
         attempt.current = null;
@@ -188,7 +191,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
           <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
         </div>
       </aside>
-    </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}
+    </div> : <div className="idea-page-heading"><h1>{week ? 'Your week' : meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}
 
     {!draft && <RecipeCarousel active={active} pending={!!pending} onTry={requestSuggestion} />}
 
@@ -201,7 +204,22 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         {entry.previous && !saved && <button className="text-button" disabled={locked} onClick={() => { onEntryChange({ ...entry.previous, previous: null }); setExcluded(entry.previous.excluded || []); setError(''); attempt.current = null; undoAttempt.current = null; }}>Previous idea</button>}
       </div>
       {meal && draft.planDate && draft.planDate !== planDate && <p className="notice">This idea is for {draft.planDate}. A new request will use {planDate}; adding this idea keeps its original date.</p>}
-      {draft.kind === 'clarification' ? <><h2 id="draft-title" tabIndex={-1}>{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : <>
+      {draft.kind === 'clarification' ? <><h2 id="draft-title" tabIndex={-1}>{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : week ? <>
+        <div className="recipe-copy"><h2 id="draft-title" tabIndex={-1}>Seven dinners, one ask</h2>
+          <p>{draft.inputSummary?.summary || 'A week of meals using your household defaults.'}</p>
+          {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}
+        </div>
+        <ol className="week-plan-days">{weekDays.map(day => {
+          const recipe = day.recommendation || {};
+          const label = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(`${day.planDate}T12:00:00`));
+          return <li key={day.planDate}><p className="small muted">{label} · about {recipe.prepMinutesApprox} min · {recipe.servings} servings</p><h3>{recipe.title}</h3><p>{recipe.fitReason}</p></li>;
+        })}</ol>
+        {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">These meals are on This week. Groceries were not added.</p></div>
+          <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('plans')}>View this week<Icon name="arrow" /></button>
+        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own week when connected.</p> : entry.aiPreviewOnly ? <p className="small muted">Connect the shared backend to save this week on the household calendar.</p> : staleDraft ? <><p className="small muted">Checking the latest household list before you save this week.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add groceries or duplicate meals.' : 'Saves these seven meals on This week. Does not add groceries — pick a night and add that dinner when you are ready to shop.'}</p>}</div>
+          <button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Saving…' : recoveringSave ? 'Retry save' : entry.aiPreviewOnly ? 'Cart connection needed' : 'Save this week'}<Icon name="arrow" /></button>
+        </div>}
+      </> : <>
         <div className="recipe-copy"><h2 id="draft-title" tabIndex={-1}>{meal?.title || 'Here’s what you asked for'}</h2>
           {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span className="recipe-servings"><Icon name="salad" />{meal.servings} servings</span><span className="recipe-date"><Icon name="plans" /><span className="sr-only">For </span>{draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
             {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}

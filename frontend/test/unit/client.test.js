@@ -35,4 +35,13 @@ test('draft boundary accepts contract variants and rejects malformed recipes', a
     assert.ok(!isDraft(draft, 'another-group'));
   }
   assert.ok(!isDraft({ kind: 'recommendation', draftId: 'broken', workspaceId: 'demo-family', sourceMode: 'live_ai', listRevision: 1 }, 'demo-family'));
+  const week = {
+    kind: 'weekly_plan', draftId: 'draft-week', workspaceId: 'demo-family', sourceMode: 'sample', listRevision: 1,
+    days: Array.from({ length: 7 }, (_, index) => ({
+      planDate: `2026-10-${12 + index}`,
+      recommendation: { title: `Meal ${index}`, servings: 4, ingredients: [{ id: `ing-${index}`, name: 'Beans', quantity: 1, unit: 'can' }] },
+    })),
+  };
+  assert.ok(isDraft(week, 'demo-family'));
+  assert.ok(!isDraft({ ...week, days: week.days.slice(0, 6) }, 'demo-family'));
 });

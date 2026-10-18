@@ -37,6 +37,28 @@ function fixture() {
   return { sent, suggestions, confirmations, state, config, photon, api, makeMessage };
 }
 
+test('weekly drafts save to plans, not the cart', async () => {
+  const week = {
+    draftId: 'draft-week', workspaceId: 'demo-family', listRevision: 3, sourceMode: 'live_ai', kind: 'weekly_plan',
+    days: Array.from({ length: 7 }, (_, index) => ({
+      planDate: `2026-10-${12 + index}`,
+      recommendation: { title: `Dinner ${index + 1}` },
+    })),
+  };
+  assert.match(formatDraft(week), /calendar preview/);
+  assert.match(formatDraft(week), /Groceries stay off the cart/);
+  const f = fixture();
+  f.api.suggest = async () => week;
+  f.api.confirmDraft = async (input) => {
+    f.confirmations.push(input);
+    return { changeSummary: 'Saved the weekly plans. No groceries were added.' };
+  };
+  await handleMessage({ message: f.makeMessage('week-1', 'plan this week'), ...f });
+  await handleMessage({ message: f.makeMessage('week-2', 'add it'), ...f });
+  assert.equal(f.confirmations[0].target, 'plans');
+  assert.match(f.sent[1].body.content.text, /Saved the weekly plans|No groceries/);
+});
+
 test('only recognizes a small set of explicit food prompts and pending-draft replies', () => {
   assert.equal(classifyMessage('What do you want to eat today?', false), 'suggest');
   assert.equal(classifyMessage('@Cartners, suggest a dinner', false), 'suggest');

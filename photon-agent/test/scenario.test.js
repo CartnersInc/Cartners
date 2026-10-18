@@ -8,6 +8,7 @@ test('dad heading to the store starts a run, roommates add items, meals stay dra
   assert.equal(classifyHousehold('heading to the store, need anything?').type, 'start_run');
   assert.deepEqual(classifyHousehold('need milk and eggs').items, ['milk', 'eggs']);
   assert.equal(classifyHousehold('tacos for four').type, 'suggest');
+  assert.equal(classifyHousehold('plan this week').type, 'suggest');
   assert.equal(classifyHousehold('done shopping').type, 'finish_run');
   assert.equal(classifyHousehold('what’s on the list').type, 'list');
   assert.equal(classifyHousehold('add it', { hasPendingDraft: true }).type, 'confirm');

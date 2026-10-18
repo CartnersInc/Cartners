@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 const CONFIRM = /^(?:yes|yes please|add|add it|add these|add this|put it in|put it in the cart|add to cart|sounds good|let's do it)[.! ]*$/i;
 const DISMISS = /^(?:no|no thanks|not now|skip|cancel|forget it)[.! ]*$/i;
-const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|what can we eat|what to eat|what should i cook|what should we cook|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|grocery list|groceries for|need groceries|shopping list)\b/i;
+const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|what can we eat|what to eat|what should i cook|what should we cook|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|plan (?:this|our|the|my) week|week of meals|grocery list|groceries for|need groceries|shopping list)\b/i;
 const FOOD_CONTEXT = /\b(?:eat|cook|dinner|meal|recipe|food|grocery|groceries|shopping|cart|snack|ingredient|add|need|buy)\b/i;
 const DIRECT_MENTION = /(?:^|\s)@?cartners\b/i;
 
@@ -25,6 +25,13 @@ function formatQuantity(quantity, unit) {
 export function formatDraft(draft) {
   const label = draft.sourceMode === 'sample' ? 'Sample idea' : 'Cartners idea';
   if (draft.kind === 'clarification') return `${label}: ${draft.question}\n\nReply with the change you want and I’ll adjust it.`;
+  if (draft.kind === 'weekly_plan') {
+    const meals = (draft.days || []).map((day) => {
+      const when = day.planDate ? new Date(`${day.planDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }) : 'Day';
+      return `${when}: ${day.recommendation?.title || 'Dinner'}`;
+    });
+    return [`${label} for the week`, meals.join('\n'), 'This is a calendar preview. Reply “add it” to save the week on Plans. Groceries stay off the cart until you confirm one night.'].join('\n\n');
+  }
 
   const isMeal = draft.kind === 'recommendation';
   const content = isMeal ? draft.recommendation : null;
@@ -54,6 +61,9 @@ export function formatDraft(draft) {
 }
 
 export function formatConfirmed(result, draft) {
+  if (draft.kind === 'weekly_plan') {
+    return result.changeSummary || 'Saved the weekly plans. No groceries were added.';
+  }
   const label = draft.kind === 'recommendation' ? draft.recommendation?.title : 'the grocery list';
   const summary = result.changeSummary ? ` ${result.changeSummary}` : '';
   return `Added ${label} to the shared cart.${summary} You can undo it in Cartners.`;
@@ -115,7 +125,7 @@ export async function handleMessage({ message, config, api, photon, state }) {
         requestId: pending.confirmRequestId,
         draftId: pending.draft.draftId,
         expectedListRevision: pending.draft.listRevision,
-        target: 'cart',
+        target: pending.draft.kind === 'weekly_plan' ? 'plans' : 'cart',
       });
       delete state.pendingBySpace[message.space.id];
       await state.save();
