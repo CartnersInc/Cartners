@@ -194,7 +194,9 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   await page.goto('/#shopping');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Kroger' }).first()).toBeVisible();
+  const logo = page.getByRole('img', { name: 'Kroger' }).first();
+  await expect(logo).toBeVisible();
+  await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
   await page.getByRole('button', { name: 'Compare my list' }).click();
   await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
@@ -244,6 +246,31 @@ test('clear list removes all needed requests after one clear confirmation', asyn
   await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
   await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
+});
+
+test('bought requests are separated from the items still needed', async ({ page }) => {
+  const base = await fixture('workspace');
+  const workspace = {
+    ...base,
+    serverNow: new Date().toISOString(),
+    trip: null,
+    items: base.items.map(item => item.id === 'item-milk' ? { ...item, bought: true } : item),
+  };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(
+    new URL(route.request().url()).pathname === '/api/workspace'
+      ? { json: workspace }
+      : { status: 404, json: { error: { message: 'Not in this check' } } },
+  ));
+
+  await page.goto('/#shopping');
+  const needed = page.locator('section[aria-labelledby="rm-waiting"]');
+  await expect(needed.locator('.rm-h2')).toContainText('Needed');
+  await expect(needed.locator('.rm-count')).toHaveText('1');
+  await expect(needed.getByText('Tortillas')).toBeVisible();
+  await expect(needed.getByText('Oat milk')).toHaveCount(0);
+  await expect(page.locator('.rm-bought-group > summary')).toHaveText('Bought 1');
+  await page.locator('.rm-bought-group > summary').click();
+  await expect(page.locator('.rm-bought-group').getByText('Oat milk')).toBeVisible();
 });
 
 test('phone shopping makes the store-run action easy to find without covering the cart', async ({ page }) => {

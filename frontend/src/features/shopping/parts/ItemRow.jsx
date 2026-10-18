@@ -86,8 +86,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <span className="rm-item-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
-            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
-              aria-label={canPunt ? `Proposal: ${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
+            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}
+              aria-label={canPunt ? `${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
               onClick={() => setPunted(canPunt)}>
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>

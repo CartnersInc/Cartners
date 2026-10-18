@@ -6,7 +6,6 @@ import TripPanel from '../groups/parts/TripPanel.jsx';
 import RunBanner from '../groups/parts/RunBanner.jsx';
 import { people, useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
-import { PUNT_PROPOSAL } from './lib/proposal.js';
 import { recipeLookup } from './lib/recipes.js';
 import './roomie.css';
 
@@ -37,6 +36,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   );
   const needed = items.filter(item => !item.bought);
   const waiting = offRun.filter(item => !item.bought);
+  const boughtWaiting = offRun.filter(item => item.bought);
   const newCount = onRun.filter(item => !item.bought && itemBadge(item, trip, actorId)?.kind === 'new').length;
 
   const row = item => (
@@ -102,10 +102,14 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
             <div className="rm-list-heading">
               <h2 id="rm-waiting" className="rm-h2">{trip ? 'Next run' : 'Needed'} <span className="rm-count">{waiting.length}</span></h2>
             </div>
-            {offRun.length ? <ul className="rm-items">{offRun.map(row)}</ul> : <div className="rm-empty-state"><p>Your cart is empty.</p><button type="button" className="rm-btn" onClick={() => navigate('home')}>Find dinner with Cartners</button></div>}
+            {waiting.length ? <ul className="rm-items">{waiting.map(row)}</ul> : <div className="rm-empty-state"><p>{boughtWaiting.length ? 'Nothing left to buy.' : 'Your cart is empty.'}</p><button type="button" className="rm-btn" onClick={() => navigate('home')}>Find dinner with Cartners</button></div>}
           </section>
 
-          {PUNT_PROPOSAL && <p className="rm-help rm-proposal">“Not here” is a proposal and still needs backend support before it can be used.</p>}
+          {boughtWaiting.length > 0 && <details className="rm-bought-group">
+            <summary>Bought <span className="rm-count">{boughtWaiting.length}</span></summary>
+            <ul className="rm-items">{boughtWaiting.map(row)}</ul>
+          </details>}
+
         </div>
 
         <div className="rm-side">
