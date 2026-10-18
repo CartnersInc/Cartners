@@ -10,7 +10,13 @@ from typing import Any, Callable
 
 from app.db import dumps, init_db, loads, transaction
 from app.errors import ApiError
-from app.list_ops import apply_preview_to_cart, build_list_preview, find_compatible, normalize_name
+from app.list_ops import (
+    apply_preview_to_cart,
+    build_list_preview,
+    find_compatible,
+    normalize_name,
+    touched_item_ids,
+)
 from app.money import allocate_split, balances_from_expenses
 
 SUPPORTED_UNITS = {"count", "g", "ml", "can", "pack"}
@@ -845,6 +851,7 @@ class Store:
 
             if kind == "recommendation" and body.get("target", "cart") == "cart":
                 recipe = draft["recommendation"]
+                plan_id = new_id("plan")
                 preview = build_list_preview(recipe["ingredients"], items)
                 updated, deltas = apply_preview_to_cart(
                     recipe["ingredients"],
@@ -854,24 +861,23 @@ class Store:
                     actor_id=actor_id,
                     now=now,
                     new_item_id=lambda: new_id("item"),
+                    reserved_plan_id=plan_id,
                 )
-                # Assign open-run IDs to new adds
+                # New cart rows (adds / meal splits) join an open store run.
                 run_id = self._assign_run_if_open(workspace_id, now)
                 for delta in deltas:
-                    if delta["op"] == "add" and run_id:
+                    if delta["op"] in {"add", "split"} and run_id:
                         delta["after"]["runId"] = run_id
                         for item in updated:
                             if item["id"] == delta["itemId"]:
                                 item["runId"] = run_id
                         self._append_claimed_item(workspace_id, delta["itemId"])
-                # Persist all changed items
-                existing_ids = {i["id"] for i in items}
+                changed = touched_item_ids(deltas)
                 for item in updated:
-                    if item["id"] not in existing_ids or any(d["itemId"] == item["id"] for d in deltas):
+                    if item["id"] in changed:
                         self._save_item(workspace_id, item)
                 self._bump_revision(workspace_id)
 
-                plan_id = new_id("plan")
                 self.conn.execute(
                     """
                     INSERT INTO plans(id, workspace_id, event, plan_date, servings, recipe_json, action_id, created_at)
@@ -902,7 +908,6 @@ class Store:
                     new_item_id=lambda: new_id("item"),
                 )
                 run_id = self._assign_run_if_open(workspace_id, now)
-                existing_ids = {i["id"] for i in items}
                 for delta in deltas:
                     if delta["op"] == "add" and run_id:
                         delta["after"]["runId"] = run_id
@@ -910,8 +915,9 @@ class Store:
                             if item["id"] == delta["itemId"]:
                                 item["runId"] = run_id
                         self._append_claimed_item(workspace_id, delta["itemId"])
+                changed = touched_item_ids(deltas)
                 for item in updated:
-                    if item["id"] not in existing_ids or any(d["itemId"] == item["id"] for d in deltas):
+                    if item["id"] in changed:
                         self._save_item(workspace_id, item)
                 self._bump_revision(workspace_id)
                 undo = {"kind": "confirm_draft", "deltas": deltas, "planId": None, "meal": False}
@@ -1005,6 +1011,7 @@ class Store:
                             item["quantity"] == after["quantity"]
                             and item["unit"] == after["unit"]
                             and normalize_name(item["name"]) == normalize_name(after["name"])
+                            and item.get("reservedPlanId") == after.get("reservedPlanId")
                         ):
                             item["removed"] = True
                             item["version"] = int(item["version"]) + 1
@@ -1014,10 +1021,54 @@ class Store:
                     elif delta["op"] == "increase":
                         after = delta["after"]
                         before = delta["before"]
-                        if item["quantity"] == after["quantity"] and not item["bought"]:
+                        if (
+                            item["quantity"] == after["quantity"]
+                            and item.get("reservedPlanId") == after.get("reservedPlanId")
+                            and not item["bought"]
+                        ):
                             item["quantity"] = before["quantity"]
+                            item["reservedPlanId"] = before.get("reservedPlanId")
                             item["version"] = int(item["version"]) + 1
                             self._save_item(workspace_id, item)
+                        else:
+                            retained.append(item["name"])
+                    elif delta["op"] == "reserve":
+                        after = delta["after"]
+                        before = delta["before"]
+                        if (
+                            item.get("reservedPlanId") == after.get("reservedPlanId")
+                            and item["quantity"] == after["quantity"]
+                            and not item["bought"]
+                        ):
+                            item["reservedPlanId"] = before.get("reservedPlanId")
+                            item["version"] = int(item["version"]) + 1
+                            self._save_item(workspace_id, item)
+                        else:
+                            retained.append(item["name"])
+                    elif delta["op"] == "split":
+                        after = delta["after"]
+                        before = delta["before"]
+                        parent_row = self.conn.execute(
+                            "SELECT * FROM items WHERE id = ? AND workspace_id = ?",
+                            (delta["parentItemId"], workspace_id),
+                        ).fetchone()
+                        if (
+                            item["quantity"] == after["quantity"]
+                            and item.get("reservedPlanId") == after.get("reservedPlanId")
+                            and not item["bought"]
+                            and parent_row
+                            and not parent_row["bought"]
+                        ):
+                            item["removed"] = True
+                            item["version"] = int(item["version"]) + 1
+                            self._save_item(workspace_id, item)
+                            parent = self._item_dict(parent_row)
+                            if parent["quantity"] == delta["afterParent"]["quantity"]:
+                                parent["quantity"] = before["quantity"]
+                                parent["version"] = int(parent["version"]) + 1
+                                self._save_item(workspace_id, parent)
+                            else:
+                                retained.append(parent["name"])
                         else:
                             retained.append(item["name"])
                 if undo.get("planId") and not retained:
