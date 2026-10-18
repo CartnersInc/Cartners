@@ -8,6 +8,7 @@ import { initialWorkspace } from './samples.js';
 import { clearPurchasePrompt } from './features/groups/parts/TripPanel.jsx';
 import Onboarding from './features/onboarding/Onboarding.jsx';
 import { readMembership, leaveMembership } from './features/onboarding/session.js';
+import { withMemberPayLinks } from './household.js';
 import { useSurfaceMotion } from './components/useMotion.js';
 
 const api = createApi({ baseUrl: import.meta.env.VITE_API_BASE_URL || '', getToken: () => readMembership()?.sessionToken });
@@ -61,9 +62,10 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
   const mainRef = useRef(null);
   const Feature = features[page];
   function onWorkspaceChange(next) {
-    if (!isWorkspace(next, activeGroup.current)) throw new Error('The server returned an invalid group snapshot. The previous data is preserved.');
+    const snapshot = withMemberPayLinks(next, readMembership());
+    if (!isWorkspace(snapshot, activeGroup.current)) throw new Error('The server returned an invalid group snapshot. The previous data is preserved.');
     ++pollRequest.current;
-    setWorkspace(current => next.listRevision < current.listRevision ? current : next);
+    setWorkspace(current => snapshot.listRevision < current.listRevision ? current : snapshot);
   }
   function navigate(next, date = today()) {
     if (next === 'home-new') { updateEntry(activeGroup.current, { message: '' }); setPlanDate(date); location.hash = 'home'; return; }
@@ -110,7 +112,7 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
       const groupId = activeGroup.current, request = ++pollRequest.current;
       requestController = new AbortController();
       try {
-        const next = await api.request(`/api/workspace?workspaceId=${encodeURIComponent(groupId)}`, { signal: requestController.signal });
+        const next = await api.request(`/api/workspace?workspaceId=${encodeURIComponent(groupId)}`, { signal: requestController.signal, timeoutMs: 45000 });
         if (disposed || groupId !== activeGroup.current || request !== pollRequest.current) return;
         if (!isWorkspace(next, groupId)) throw new Error('Invalid workspace response');
         onWorkspaceChange(next); hasLive.current = true; setConnection('connected'); setAccessLost(false);
@@ -120,7 +122,7 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
       } finally { inFlight = false; }
     }
     poll();
-    const timer = setInterval(poll, 3000);
+    const timer = setInterval(poll, 10000);
     document.addEventListener('visibilitychange', poll);
     return () => { disposed = true; clearInterval(timer); requestController?.abort(); document.removeEventListener('visibilitychange', poll); };
   }, []);

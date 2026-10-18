@@ -149,6 +149,10 @@
 .rm-item-btns { display: flex; gap: 6px; flex-shrink: 0; }
 .rm-details-btn { min-height: 40px; padding: 6px 10px; border: 1px solid #c6d2bd; border-radius: 8px; background: transparent; font-size: .76rem; font-weight: 700; }
 .rm-details-btn:hover:not(:disabled) { background: var(--pale); }
+.rm-more-btn { width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--ink); display: grid; place-items: center; }
+.rm-more-btn:hover:not(:disabled) { background: var(--pale); }
+.rm-more-btn[aria-expanded="true"] { background: var(--pale); }
+.rm-more-icon { width: 20px; height: 20px; fill: currentColor; }
 .rm-row-status { font-size: .75rem; color: var(--muted); margin: 4px 0 0 40px; }
 .rm-row-error { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: .78rem; color: #803c2d; margin: 6px 0 0 40px; }
 .rm-edit { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; display: grid; gap: 10px; }

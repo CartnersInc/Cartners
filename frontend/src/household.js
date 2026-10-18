@@ -18,3 +18,16 @@ export function isFamilyTable(workspace, membership) {
 export function splitsCosts(workspace) {
   return (workspace?.preferences?.spendingMode || workspace?.groups?.find(group => group.workspaceId === workspace?.workspaceId)?.spendingMode) === 'split';
 }
+
+export function withMemberPayLinks(workspace, membership) {
+  const links = membership?.payLinks;
+  if (!workspace || !links || typeof links !== 'object' || membership.workspaceId !== workspace.workspaceId) return workspace;
+  return {
+    ...workspace,
+    actors: (workspace.actors || []).map(actor => {
+      if (actor.id !== membership.actorId) return actor;
+      const server = actor.payLinks && Object.keys(actor.payLinks).length > 0;
+      return server ? actor : { ...actor, payLinks: links };
+    }),
+  };
+}

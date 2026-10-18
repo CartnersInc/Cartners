@@ -189,6 +189,7 @@ button:disabled { opacity: .55; }
 .app-shell .rm-item-bought { background: #e7f3ea; box-shadow: none; }
 .app-shell .rm-bought, .app-shell input[type=checkbox] { accent-color: var(--cobalt); }
 .app-shell .rm-details-btn { border-color: #d6c2a6; }
+.app-shell .rm-more-btn { color: var(--ink); }
 .app-shell .rm-empty-state { margin-top: 24px; padding: 28px; background: var(--sun-pale); border-radius: 14px; gap: 16px; }
 .app-shell .rm-empty-state h2 { font-size: 1.65rem; }
 .app-shell .rm-empty-state p { font-size: .9rem; }

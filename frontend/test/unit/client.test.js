@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
-import { householdKind, isFamilyTable, splitsCosts } from '../../src/household.js';
+import { householdKind, isFamilyTable, splitsCosts, withMemberPayLinks } from '../../src/household.js';
 import { allocateSplit, rememberedSharers, unrecordedRuns } from '../../src/features/spending/lib/remember.js';
 import { readFile } from 'node:fs/promises';
 
@@ -22,6 +22,8 @@ test('HTML fallback and connection failure never count as success', async () => 
   await assert.rejects(htmlApi.request('/api/workspace'), error => error.code === 'INVALID_RESPONSE' && error.message.includes('backend to be deployed and connected'));
   const offline = createApi({ fetchImpl: async () => { throw new TypeError('offline'); } });
   await assert.rejects(offline.request('/api/workspace'), /Cannot reach/);
+  const missing = createApi({ fetchImpl: async () => new Response(JSON.stringify({ detail: 'Not Found' }), { status: 404 }) });
+  await assert.rejects(missing.request('/api/members/pay-links'), error => error.status === 404 && error.message.includes('hosted API is behind'));
 });
 test('snapshot boundary rejects another group and non-snapshots', async () => {
   const sample = JSON.parse(await readFile(new URL('../../../docs/fixtures/workspace.json', import.meta.url)));
@@ -56,6 +58,11 @@ test('family tables stay pooled; roommate tables split costs', () => {
   assert.ok(!isFamilyTable({ workspaceId: 'household-1', preferences: { spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }));
   assert.ok(splitsCosts({ preferences: { spendingMode: 'split' } }));
   assert.ok(!splitsCosts({ preferences: { spendingMode: 'pooled' } }));
+  const overlaid = withMemberPayLinks(
+    { workspaceId: 'household-1', actors: [{ id: 'member-me', name: 'Ibrahiim', payLinks: {} }] },
+    { workspaceId: 'household-1', actorId: 'member-me', payLinks: { venmo: 'sam-k', zelle: '4255006832' } },
+  );
+  assert.equal(overlaid.actors[0].payLinks.venmo, 'sam-k');
 });
 
 test('roommate receipts reuse the last split and even-split leftover cents', () => {

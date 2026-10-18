@@ -91,7 +91,9 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
-          <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Details for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Details</button>
+          <button type="button" className="rm-more-btn" aria-expanded={open} aria-controls={panelId} aria-label={`More options for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>
+            <svg viewBox="0 0 24 24" className="rm-more-icon" aria-hidden="true"><circle cx="12" cy="6" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="18" r="1.7" /></svg>
+          </button>
         </div>
       </div>
 

@@ -8,9 +8,16 @@ export class ApiError extends Error {
   }
 }
 
+function failureMessage(payload, status) {
+  if (payload?.error?.message) return payload.error.message;
+  if (status === 404) return 'The hosted API is behind this app, so that save is missing. Payment handles can stay on this device until Render is redeployed.';
+  if (typeof payload?.detail === 'string' && payload.detail) return payload.detail;
+  return 'The request failed. Please try again.';
+}
+
 export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch, getToken = () => null } = {}) {
   return {
-    async request(path, { method = 'GET', body, formData, signal, timeoutMs = 25000 } = {}) {
+    async request(path, { method = 'GET', body, formData, signal, timeoutMs = 40000 } = {}) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
       const abort = () => controller.abort();
@@ -27,8 +34,8 @@ export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch, getToken
           throw new ApiError('Cartners reached a webpage instead of its backend. AI and shared updates need the backend to be deployed and connected.', { status: response.status, code: 'INVALID_RESPONSE' });
         }
         if (!response.ok) {
-          throw new ApiError(payload.error?.message || 'The request failed. Please try again.', {
-            status: response.status, code: payload.error?.code || 'REQUEST_FAILED', payload,
+          throw new ApiError(failureMessage(payload, response.status), {
+            status: response.status, code: payload.error?.code || (response.status === 404 ? 'NOT_FOUND' : 'REQUEST_FAILED'), payload,
           });
         }
         return payload;
