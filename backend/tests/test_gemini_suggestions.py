@@ -218,7 +218,7 @@ class SuggestionValidationTests(unittest.TestCase):
         with patch("app.main.draft_expense_from_note", return_value={
             "totalCents": 4218, "payerName": "Leila", "sharedNames": ["Sam"],
             "personalAmounts": [{"personName": "Sam", "amountCents": 800}], "clarification": None,
-        }):
+        }) as mocked:
             with TestClient(app) as client:
                 response = client.post("/api/ai/expense-draft", json={
                     "workspaceId": "demo-roommates", "actorId": "leila", "requestId": "receipt-draft-1",
@@ -230,6 +230,7 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(draft["payerId"], "leila")
         self.assertEqual(draft["personalAllocations"], {"sam": 800})
         self.assertFalse(draft["saved"])
+        self.assertEqual(mocked.call_args.kwargs["context"]["currentActorName"], "Leila")
 
     def test_expense_ai_reuses_last_split_when_the_note_omits_sharers(self):
         with patch("app.main.draft_expense_from_note", return_value={

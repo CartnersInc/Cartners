@@ -254,6 +254,8 @@
 .receipt-ai > label { font-size: .8rem; font-weight: 750; }
 .receipt-ai textarea { width: 100%; min-height: 68px; resize: vertical; border: 1px solid #b9c7ae; border-radius: 8px; background: var(--white); padding: 10px 12px; font-size: .85rem; }
 .receipt-ai .rm-actions { justify-content: flex-start; margin: 0; }
+.receipt-compact { margin: 4px 0 12px; padding: 14px 16px; border-radius: 12px; background: var(--white); display: grid; gap: 8px; }
+.receipt-compact > p { margin: 0; }
 .rm-form .rm-field { margin-top: 12px; }
 .rm-exception { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .rm-exception-who { flex: 1 1 100%; font-size: .85rem; }

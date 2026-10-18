@@ -210,6 +210,7 @@ button:disabled { opacity: .55; }
 .app-shell .rm-product { background: var(--ground); }
 .app-shell .receipt-ai { background: var(--apron); border: 0; border-radius: 12px; padding: 20px; margin-top: 16px; }
 .app-shell .receipt-ai textarea { background: var(--white); border-color: #baa78d; border-radius: 9px; }
+.app-shell .receipt-compact { background: var(--sun-pale); }
 .app-shell .rm-side > .rm-card:first-child { background: var(--sun-pale); }
 .app-shell .rm-price, .app-shell .rm-amount { font-variant-numeric: tabular-nums; }
 .app-shell .preferences { max-width: none; }

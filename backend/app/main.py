@@ -403,12 +403,39 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         snapshot = store.snapshot(body.workspaceId)
         roster = [person for person in snapshot.get("actors", [])]
         mode = snapshot.get("preferences", {}).get("spendingMode") or body.mode
+        member_ids = [person["id"] for person in roster]
+        names_by_id = {person["id"]: person["name"] for person in roster}
+        shopper_id = shopper_for_unrecorded_run(snapshot)
+        memory = remembered_split(snapshot.get("expenses") or [], member_ids)
+        personal_bought = {}
+        run_id = None
+        trip = snapshot.get("trip") or {}
+        for run in list(reversed(trip.get("completedTrips") or [])) + ([trip] if trip.get("claimedBy") else []):
+            if run.get("id") and run.get("claimedBy") == shopper_id:
+                run_id = run.get("id")
+                break
+        for item in snapshot.get("items") or []:
+            if run_id and item.get("runId") == run_id and item.get("bought") and item.get("requestFor") not in {None, "household"}:
+                personal_bought.setdefault(item["requestFor"], []).append(item.get("name"))
+        context = {
+            "currentActorName": names_by_id.get(body.actorId),
+            "shopperName": names_by_id.get(shopper_id) if shopper_id else None,
+            "storeName": trip.get("storeName"),
+            "lastPayerName": names_by_id.get(memory.get("payerId")) if memory.get("payerId") else None,
+            "lastSplitNames": [names_by_id[member_id] for member_id in (memory.get("sharedMemberIds") or []) if member_id in names_by_id],
+            "personalBought": [
+                {"name": names_by_id[member_id], "items": items}
+                for member_id, items in personal_bought.items()
+                if member_id in names_by_id
+            ],
+        }
         try:
             parsed = await run_in_threadpool(
                 draft_expense_from_note,
                 body.message,
                 members=[person["name"] for person in roster],
                 mode=mode,
+                context=context,
             )
             by_name = {person["name"].strip().casefold(): person["id"] for person in roster}
             member_ids = [person["id"] for person in roster]

@@ -102,7 +102,7 @@ test.skip('split receipt sends personal subtotals; retry reuses the requestId', 
   expect(calls.find(c => c.path === '/api/preferences').body).toMatchObject({ spendingMode: 'split' });
 
   await page.goto('/#spending');
-  await page.getByRole('button', { name: 'Record a purchase' }).click();
+  await page.getByText('Enter the total yourself').click();
   await page.getByLabel('Actual total').fill('20.00');
   await page.getByLabel('Add a personal amount').selectOption('sam');
   await page.getByLabel('Sam personal subtotal').fill('6');
@@ -178,19 +178,22 @@ test('AI fills a receipt draft, but the user must review and save it', async ({ 
       return { json: { workspace: next, actionId: 'e-ai', changeSummary: 'Receipt saved.' } };
     }
     return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
-  });
+  }, workspace => ({
+    ...workspace,
+    preferences: { ...workspace.preferences, spendingMode: 'split' },
+    groups: workspace.groups.map(group => ({ ...group, spendingMode: 'split' })),
+  }));
 
-  await page.goto('/#groups');
-  await page.getByText('Default for purchase records').click();
-  await page.getByRole('radio', { name: 'Split' }).check();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.goto('/#spending');
-  await page.getByRole('button', { name: 'Record a purchase' }).click();
+  await expect(page.getByText('Enter the total yourself')).toBeVisible();
+  await expect(page.getByLabel('Actual total')).toBeHidden();
   await page.getByLabel('Describe the receipt').fill("I paid $42.18 at QFC; $8 was Sam's personal snacks, rest shared.");
-  await page.getByRole('button', { name: 'Review purchase' }).click();
+  await page.getByRole('button', { name: 'Fill from this' }).click();
+  await expect(page.getByText('$42.18')).toBeVisible();
+  expect(calls.some(call => call.path === '/api/expenses')).toBe(false);
+  await page.getByText('Adjust details').click();
   await expect(page.getByLabel('Actual total')).toHaveValue('42.18');
   await expect(page.getByLabel('Sam personal subtotal')).toHaveValue('8.00');
-  expect(calls.some(call => call.path === '/api/expenses')).toBe(false);
   await page.getByRole('button', { name: /Save \$42\.18 receipt/ }).click();
   await expect(page.getByText('Receipt saved.')).toBeVisible();
   const ai = calls.find(call => call.path === '/api/ai/expense-draft');
@@ -221,12 +224,13 @@ test('a needs-review receipt can be filled in and confirmed', async ({ page }) =
       return { json: { workspace: next, actionId: 'e-review', changeSummary: 'Receipt confirmed. Balances now include it.', expenseId: 'e-review' } };
     }
     return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
-  });
+  }, workspace => ({
+    ...workspace,
+    preferences: { ...workspace.preferences, spendingMode: 'split' },
+    groups: workspace.groups.map(group => ({ ...group, spendingMode: 'split' })),
+    expenses: [review],
+  }));
 
-  await page.goto('/#groups');
-  await page.getByText('Default for purchase records').click();
-  await page.getByRole('radio', { name: 'Split' }).check();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.goto('/#spending');
   await page.getByRole('button', { name: 'Fill in the missing amount' }).click();
   await expect(page.getByRole('heading', { name: 'Resolve this receipt' })).toBeVisible();

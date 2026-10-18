@@ -51,6 +51,7 @@ test('two browsers create, join, confirm a draft, share a cart, run, and record 
   await pageA.getByRole('button', { name: 'Finish run', exact: true }).click();
   await pageA.getByRole('group', { name: 'Confirm finishing the run' }).getByRole('button', { name: 'Finish run' }).click();
   await expect(pageA.getByRole('heading', { name: 'Spending' })).toBeVisible({ timeout: 15000 });
+  await pageA.getByText('Enter the total yourself').click();
   await pageA.getByRole('textbox', { name: 'Actual total' }).fill('12.99');
   await pageA.getByRole('button', { name: /Save \$12\.99 receipt/ }).click();
   await expect(pageA.getByRole('article', { name: /Receipt for/ })).toContainText('$12.99');
