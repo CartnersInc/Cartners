@@ -1305,6 +1305,41 @@ class Store:
             self._add_activity(workspace_id, actor_id, summary)
             return {"workspace": self.snapshot(workspace_id), "actionId": action_id, "changeSummary": summary}
 
+    def _prepare_expense(self, body: dict[str, Any], request_id: str) -> dict[str, Any]:
+        workspace_id = body["workspaceId"]
+        mode = body["mode"]
+        status = body.get("status") or "confirmed"
+        total = int(body["totalCents"])
+        payer = body["payerId"]
+        self.require_actor(workspace_id, payer)
+        shared = list(body.get("sharedMemberIds") or [])
+        personal = dict(body.get("personalAllocations") or {})
+        allocations: dict[str, int] = {}
+        if mode == "pooled":
+            allocations = {payer: total}
+            status = "confirmed"
+        elif mode == "split":
+            if status == "needs_review" or any(v is None for v in personal.values()):
+                status = "needs_review"
+                allocations = {}
+            else:
+                try:
+                    allocations = allocate_split(total, shared, personal)
+                except ValueError as exc:
+                    raise ApiError(422, "INVALID_EXPENSE", str(exc), request_id=request_id) from exc
+        else:
+            raise ApiError(422, "INVALID_EXPENSE", "mode must be pooled or split.", request_id=request_id)
+        return {
+            "run_id": body.get("runId"),
+            "total": total,
+            "payer": payer,
+            "mode": mode,
+            "shared": shared,
+            "personal": personal,
+            "allocations": allocations,
+            "status": status,
+        }
+
     def create_expense(self, body: dict[str, Any]) -> dict[str, Any]:
         workspace_id = body["workspaceId"]
         actor_id = body["actorId"]
@@ -1319,32 +1354,8 @@ class Store:
             return replay
 
         with transaction(self.conn):
-            mode = body["mode"]
-            status = body.get("status") or "confirmed"
-            total = int(body["totalCents"])
-            payer = body["payerId"]
-            self.require_actor(workspace_id, payer)
-            shared = list(body.get("sharedMemberIds") or [])
-            personal = dict(body.get("personalAllocations") or {})
-            run_id = body.get("runId")
+            prepared = self._prepare_expense(body, request_id)
             # Distinct requestIds make additional receipts explicit; replays are handled above.
-
-            allocations: dict[str, int] = {}
-            if mode == "pooled":
-                allocations = {payer: total}
-                status = "confirmed"
-            elif mode == "split":
-                if status == "needs_review" or any(v is None for v in personal.values()):
-                    status = "needs_review"
-                    allocations = {}
-                else:
-                    try:
-                        allocations = allocate_split(total, shared, personal)
-                    except ValueError as exc:
-                        raise ApiError(422, "INVALID_EXPENSE", str(exc), request_id=request_id) from exc
-            else:
-                raise ApiError(422, "INVALID_EXPENSE", "mode must be pooled or split.")
-
             expense_id = new_id("expense")
             self.conn.execute(
                 """
@@ -1356,17 +1367,18 @@ class Store:
                 (
                     expense_id,
                     workspace_id,
-                    run_id,
-                    total,
-                    payer,
-                    mode,
-                    dumps(shared),
-                    dumps(personal),
-                    dumps(allocations),
-                    status,
+                    prepared["run_id"],
+                    prepared["total"],
+                    prepared["payer"],
+                    prepared["mode"],
+                    dumps(prepared["shared"]),
+                    dumps(prepared["personal"]),
+                    dumps(prepared["allocations"]),
+                    prepared["status"],
                     iso(utc_now()),
                 ),
             )
+            status = prepared["status"]
             summary = (
                 "Saved as Needs review. Nobody owes anything for it yet."
                 if status == "needs_review"
@@ -1377,6 +1389,77 @@ class Store:
                 workspace_id=workspace_id,
                 actor_id=actor_id,
                 kind="expense",
+                change_summary=summary,
+                replay_extra={"expenseId": expense_id},
+            )
+            self._add_activity(workspace_id, actor_id, summary)
+            return {
+                "workspace": self.snapshot(workspace_id),
+                "actionId": action_id,
+                "changeSummary": summary,
+                "expenseId": expense_id,
+            }
+
+    def update_expense(self, expense_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        workspace_id = body["workspaceId"]
+        actor_id = body["actorId"]
+        request_id = body["requestId"]
+        self.require_workspace(workspace_id)
+        self.require_actor(workspace_id, actor_id)
+
+        replay = self._replay_or_register(
+            request_id=request_id, workspace_id=workspace_id, actor_id=actor_id, kind="expense_update"
+        )
+        if replay:
+            return replay
+
+        with transaction(self.conn):
+            row = self.conn.execute(
+                "SELECT * FROM expenses WHERE id = ? AND workspace_id = ?",
+                (expense_id, workspace_id),
+            ).fetchone()
+            if row is None:
+                raise ApiError(404, "EXPENSE_NOT_FOUND", "That receipt is not in this group.", request_id=request_id)
+            if row["status"] != "needs_review":
+                raise ApiError(
+                    422,
+                    "EXPENSE_CONFIRMED",
+                    "This receipt is already confirmed.",
+                    request_id=request_id,
+                )
+            prepared = self._prepare_expense(body, request_id)
+            self.conn.execute(
+                """
+                UPDATE expenses SET
+                  run_id = ?, total_cents = ?, payer_id = ?, mode = ?,
+                  shared_member_ids_json = ?, personal_allocations_json = ?,
+                  allocations_json = ?, status = ?
+                WHERE id = ? AND workspace_id = ?
+                """,
+                (
+                    prepared["run_id"],
+                    prepared["total"],
+                    prepared["payer"],
+                    prepared["mode"],
+                    dumps(prepared["shared"]),
+                    dumps(prepared["personal"]),
+                    dumps(prepared["allocations"]),
+                    prepared["status"],
+                    expense_id,
+                    workspace_id,
+                ),
+            )
+            status = prepared["status"]
+            summary = (
+                "Saved as Needs review. Nobody owes anything for it yet."
+                if status == "needs_review"
+                else "Receipt confirmed. Balances now include it."
+            )
+            action_id = self._record_action(
+                request_id=request_id,
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+                kind="expense_update",
                 change_summary=summary,
                 replay_extra={"expenseId": expense_id},
             )
@@ -1566,12 +1649,18 @@ class Store:
                 missing.append(item["id"])
                 continue
             subtotal += line
+            image_url = option.get("imageUrl")
             lines.append(
                 {
                     "itemId": item["id"],
                     "productId": option.get("productId") or new_id("kroger"),
                     "productName": option.get("description") or item["name"],
                     "description": option.get("description") or "",
+                    "brand": option.get("brand") or "",
+                    "productSize": option.get("size") or "",
+                    "stockLevel": option.get("stockLevel") or "",
+                    "aisle": option.get("aisle") or "",
+                    "imageUrl": image_url if isinstance(image_url, str) and image_url.startswith("https://") else None,
                     "packageSize": plan["packageSize"],
                     "packagesNeeded": packages,
                     "pricePerPackageCents": price_per,

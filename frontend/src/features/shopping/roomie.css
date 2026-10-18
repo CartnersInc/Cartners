@@ -87,13 +87,14 @@
 .rm-banner-clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1rem; }
 .rm-banner .rm-btn { background: var(--white); color: var(--dark); border-color: var(--white); }
 .rm-banner-quiet .rm-btn { background: var(--green); color: white; border-color: var(--green); }
+.rm-dock { display: none; }
 
 /* Items */
 .rm-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .rm-item { background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
-.rm-item-main { display: flex; align-items: center; gap: 12px; }
+.rm-item-main { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(72px, auto) auto; gap: 10px; align-items: center; }
 .rm-bought { width: 28px; height: 28px; flex-shrink: 0; accent-color: var(--green); cursor: pointer; }
-.rm-item-text { flex: 1; min-width: 0; display: grid; gap: 2px; cursor: pointer; }
+.rm-item-text { grid-column: 2; min-width: 0; display: grid; gap: 2px; cursor: pointer; }
 .rm-item-name { font-weight: 750; font-size: .95rem; overflow-wrap: anywhere; }
 .rm-qty-badge { color: var(--muted); font-weight: 600; font-size: .85rem; }
 .rm-item-note { font-size: .82rem; overflow-wrap: anywhere; }
@@ -101,6 +102,9 @@
 .rm-item-meta { font-size: .75rem; color: var(--muted); }
 .rm-scope { font-weight: 750; color: var(--dark); }
 .rm-scope-personal { color: #6a4f10; }
+.rm-item-price { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rm-item-bought .rm-item-price { color: var(--green); }
+.rm-item-btns { grid-column: 4; grid-row: 1; }
 .rm-item-bought {
   background: #e7f3ea;
   border-color: #9ec5a8;
@@ -144,36 +148,13 @@
 /* A cart row reads like a small receipt: item, amount, price, instructions. */
 .rm-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 26px 0 10px; }
 .rm-list-heading .rm-h2 { margin: 0; }
-.rm-clear-list { margin-left: auto; }
+.rm-cart-summary { border-radius: 999px; background: var(--pale); color: var(--dark); padding: 6px 10px; font-size: .78rem; font-weight: 750; }
+.rm-empty-cart { margin-left: auto; background: var(--white); border-color: #b86f60; color: #803c2d; }
+.rm-empty-cart:hover:not(:disabled) { background: #f5e7dd; color: #682c21; border-color: #803c2d; }
+.rm-empty-state { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 0 4px; }
+.rm-empty-state p { color: var(--muted); margin: 0; }
 .rm-clear-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 14px; color: var(--muted); font-size: .82rem; }
 .rm-clear-confirm p { margin: 0; }
-.rm-cart-columns, .rm-cart-row { display: grid; grid-template-columns: 30px minmax(140px, 1.2fr) minmax(72px, .45fr) minmax(82px, .5fr) minmax(140px, 1fr) auto; gap: 12px; align-items: center; }
-.rm-cart-columns { padding: 0 14px 7px; color: var(--muted); font-size: .7rem; font-weight: 750; }
-.rm-cart-columns span:nth-child(1) { grid-column: 2; }
-.rm-cart-columns span:nth-child(2) { grid-column: 3; }
-.rm-cart-columns span:nth-child(3) { grid-column: 4; }
-.rm-cart-columns span:nth-child(4) { grid-column: 5; }
-.rm-cart-row .rm-bought { grid-column: 1; grid-row: 1; }
-.rm-cart-row .rm-item-text { grid-column: 2; grid-row: 1; }
-.rm-cart-row .rm-cart-amount { grid-column: 3; grid-row: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rm-cart-row .rm-cart-price { grid-column: 4; grid-row: 1; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rm-cart-row .rm-cart-instruction { grid-column: 5; grid-row: 1; color: var(--muted); font-size: .82rem; overflow-wrap: anywhere; }
-.rm-cart-row .rm-item-btns { grid-column: 6; grid-row: 1; }
-.rm-item-bought .rm-cart-price { color: var(--green); }
-/* The header and every row share identical tracks. The buttons column has a fixed width so rows
-   with "Not here" / "Put back" line up with rows that only have Edit; the header's padding matches
-   a row's padding plus border. Flexible columns may shrink instead of pushing buttons out. */
-.rm-cart-columns, .rm-cart-row { grid-template-columns: 30px minmax(0, 1.2fr) 72px 82px minmax(0, 1fr) 7.5rem; }
-.rm-cart-columns { padding: 0 13px 7px; }
-.rm-cart-row .rm-item-btns { justify-content: flex-end; }
-.rm-main > section { container-type: inline-size; }
-/* Narrow list (e.g. beside the side panel): instructions move under the item instead of squeezing. */
-@container (max-width: 640px) {
-  .rm-cart-columns, .rm-cart-row { grid-template-columns: 30px minmax(0, 1fr) 72px 82px 7.5rem; }
-  .rm-cart-columns span:nth-child(4) { display: none; }
-  .rm-cart-row .rm-cart-instruction { grid-column: 2 / 5; grid-row: 2; }
-  .rm-cart-row .rm-item-btns { grid-column: 5; }
-}
 
 /* Store prices are the first useful action on Shopping, with returned product imagery below. */
 .rm-compare-prominent { margin: 16px 0 24px; padding: 20px; }
@@ -189,13 +170,15 @@
 .rm-product-copy small { display: block; }
 
 @media (max-width: 760px) {
-  .rm-cart-columns { display: none; }
-  .rm-cart-row { grid-template-columns: 28px minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: start; }
-  .rm-cart-row .rm-cart-instruction { grid-column: 2 / 4; grid-row: 2; }
-  .rm-cart-row .rm-item-btns { grid-column: 4; grid-row: 2; }
-  .rm-cart-row .rm-cart-amount, .rm-cart-row .rm-cart-price { padding-top: 2px; }
+  .rm-item-main { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 6px 10px; align-items: start; }
+  .rm-bought { grid-column: 1; grid-row: 1; margin-top: 2px; }
+  .rm-item-text { grid-column: 2 / 4; grid-row: 1; }
+  .rm-item-price { grid-column: 2; grid-row: 2; justify-self: start; }
+  .rm-item-btns { grid-column: 3; grid-row: 2; }
   .rm-compare-prominent { padding: 15px; }
   .rm-kroger-logo { width: 72px; }
+  .rm-dock { display: flex; margin: 12px 0 18px; }
+  .rm-dock .rm-btn { flex: 1; }
 }
 
 /* Kroger matches follow the shared cart; location is the only one-time setup. */
@@ -217,6 +200,7 @@
 .rm-store-result { border-top: 1px solid var(--line); padding-top: 11px; }
 .rm-basket-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 .rm-basket-head .rm-price { margin-left: auto; }
+.rm-plain { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: .8rem; }
 .rm-store-name { display: grid; gap: 2px; }
 .rm-store-name small { color: var(--muted); font-size: .72rem; font-weight: 500; }
 .rm-product { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
@@ -291,7 +275,7 @@
 /* Phone */
 @media (max-width: 900px) {
   .rm-columns { grid-template-columns: 1fr; }
-  .rm-side { order: -1; }
+  .rm-side { order: 1; }
 }
 @media (max-width: 700px) {
   .rm-h1 { font-size: 1.7rem; }

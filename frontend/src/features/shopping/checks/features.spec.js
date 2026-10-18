@@ -48,7 +48,7 @@ test('add a Just me request, lose a start race, and release a run', async ({ pag
   await page.getByRole('textbox', { name: 'Add an item' }).fill('Hot sauce');
   await page.getByRole('radio', { name: 'Just me' }).first().check();
   await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
-  await expect(page.locator('.rm-cart-row').filter({ hasText: 'Hot sauce' }).locator('.rm-cart-amount')).toHaveText('1');
+  await expect(page.locator('.rm-item').filter({ hasText: 'Hot sauce' }).locator('.rm-qty-badge')).toHaveText('1');
   const add = calls.find(c => c.path === '/api/items');
   expect(add.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', name: 'Hot sauce', requestFor: 'leila', quantity: 1, unit: 'count' });
   expect(add.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
@@ -145,6 +145,44 @@ test('AI fills a receipt draft, but the user must review and save it', async ({ 
   expect(calls.find(call => call.path === '/api/expenses').body).toMatchObject({ totalCents: 4218, payerId: 'leila', mode: 'split', personalAllocations: { sam: 800 } });
 });
 
+test('a needs-review receipt can be filled in and confirmed', async ({ page }) => {
+  const review = {
+    id: 'e-review', runId: null, totalCents: 2000, currency: 'USD', payerId: 'leila', mode: 'split',
+    sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: null }, allocations: {},
+    status: 'needs_review', createdAt: '2026-10-18T08:00:00Z',
+  };
+  const calls = await serve(page, ({ path, method, body, workspace, set }) => {
+    if (path === '/api/preferences') {
+      const next = { ...workspace, preferences: { ...workspace.preferences, spendingMode: 'split' }, expenses: [review] };
+      set(next);
+      return { json: { workspace: next, actionId: 'p1', changeSummary: 'Spending is now split.' } };
+    }
+    if (method === 'PATCH' && path === '/api/expenses/e-review') {
+      const next = {
+        ...workspace,
+        expenses: [{ ...review, personalAllocations: body.personalAllocations, status: 'confirmed', allocations: { leila: 700, sam: 1300 } }],
+        balances: [{ from: 'sam', to: 'leila', cents: 1300 }],
+      };
+      set(next);
+      return { json: { workspace: next, actionId: 'e-review', changeSummary: 'Receipt confirmed. Balances now include it.', expenseId: 'e-review' } };
+    }
+    return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
+  });
+
+  await page.goto('/#groups');
+  await page.getByRole('radio', { name: 'Split' }).check();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.goto('/#spending');
+  await page.getByRole('button', { name: 'Fill in the missing amount' }).click();
+  await expect(page.getByRole('heading', { name: 'Resolve this receipt' })).toBeVisible();
+  await page.getByRole('checkbox', { name: /Don.t know/ }).uncheck();
+  await page.getByLabel('Sam personal subtotal').fill('6');
+  await page.getByRole('button', { name: /Confirm \$20\.00 receipt/ }).click();
+  await expect(page.getByText('Sam owes you')).toBeVisible();
+  const update = calls.find(call => call.method === 'PATCH' && call.path === '/api/expenses/e-review');
+  expect(update.body).toMatchObject({ totalCents: 2000, payerId: 'leila', personalAllocations: { sam: 600 }, status: 'confirmed' });
+});
+
 test('nearby Kroger prices are prominent and compare every open cart item on request', async ({ page }) => {
   const pricing = await fixture('pricing');
   pricing.sourceMode = 'live_api';
@@ -166,8 +204,8 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   expect(compare.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', postalCode: '98105' });
   expect(compare.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
   expect(compare.body.itemIds).toEqual(['item-tortillas', 'item-milk']);
-  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-price')).toHaveText('$2.50');
-  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-amount')).toHaveText('6');
+  await expect(page.locator('.rm-item').first().locator('.rm-item-price')).toHaveText('$2.50');
+  await expect(page.locator('.rm-item').first().locator('.rm-qty-badge')).toHaveText('6');
 });
 
 test('live Kroger matches show the product and prefill the store run', async ({ page }) => {
@@ -200,10 +238,11 @@ test('clear list removes all needed requests after one clear confirmation', asyn
     return { status: 404, json: { error: { message: 'Not in this check' } } };
   });
   await page.goto('/#shopping');
-  await page.getByRole('button', { name: 'Clear list' }).click();
+  await page.getByRole('button', { name: 'Empty cart' }).click();
   await expect(page.getByText('Remove all 2 items that still need buying?')).toBeVisible();
   await page.getByRole('button', { name: 'Remove all 2' }).click();
-  await expect(page.getByText('Your list is clear.')).toBeVisible();
+  await expect(page.getByText('Your cart is empty.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
   await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
 });
@@ -243,4 +282,14 @@ test('cart rows say whether each request is shared or personal', async ({ page }
   await expect(metaOf('Paper plates')).toHaveText('Shared · added by Sam');
   await expect(metaOf('Hot sauce')).toHaveText('Just you · added by you');
   await expect(metaOf('Oat milk')).toHaveText('Just Sam · added by Sam');
+});
+
+test('phone shopping makes the store-run action easy to find without covering the cart', async ({ page }) => {
+  await serve(page, () => ({ status: 404, json: { error: { message: 'Not in this check' } } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/#shopping');
+  const startShortcut = page.getByRole('button', { name: 'Start a store run', exact: true });
+  await expect(startShortcut).toBeVisible();
+  await startShortcut.click();
+  await expect(page.getByRole('textbox', { name: 'Store' })).toBeFocused();
 });

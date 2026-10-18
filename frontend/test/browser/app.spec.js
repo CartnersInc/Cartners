@@ -17,7 +17,8 @@ test('first visit starts with preferences and a clean, non-sample workspace', as
   await expect(page.getByText('Offline · changes paused')).toBeVisible();
   await page.getByRole('link', { name: 'Shopping', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Shopping', exact: true })).toBeVisible();
-  await expect(page.getByText('Your list is clear.')).toBeVisible();
+  await expect(page.getByText('Your cart is empty.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
 });
 
