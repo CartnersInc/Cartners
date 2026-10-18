@@ -53,7 +53,7 @@ test('welcome → own household → return → purchase and invite; no fictional
   await page.getByRole('textbox',{name:'Add an item',exact:true}).first().fill('Rice');
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).not.toBeChecked();
-  await expect(page.getByText('Not priced',{exact:true})).toBeVisible();
+  await expect(page.getByText('Not priced',{exact:true})).toHaveCount(0); // no prices until a store is chosen with Shop here
   await page.getByRole('checkbox',{name:'Mark purchased: Rice'}).check();
   await page.getByText('Purchased · 1',{exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark needed: Rice'})).toBeChecked();

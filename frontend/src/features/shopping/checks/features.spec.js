@@ -267,6 +267,8 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   expect(compare.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', postalCode: '98105' });
   expect(compare.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
   expect(compare.body.itemIds).toEqual(['item-tortillas', 'item-milk']);
+  await expect(page.locator('.rm-item').first().locator('.rm-item-price')).toHaveText(''); // no prices until a store is chosen
+  await page.getByRole('button', { name: 'Shop here', exact: true }).click();
   await expect(page.locator('.rm-item').first().locator('.rm-item-price')).toHaveText('$2.50');
   await expect(page.locator('.rm-item').first().locator('.rm-qty-badge')).toHaveText('6');
 });
@@ -384,4 +386,39 @@ test('the list splits into My items and Everyone else; only your items can be ed
   await expect(mine.getByRole('button', { name: /More options/ })).toHaveCount(2);
   await expect(others.getByRole('button', { name: /More options/ })).toHaveCount(0);
   await expect(page.getByRole('checkbox')).toHaveCount(0); // nobody is shopping
+});
+
+test('cart prices appear after Shop here and stay while the shopper checks items off', async ({ page }) => {
+  const pricing = await fixture('pricing');
+  pricing.sourceMode = 'live_api';
+  pricing.baskets = [pricing.baskets[0]];
+  pricing.baskets[0].storeName = 'QFC University Village';
+  const shopping = workspace => ({ ...stillNeeded(workspace), trip: { id: 'run-1', version: 4, claimedBy: 'leila', storeName: 'QFC', state: 'accepting_requests', claimedAt: new Date().toISOString(), requestDeadlineAt: new Date(Date.now() + 10 * 60e3).toISOString(), completedTrips: [] } });
+  const calls = await serve(page, ({ path, body, workspace, set }) => {
+    if (path === '/api/baskets/compare') return { json: pricing };
+    if (path.startsWith('/api/items/')) {
+      const id = decodeURIComponent(path.split('/').pop());
+      const next = { ...workspace, listRevision: workspace.listRevision + 1, items: workspace.items.map(item => item.id === id ? { ...item, bought: body.bought, version: item.version + 1 } : item) };
+      set(next);
+      return { json: { workspace: next, actionId: `buy-${id}` } };
+    }
+    return { status: 404, json: { error: { message: 'Not in this check' } } };
+  }, shopping);
+  await page.goto('/#shopping');
+  await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
+  const store = page.locator('.rm-store-result').filter({ hasText: 'QFC University Village' });
+  await expect(store.getByRole('button', { name: 'Shop here', exact: true })).toBeVisible();
+  const tortillas = page.locator('.rm-item').filter({ has: page.locator('.rm-item-name', { hasText: /^Tortillas/ }) });
+  await expect(tortillas.locator('.rm-item-price')).toHaveText('');
+
+  await store.getByRole('button', { name: 'Shop here', exact: true }).click();
+  await expect(tortillas.locator('.rm-item-price')).toHaveText('$2.50');
+  await expect(page.getByText(/prices from QFC University Village/)).toBeVisible();
+
+  await page.getByRole('checkbox', { name: 'Mark purchased: Tortillas' }).check();
+  const bought = page.getByRole('region', { name: 'Purchased groceries' }).locator('.rm-item').filter({ hasText: 'Tortillas' });
+  await expect(bought.locator('.rm-item-price')).toHaveText('$2.50');
+  await page.waitForTimeout(500);
+  await expect(bought.locator('.rm-item-price')).toHaveText('$2.50');
+  expect(calls.filter(call => call.path === '/api/baskets/compare')).toHaveLength(1); // checking off never re-compares
 });

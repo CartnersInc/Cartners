@@ -7,7 +7,7 @@ import { recipeLabel } from '../lib/recipes.js';
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
 // The checkbox records a purchase. Removing a request is a separate action.
-export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
+export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, pricing = false, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
@@ -88,7 +88,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           {shownChecked && <span className="rm-bought-label">Purchased</span>}
           <span className="sr-only">{shownChecked ? ', purchased' : ', still needed'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}{canCheck ? '. Check when purchased; uncheck to mark needed again.' : '.'}</span>
         </label>
-        <span className="rm-item-price" aria-label={`Price ${priceHint}${priceLabel || 'not available'}`}>{priceLabel ? `${priceHint}${priceLabel}` : 'Not priced'}</span>
+        {/* No price column text until a store is chosen with "Shop here". */}
+        <span className="rm-item-price" aria-label={pricing ? `Price ${priceHint}${priceLabel || 'not available'}` : undefined}>{pricing ? (priceLabel ? `${priceHint}${priceLabel}` : 'Not priced') : ''}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}

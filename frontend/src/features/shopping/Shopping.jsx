@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import AddItemForm from './parts/AddItemForm.jsx';
 import ItemRow from './parts/ItemRow.jsx';
-import BasketCompare from './parts/BasketCompare.jsx';
+import BasketCompare, { priceKey } from './parts/BasketCompare.jsx';
 import TripPanel from '../groups/parts/TripPanel.jsx';
 import RunBanner from '../groups/parts/RunBanner.jsx';
 import { useServerNow } from './lib/format.js';
@@ -14,7 +14,7 @@ import { isFamilyTable, splitsCosts } from '../../household.js';
 export default function Shopping({ workspace, actorId, api, onWorkspaceChange, notify, navigate, connected, membership }) {
   const nameRef = useRef(null), startRef = useRef(null);
   const [matchedStore, setMatchedStore] = useState('');
-  const [itemPrices, setItemPrices] = useState({});
+  const [shopPrices, setShopPrices] = useState(null); // prices from the store chosen with "Shop here"
   const [clearState, setClearState] = useState({ phase: 'idle', message: '' });
   const serverNowMs = useServerNow(workspace.serverNow);
   const trip = activeTrip(workspace);
@@ -28,9 +28,17 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const isShopper = trip?.claimedBy === actorId;
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify, navigate };
   const recipesFor = useMemo(() => recipeLookup(workspace), [workspace]);
-  // Quotes only describe the exact revision checked; edits invalidate their displayed prices.
-  const prices = itemPrices.revision === workspace.listRevision ? itemPrices.values : {};
-  const row = item => <ItemRow key={item.id} item={item} {...shared} trip={trip} badge={itemBadge(item, trip, actorId)} price={prices?.[item.id]} recipes={recipesFor(item)} />;
+  // A price sticks to its item while the item's name, amount, and unit match what was priced, so
+  // checking items off never hides it; editing an item hides its stale price.
+  const priceOf = item => { const quote = shopPrices?.values[item.id]; return quote && quote.key === priceKey(item) ? quote : null; };
+  function shopHere(basket, currency) {
+    setMatchedStore(basket.storeName);
+    setShopPrices({ storeName: basket.storeName, values: Object.fromEntries((basket.items || []).flatMap(line => {
+      const item = workspace.items.find(entry => entry.id === line.itemId);
+      return item && Number.isInteger(line.lineTotalCents) ? [[item.id, { cents: line.lineTotalCents, currency, key: priceKey(item) }]] : [];
+    })) });
+  }
+  const row = item => <ItemRow key={item.id} item={item} {...shared} trip={trip} badge={itemBadge(item, trip, actorId)} pricing={!!shopPrices} price={priceOf(item)} recipes={recipesFor(item)} />;
   async function clearList(undo = false) {
     if (!undo && clearState.phase !== 'confirm') { setClearState({ phase: 'confirm', message: '' }); return; }
     const targets = undo ? (clearState.removed || []).map(old => workspace.items.find(item => item.id === old.id && item.version === old.version && item.removed)).filter(Boolean) : mine;
@@ -53,11 +61,11 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
     {clearState.phase === 'confirm' && <p className="rm-notice">Remove the {mine.length} unpurchased {mine.length === 1 ? 'item' : 'items'} you added? Items others added and purchased history stay. <button className="rm-link" onClick={() => setClearState({ phase: 'idle' })}>Cancel</button></p>}
     {clearState.message && <p className="rm-notice" role="status">{clearState.message} {!!clearState.removed?.length && <button className="rm-link" disabled={clearState.phase === 'saving' || !connected} onClick={() => clearList(true)}>Undo</button>}</p>}
     <RunBanner workspace={workspace} actorId={actorId} serverNowMs={serverNowMs} onAdd={() => nameRef.current?.focus()} />
-    <BasketCompare key={workspace.listRevision} {...shared} items={needed} onPrices={values => setItemPrices({ revision: workspace.listRevision, values })} onStoreFound={setMatchedStore} />
+    <BasketCompare {...shared} items={needed} onShop={shopHere} onStoreFound={setMatchedStore} />
     <div className="shopping-flow"><section className="shopping-list" aria-label="Shared shopping list">
       <AddItemForm {...shared} serverNowMs={serverNowMs} nameRef={nameRef} />
       <div className="grocery-notepad">
-        <header className="notepad-heading"><h2>Our grocery list</h2><p>{needed.length} to pick up · {bought.length} purchased</p></header>
+        <header className="notepad-heading"><h2>Our grocery list</h2><p>{needed.length} to pick up · {bought.length} purchased{shopPrices ? ` · prices from ${shopPrices.storeName}` : ''}</p></header>
         {needed.length ? <>
           {mine.length > 0 && <section aria-label="My items"><h3 className="notepad-section-title">My items · {mine.length}</h3><ul ref={mineMotion} className="rm-items">{mine.map(row)}</ul></section>}
           {others.length > 0 && <section aria-label="Everyone else"><h3 className="notepad-section-title">Everyone else · {others.length}</h3><ul ref={othersMotion} className="rm-items">{others.map(row)}</ul></section>}
