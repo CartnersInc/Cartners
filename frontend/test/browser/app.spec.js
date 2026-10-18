@@ -14,6 +14,13 @@ test('first visit opens directly to the dinner prompt and cart', async ({ page }
   await expect(page.getByText('Offline · changes paused')).toBeVisible();
   await page.getByRole('link', { name: 'Shopping', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Shopping', exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Home', exact: true })).toBeVisible();
+  await page.getByRole('banner').getByRole('link', { name: 'Home', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
+  await page.getByRole('link', { name: 'Shopping', exact: true }).click();
+  await page.getByRole('button', { name: 'Plan with AI', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
+  await page.getByRole('link', { name: 'Shopping', exact: true }).click();
   await expect(page.getByText('Your cart is empty.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
@@ -35,7 +42,7 @@ test('Home requests a live AI preview when the shared backend is offline', async
   });
   await page.goto('/');
   await page.getByRole('textbox', { name: /What do you want/ }).fill('Something quick and vegetarian');
-  await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
+  await page.getByRole('button', { name: 'Get a dinner idea', exact: true }).click();
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
   await expect(page.getByText('AI idea · preview only', { exact: true })).toBeVisible();
   await expect(page.getByText('Connect the shared backend to match and save these ingredients.')).toBeVisible();
@@ -74,7 +81,7 @@ test('live contract save retries the same action and Undo updates server state',
   await page.goto('/');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
   await page.getByRole('textbox', { name: /What do you want/ }).fill('Something fun for dinner');
-  await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
+  await page.getByRole('button', { name: 'Get a dinner idea', exact: true }).click();
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
   await page.getByRole('radio', { name: 'Just me' }).check();
   await expect(page.getByText(/^Add \d/).first()).toBeVisible();
@@ -116,6 +123,13 @@ test('phone opens on dinner prompt and navigation fits without horizontal overfl
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByText('More', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Household', exact: true })).toBeInViewport();
+  await page.getByRole('link', { name: 'Shopping', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Plan with AI', exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Home', exact: true })).toBeVisible();
+  for (const width of [320, 390, 768, 1024]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no horizontal scroll at ${width}px`).toBe(true);
+  }
 });
 
 test('Plans returns to the AI request with the chosen day; preferences save without an AI call', async ({ page }) => {
@@ -151,7 +165,7 @@ test('Plans returns to the AI request with the chosen day; preferences save with
   await page.getByRole('spinbutton', { name: 'Servings', exact: true }).fill('6');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await expect(page.getByRole('definition').filter({ hasText: '6 servings' })).toBeVisible();
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
   await expect(page.locator('.request-options > summary')).toContainText('6 servings');
   expect(preferences).toHaveLength(1);
@@ -162,7 +176,8 @@ test('Plans returns to the AI request with the chosen day; preferences save with
   await page.getByRole('link', { name: 'Plans', exact: true }).click();
   await page.getByRole('complementary', { name: 'Your usuals' }).getByRole('button', { name: 'Edit preferences', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Servings', exact: true }).fill('9');
-  await page.getByRole('combobox', { name: 'Active group', exact: true }).selectOption('demo-roommates');
+  await page.getByRole('button', { name: 'Group: Family dinner' }).click();
+  await page.getByRole('button', { name: 'Roommate kitchen', exact: true }).click();
   await expect(page.getByRole('definition').filter({ hasText: '2 servings' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save preferences', exact: true })).toHaveCount(0);
   expect(preferences).toHaveLength(1);
@@ -197,7 +212,7 @@ test('AI request is the first step, and quick refinement stays one click', async
   expect(requests[1].previousDraftId).toBe(meal.draftId);
   await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'Plans', exact: true }).click();
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
 });
