@@ -24,7 +24,7 @@ export function parseHouseholdInvite(text) {
 
 export function connectReply(line = '') {
   const where = line ? ` to ${line}` : '';
-  return `This iPhone isn’t on a Cartners household yet. In the app, open Household and show the invitation code, then text that code here${where}. You can put your name after the code. After that, “need milk” goes on that shared list. Each person connects from their own phone, and each household uses its own code.`;
+  return `This phone isn’t on a Cartners household yet. In the app, open Household and show the invitation code, then text that code here${where}. Cartners uses the Photon name for this phone. Put another name after the code only if you want a different one. Then “need milk” goes on that shared list.`;
 }
 
 export function helpReply(kind = 'family', line = '') {

@@ -2,8 +2,7 @@ import { prettyPhone, smsHref } from '../imessageLine.js';
 
 export function firstText(membership) {
   if (!membership?.inviteCode || membership.demo) return '';
-  const name = String(membership.name || '').trim();
-  return name ? `${membership.inviteCode} ${name}` : membership.inviteCode;
+  return membership.inviteCode;
 }
 
 export default function ImessageConnect({ membership }) {
@@ -11,22 +10,22 @@ export default function ImessageConnect({ membership }) {
   const text = firstText(membership);
   if (membership?.demo) {
     return <>
-      <p>Texts do not change this sample list. Set up your own household, then connect each iPhone with that household’s invitation code.</p>
+      <p>Texts do not change this sample list. Set up your own household, then connect each Photon user with that household’s invitation code.</p>
       <ol className="imessage-steps">
         <li>Create or join your real household.</li>
         <li>On Household, copy the invitation code.</li>
-        <li>Text that code to <strong>{phone}</strong> from your iPhone, with your name after it.</li>
+        <li>Text that code to <strong>{phone}</strong>. Cartners uses that Photon user’s name.</li>
         <li>After Cartners replies, text “need milk” or “going to the store.”</li>
       </ol>
       <a className="text-button" href="#groups">Open Household</a>
     </>;
   }
   return <>
-    <p>Each iPhone joins <strong>this</strong> household once. Someone in another household texts their own code.</p>
+    <p>Each Photon user joins <strong>this</strong> household from their own phone. Cartners uses that Photon name, not one shared label.</p>
     <ol className="imessage-steps">
-      <li>From your iPhone, open the blue iMessage thread for <strong>{phone}</strong>.</li>
-      <li>Send the invitation code below once, with your name after it.</li>
-      <li>When Cartners says this phone is on the household, text “need milk” or “going to QFC.”</li>
+      <li>Open the blue iMessage thread for <strong>{phone}</strong>.</li>
+      <li>Send the invitation code below once. Add a name after it only if it should differ from the Photon user.</li>
+      <li>When Cartners replies with that Photon name, text “need milk” or “going to QFC.”</li>
     </ol>
     {text
       ? <textarea className="invite-code" readOnly rows={3} aria-label="Message to text Cartners" value={text} />

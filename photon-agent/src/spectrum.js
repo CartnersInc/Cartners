@@ -20,7 +20,7 @@ import {
   parseHouseholdInvite,
   windowOpen,
 } from './scenario.js';
-import { expandPhoneMap, expandPhoneSet, matchPhoneMap, matchPhoneSet } from './phone.js';
+import { expandPhoneMap, expandPhoneSet, matchPhoneMap, matchPhoneSet, photonAgentName } from './phone.js';
 
 export { HELP_REPLY, helpReply };
 
@@ -93,10 +93,28 @@ function apiForLink(config, api, link) {
   return createCartnersApi({ baseUrl: config.cartnersApiUrl, token: link.sessionToken });
 }
 
-export async function connectSender({ api, state, sender, inviteCode, name }) {
+async function loadPhotonUsers(config) {
+  if (!config?.projectId || !config?.projectSecret) return [];
+  try {
+    const auth = Buffer.from(`${config.projectId}:${config.projectSecret}`).toString('base64');
+    const response = await fetch(`https://spectrum.photon.codes/projects/${config.projectId}/users`, {
+      headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return [];
+    const body = await response.json();
+    return body.data?.users || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function connectSender({ api, state, sender, inviteCode, name, users, config }) {
+  const list = name ? [] : (users ?? config?.photonUsers ?? await loadPhotonUsers(config));
+  const resolved = (name || photonAgentName(sender, list)).slice(0, 60);
   const sessionToken = randomBytes(32).toString('hex');
   const result = await api.joinHousehold({
-    name: name || 'iPhone',
+    name: resolved,
     sessionToken,
     inviteCode,
   });
@@ -105,7 +123,7 @@ export async function connectSender({ api, state, sender, inviteCode, name }) {
     workspaceId: workspace.workspaceId,
     actorId: result.actorId,
     sessionToken,
-    name: name || 'iPhone',
+    name: resolved,
     householdName: workspace.groups?.[0]?.name || 'your household',
     householdKind: workspace.preferences?.householdKind || workspace.groups?.[0]?.kind || '',
   };
@@ -127,7 +145,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   const invite = parseHouseholdInvite(text);
   if (invite && sender) {
     try {
-      const record = await connectSender({ api, state, sender, inviteCode: invite.inviteCode, name: invite.name });
+      const record = await connectSender({ api, state, sender, inviteCode: invite.inviteCode, name: invite.name, config });
       logger.info(`linked ${sender} to ${record.workspaceId} as ${record.actorId}`);
       await reply(`This phone is on ${record.householdName} as ${record.name}. Text “need milk” and I’ll add it to that shared list. Someone else uses their own phone and their own household code.`);
     } catch (error) {

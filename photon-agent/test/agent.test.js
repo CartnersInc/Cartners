@@ -321,6 +321,34 @@ test('an invitation code links that phone, and the next text writes that househo
   assert.equal(items[0].name, 'milk');
 });
 
+test('a code with no name uses that Photon user, and an unknown phone gets its own label', async () => {
+  const joins = [];
+  const state = phoneBook();
+  const code = 'c'.repeat(64);
+  const api = {
+    async joinHousehold(body) {
+      joins.push(body.name);
+      return { actorId: `member-${joins.length}`, workspace: { workspaceId: 'household-real', groups: [{ name: 'House' }] } };
+    },
+  };
+  const users = [{ phoneNumber: '+14255006832', firstName: 'Ibrahiim', lastName: 'Muhamud' }];
+  await handleSpectrumMessage({
+    space: { id: 'dm' },
+    message: { direction: 'inbound', id: 'join-photon', sender: { phoneNumber: '+14255006832' }, content: { type: 'text', text: code }, async reply() {} },
+    config: { allowedSenders: new Set(), actorBySender: new Map(), workspaceId: '', photonUsers: users },
+    api,
+    state,
+  });
+  await handleSpectrumMessage({
+    space: { id: 'dm-2' },
+    message: { direction: 'inbound', id: 'join-other', sender: { phoneNumber: '+12065550199' }, content: { type: 'text', text: code }, async reply() {} },
+    config: { allowedSenders: new Set(), actorBySender: new Map(), workspaceId: '', photonUsers: users },
+    api,
+    state: phoneBook(),
+  });
+  assert.deepEqual(joins, ['Ibrahiim Muhamud', 'Photon 0199']);
+});
+
 test('a phone with no household is told to text an invitation code', async () => {
   const replies = [];
   const added = [];

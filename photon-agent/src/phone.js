@@ -41,6 +41,15 @@ export function matchPhoneSet(set, raw) {
   return false;
 }
 
+export function photonAgentName(sender, users = []) {
+  const keys = phoneKeys(sender);
+  const match = users.find((user) => [...phoneKeys(user.phoneNumber)].some((key) => keys.has(key)));
+  const fromPhoton = [match?.firstName, match?.lastName].map((part) => String(part || '').trim()).filter(Boolean).join(' ');
+  if (fromPhoton) return fromPhoton.slice(0, 60);
+  const national = [...keys].find((key) => /^\d{10}$/.test(key));
+  return national ? `Photon ${national.slice(-4)}` : 'Photon';
+}
+
 export function matchPhoneMap(map, raw) {
   if (!map?.size || !raw) return null;
   for (const key of phoneKeys(raw)) {
