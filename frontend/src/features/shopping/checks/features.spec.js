@@ -192,7 +192,7 @@ test('a needs-review receipt can be filled in and confirmed', async ({ page }) =
   expect(update.body).toMatchObject({ totalCents: 2000, payerId: 'leila', personalAllocations: { sam: 600 }, status: 'confirmed' });
 });
 
-test.skip('nearby Kroger prices are prominent and compare every open cart item on request', async ({ page }) => {
+test('nearby Kroger prices are prominent and compare every open cart item on request', async ({ page }) => {
   const pricing = await fixture('pricing');
   pricing.sourceMode = 'live_api';
   pricing.baskets = [pricing.baskets[0]];
@@ -203,8 +203,7 @@ test.skip('nearby Kroger prices are prominent and compare every open cart item o
 
   await page.goto('/#shopping');
   await expect(page.getByText('Shared demo', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Find groceries at Kroger' }).click();
-  await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find cheapest groceries nearby' })).toBeVisible();
   const logo = page.getByRole('img', { name: 'Kroger' }).first();
   await expect(logo).toBeVisible();
   await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -220,7 +219,7 @@ test.skip('nearby Kroger prices are prominent and compare every open cart item o
   await expect(page.locator('.rm-item').first().locator('.rm-qty-badge')).toHaveText('6');
 });
 
-test.skip('live Kroger matches show the product and prefill the store run', async ({ page }) => {
+test('live Kroger matches show the product and prefill the store run', async ({ page }) => {
   const pricing = await fixture('pricing');
   pricing.sourceMode = 'live_api';
   pricing.baskets = [pricing.baskets[0]];
@@ -231,7 +230,6 @@ test.skip('live Kroger matches show the product and prefill the store run', asyn
   });
   await serve(page, ({ path }) => path === '/api/baskets/compare' ? { json: pricing } : { status: 404, json: { error: { message: 'Not in this check' } } });
   await page.goto('/#shopping');
-  await page.getByRole('button', { name: 'Find groceries at Kroger' }).click();
   await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
   await page.getByRole('button', { name: 'Compare my list' }).click();
   await expect(page.getByAltText('Kroger', { exact: true })).toBeVisible();

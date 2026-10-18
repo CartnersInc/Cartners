@@ -14,7 +14,6 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const nameRef = useRef(null), startRef = useRef(null);
   const [matchedStore, setMatchedStore] = useState('');
   const [itemPrices, setItemPrices] = useState({});
-  const [showStores, setShowStores] = useState(false);
   const [clearState, setClearState] = useState({ phase: 'idle', message: '' });
   const serverNowMs = useServerNow(workspace.serverNow);
   const trip = activeTrip(workspace);
@@ -43,17 +42,17 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   }
   return <div className="rm-page">
     <div className="rm-title-row"><h1 className="rm-h1">Shopping</h1><span className="rm-cart-summary">{needed.length} to pick up</span><button className="rm-btn rm-secondary" onClick={() => navigate('home-new')}>Ask Cartners</button>{needed.length > 0 && <button className="rm-link" disabled={!connected || clearState.phase === 'saving'} onClick={() => clearList()}>{clearState.phase === 'saving' ? 'Updating…' : clearState.phase === 'confirm' ? `Confirm remove ${needed.length}` : 'Empty list'}</button>}</div>
-    <p className="rm-intro">Your household’s shared list. Check an item when you’ve purchased it.</p>
+    <p className="rm-intro">Price the list against nearby Kroger-family stores, then pick it up together. Check an item when you’ve purchased it.</p>
     {clearState.phase === 'confirm' && <p className="rm-notice">Remove all {needed.length} unpurchased items? Purchased history stays. <button className="rm-link" onClick={() => setClearState({ phase: 'idle' })}>Cancel</button></p>}
     {clearState.message && <p className="rm-notice" role="status">{clearState.message} {!!clearState.removed?.length && <button className="rm-link" disabled={clearState.phase === 'saving' || !connected} onClick={() => clearList(true)}>Undo</button>}</p>}
     <RunBanner workspace={workspace} actorId={actorId} serverNowMs={serverNowMs} onAdd={() => nameRef.current?.focus()} />
+    <BasketCompare key={workspace.listRevision} {...shared} items={needed} onPrices={values => setItemPrices({ revision: workspace.listRevision, values })} onStoreFound={setMatchedStore} />
     <div className="shopping-flow"><section className="shopping-list" aria-label="Shared shopping list">
       <AddItemForm {...shared} serverNowMs={serverNowMs} nameRef={nameRef} />
       {needed.length ? <><h2 className="rm-h2">To pick up</h2><ul ref={listMotion} className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h2>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h2><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
       {bought.length > 0 && <details className="purchased-list"><summary>Purchased · {bought.length}</summary><p className="rm-help">Uncheck an item to put it back on the list.</p><ul className="rm-items">{bought.map(row)}</ul></details>}
     </section>
-    {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Start a store run from this list. Kroger prices are optional and labeled live when they come from the store API.</p>{needed.length > 0 && <button className="rm-btn rm-secondary" onClick={() => setShowStores(value => !value)} aria-expanded={showStores}>{showStores ? 'Hide store comparison' : 'Find groceries at Kroger'}</button>}<TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} /></aside>}
+    {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Start a store run once you’ve picked a nearby trip. Live prices only appear when Kroger returns them.</p><TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} /></aside>}
     </div>
-    {needed.length > 0 && showStores && <BasketCompare key={workspace.listRevision} {...shared} items={needed} onPrices={values => setItemPrices({ revision: workspace.listRevision, values })} onStoreFound={setMatchedStore} />}
   </div>;
 }

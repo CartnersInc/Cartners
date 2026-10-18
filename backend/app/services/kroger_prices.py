@@ -99,22 +99,37 @@ def get_access_token() -> str:
     return token
 
 
-def find_stores(token: str, zip_code: str, *, limit: int = 3, radius_miles: int = 20) -> list[dict[str, Any]]:
-    """Stores Kroger ranks nearest to this ZIP. Kroger-family banners only."""
-    payload = _request(
-        "GET",
-        "/locations",
-        token=token,
-        query={
-            "filter.zipCode.near": zip_code,
-            "filter.radiusInMiles": str(radius_miles),
-            "filter.limit": str(limit),
-        },
-    )
+def find_stores(
+    token: str,
+    zip_code: str,
+    *,
+    limit: int = 3,
+    radius_miles: int = 20,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> list[dict[str, Any]]:
+    """Nearest Kroger-family stores. GPS beats ZIP when both are present."""
+    query = {
+        "filter.radiusInMiles": str(radius_miles),
+        "filter.limit": str(limit),
+    }
+    if latitude is not None and longitude is not None:
+        query["filter.latLong.near"] = f"{latitude},{longitude}"
+    else:
+        query["filter.zipCode.near"] = zip_code
+    payload = _request("GET", "/locations", token=token, query=query)
     stores = payload.get("data") or []
     if not isinstance(stores, list):
         raise KrogerError("Locations response did not include a data list")
-    return [store for store in stores if isinstance(store, dict)]
+    usable = [store for store in stores if isinstance(store, dict)]
+
+    def miles(store: dict[str, Any]) -> float:
+        distance = store.get("distance")
+        if isinstance(distance, (int, float)) and not isinstance(distance, bool):
+            return float(distance)
+        return 10_000.0
+
+    return sorted(usable, key=miles)
 
 
 def search_products(
@@ -422,6 +437,8 @@ def lookup_store_prices(
     store_limit: int = 3,
     options_per_ingredient: int = 3,
     radius_miles: int = 20,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> list[dict[str, Any]]:
     """Priced options at each of the nearest Kroger-family stores, nearest first."""
     cleaned = [item.strip() for item in ingredients if item and item.strip()]
@@ -432,7 +449,14 @@ def lookup_store_prices(
         raise KrogerError("ZIP code must be at least 5 characters")
 
     token = get_access_token()
-    stores = find_stores(token, zip_code, limit=max(store_limit, 1), radius_miles=radius_miles)
+    stores = find_stores(
+        token,
+        zip_code,
+        limit=max(store_limit, 1),
+        radius_miles=radius_miles,
+        latitude=latitude,
+        longitude=longitude,
+    )
     if not stores:
         raise KrogerError(f"No Kroger-family store within {radius_miles} miles of {zip_code}")
 
