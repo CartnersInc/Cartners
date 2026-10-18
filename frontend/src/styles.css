@@ -155,6 +155,8 @@ p { line-height: 1.65; max-width: 70ch; }
 .draft-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 50px; }
 .recipe-meta { display: flex; align-items: center; gap: 8px; margin: 16px 0; font-size: .8rem; color: var(--muted); }
 .recipe-meta span { margin-left: 10px; }
+.recipe-meta .recipe-date, .recipe-meta .recipe-servings { display: inline-flex; align-items: center; gap: 6px; }
+.recipe-meta .recipe-date .icon, .recipe-meta .recipe-servings .icon { width: 17px; height: 17px; }
 .recipe-copy > p:not(.recipe-meta) { margin-top: 12px; font-size: .86rem; }
 .recipe-copy > .text-button { font-size: .8rem; margin-top: 12px; }
 .change-note { color: var(--green); }
