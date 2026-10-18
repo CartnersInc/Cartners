@@ -55,9 +55,12 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   }
 
   // Proposal only (#4): the shopper marks a request the store doesn't have; it leaves this run.
-  const canPunt = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought && item.runId === trip.id;
-  async function puntItem() {
-    await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: true });
+  // While the same run is going, the shopper can put it back.
+  const shopperHere = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought;
+  const canPunt = shopperHere && item.runId === trip.id;
+  const canUnpunt = shopperHere && item.punted?.runId === trip.id;
+  async function setPunted(next) {
+    await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: next });
   }
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
@@ -76,10 +79,11 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}</span>
         </label>
         <div className="rm-item-btns">
-          {canPunt && (
+          {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
-              aria-label={`Proposal: ${item.name} isn't at this store. Move it to the next run`} onClick={puntItem}>
-              {punt.saving ? 'Moving…' : 'Not here'}
+              aria-label={canPunt ? `Proposal: ${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
+              onClick={() => setPunted(canPunt)}>
+              {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
           <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Details for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Details</button>

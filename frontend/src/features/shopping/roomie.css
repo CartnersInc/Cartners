@@ -64,6 +64,7 @@
 .rm-badge { display: inline-block; border-radius: 6px; padding: 2px 8px; font-size: .7rem; font-weight: 800; background: var(--pale); }
 .rm-badge-new { background: #dff0c8; color: #2d5a1a; }
 .rm-badge-next { background: #f1ece0; color: #6a5a3a; }
+.rm-badge-punted { background: #fbefd9; color: #7a4a12; }
 
 /* Store run */
 .rm-sentence { font-size: 1rem; line-height: 2.4; margin: 8px 0 0; }

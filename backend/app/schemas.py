@@ -56,6 +56,7 @@ class PatchItemRequest(WriteBase):
     requestFor: str | None = None
     bought: bool | None = None
     removed: bool | None = None
+    punted: bool | None = None  # PROPOSAL (#4): shopper moves a request off the run, or puts it back
 
 
 class TripPatchRequest(WriteBase):
