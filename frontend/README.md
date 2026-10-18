@@ -39,3 +39,7 @@ npm run test:browser
 With Chrome installed, `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` uses it instead. Browser checks use intercepted test API responses; they do not prove Xavier's backend or Ethan's live provider is connected. Real integration still needs two browsers pointed at one backend.
 
 Photo: unchanged copy of the original illustrative Unsplash taco asset; provenance is adjacent in `public/assets/tacos.jpg.json`.
+
+## Shared demo and deployment
+
+[Open the public frontend preview](https://common-table-household-demo.crisp-tide-4075.chatgpt.site). This Sites publication is a snapshot of `ibrahiim/dinner-ui`; it requires republishing after changes. The GitHub Pages workflow in this branch will publish merged frontend changes automatically after Xavier enables Pages. See [owner setup and backend connection](../docs/DEMO_HOSTING.md).

@@ -2,6 +2,8 @@
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 
+**[Open the shared demo](https://common-table-household-demo.crisp-tide-4075.chatgpt.site)** — public frontend preview with labeled sample data. [Hosting and automatic update setup](docs/DEMO_HOSTING.md).
+
 ## Team development
 
 **[Start here: copy your AI prompt and begin your assigned work](docs/START_HERE.md).** [Team guide: owners, branches, and workflow](docs/TEAM.md). The React frontend foundation is in `frontend/`; the PRD and API fixtures define the shared integration. `demo/` remains the earlier visual baseline.

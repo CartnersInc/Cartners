@@ -140,7 +140,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <p className="intro">Tell us what sounds good. We’ll help with the meal and the grocery list.</p>
         {composer}{starters}{options}
       </div>
-      <figure className="table-photo"><img src="/assets/tacos.jpg" alt="Tacos and toppings on a shared table" /><figcaption>A little inspiration for tonight.<span>Illustrative photo</span></figcaption></figure>
+      <figure className="table-photo"><img src={`${import.meta.env.BASE_URL}assets/tacos.jpg`} alt="Tacos and toppings on a shared table" /><figcaption>A little inspiration for tonight.<span>Illustrative photo</span></figcaption></figure>
     </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}</div>}
 
     {error && <div className="notice error" role="alert"><p>{error}</p>{!recoveringSave && !saved && !undoAttempt.current && <button className="text-button" onClick={() => showSample('meal')}>Explore a sample meal<Icon name="arrow" /></button>}</div>}
