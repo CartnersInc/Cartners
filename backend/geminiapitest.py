@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dotenv import load_dotenv
 
-from app.services.gemini_suggestions import DEFAULT_PREFERENCES, generate_suggestion
+from app.services.gemini_suggestions import DEFAULT_PREFERENCES, generate_suggestion, suggest_for_event
 
 
 def _guess_mime(path: Path) -> str:
@@ -56,6 +56,11 @@ def main() -> None:
         type=Path,
         help="Optional JSON file of a prior suggestion (refinement context)",
     )
+    parser.add_argument("--event-name", help="Calendar event name. Switches this run to event meal ideas.")
+    parser.add_argument("--time", default="18:30", help="Event time HH:MM (default 18:30)")
+    parser.add_argument("--theme", default="", help="Kind of gathering, such as Movie night")
+    parser.add_argument("--date", default="2026-10-18", help="Event date YYYY-MM-DD")
+    parser.add_argument("--saved", action="append", default=[], help="Title of a meal already saved. Repeat for more.")
     args = parser.parse_args()
 
     previous_draft = None
@@ -67,6 +72,23 @@ def main() -> None:
     if args.image:
         image_bytes = args.image.read_bytes()
         image_mime_type = _guess_mime(args.image)
+
+    if args.event_name:
+        print("Event:", args.event_name, args.date, args.time, args.theme)
+        print("--- calling Gemini ---")
+        result = suggest_for_event(
+            {
+                "name": args.event_name,
+                "planDate": args.date,
+                "time": args.time,
+                "theme": args.theme,
+                "notes": "" if args.message == "Something fun for dinner" else args.message,
+            },
+            preferences=DEFAULT_PREFERENCES,
+            saved_suggestions=[{"title": title} for title in args.saved],
+        )
+        print(json.dumps(result, indent=2))
+        return
 
     print("Preferences:", json.dumps(DEFAULT_PREFERENCES, indent=2))
     print("Message:", args.message)
