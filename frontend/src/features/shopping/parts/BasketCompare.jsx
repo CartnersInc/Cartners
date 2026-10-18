@@ -6,9 +6,25 @@ const ZIP_KEY = 'roomie:compareZip';
 const readZip = () => { try { return localStorage.getItem(ZIP_KEY) || ''; } catch { return ''; } };
 const SOURCE_LABEL = { live_api: 'Live prices', sample: 'Sample prices', unavailable: 'Prices unavailable' };
 
+function pricesFromResult(result) {
+  if (!result?.baskets?.length) return {};
+  const best = result.baskets.find(basket => basket.id === result.cheapestCompleteBasketId)
+    || result.baskets.find(basket => basket.complete)
+    || result.baskets[0];
+  const currency = result.currency || 'USD';
+  const next = {};
+  for (const line of best.items || []) {
+    if (line?.itemId && Number.isInteger(line.lineTotalCents)) {
+      next[line.itemId] = { cents: line.lineTotalCents, currency };
+    }
+  }
+  return next;
+}
+
 // Nearby basket comparison (#4). The server/provider ranks baskets and calculates package
 // costs; this only displays them. Offline, it shows the checked-in sample under a Sample label.
-export default function BasketCompare({ workspace, actorId, api, connected, items }) {
+// Chosen basket line totals are also passed up so cart rows can show price beside Bought.
+export default function BasketCompare({ workspace, actorId, api, connected, items, onPrices }) {
   const [zip, setZip] = useState(readZip);
   const [selected, setSelected] = useState(() => new Set(items.map(item => item.id)));
   const [result, setResult] = useState(null);
@@ -21,16 +37,21 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
     setSelected(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
 
+  function applyResult(next) {
+    setResult(next);
+    onPrices?.(pricesFromResult(next));
+  }
+
   async function compare(event) {
     event.preventDefault();
     const postalCode = zip.trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9 -]{2,9}$/.test(postalCode)) { setState({ phase: 'error', error: 'Enter a ZIP or postal code.' }); return; }
     try { localStorage.setItem(ZIP_KEY, postalCode); } catch { /* Remembering the ZIP is only a convenience. */ }
-    if (!connected) { setResult(samplePricing); setState({ phase: 'idle', error: '' }); return; }
+    if (!connected) { applyResult(samplePricing); setState({ phase: 'idle', error: '' }); return; }
     setState({ phase: 'loading', error: '' });
     try {
       const response = await api.request('/api/baskets/compare', { method: 'POST', body: { workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), itemIds: [...selected], postalCode } });
-      setResult(response); setState({ phase: 'idle', error: '' });
+      applyResult(response); setState({ phase: 'idle', error: '' });
     } catch (err) {
       setState({ phase: 'error', error: err.message || 'Price comparison failed.' });
     }
