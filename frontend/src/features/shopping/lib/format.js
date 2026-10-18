@@ -18,6 +18,13 @@ export function parseDollars(text) {
   return Number(whole) * 100 + Number(frac.padEnd(2, '0'));
 }
 
+// First stated dollar amount in a receipt note, or null if none.
+export function amountInNote(text) {
+  const match = String(text ?? '').match(/\$\s*(\d{1,5}(?:\.\d{1,2})?)|(?<![.\d])(\d{1,5}\.\d{2})(?!\d)/);
+  if (!match) return null;
+  return parseDollars(match[1] || match[2]);
+}
+
 export function quantityLabel(item) {
   const quantity = item?.quantity ?? '';
   const unit = item?.unit && item.unit !== 'count' ? ` ${item.unit}` : '';
