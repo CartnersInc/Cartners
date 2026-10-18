@@ -21,6 +21,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
+  const photoRef = useRef(null);
+  const [photoName, setPhotoName] = useState('');
   const busy = useRef(false);
   const [featuredItems, setFeaturedItems] = useState(fallbackRecipes);
   const [featuredStatus, setFeaturedStatus] = useState('loading');
@@ -92,24 +94,56 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     // shortcut: fixtures preview one fictional family; never reinterpret them as another group's preferences.
     showDraft(sample, true);
   }
+  function choosePhoto(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Choose a JPEG, PNG, or WebP photo.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Use a photo under 5 MB.'); return; }
+    photoRef.current = file;
+    setPhotoName(file.name);
+    setError('');
+  }
+  function clearPhoto() {
+    photoRef.current = null;
+    setPhotoName('');
+  }
   async function requestSuggestion(text) {
     if (busy.current || recoveringSave || !text.trim()) return;
     setMessage(text);
     if (!planDate || Number.isNaN(new Date(`${planDate}T12:00:00`).getTime())) { setError('Choose a meal date before asking for an idea.'); return; }
+    const photo = photoRef.current;
     busy.current = true; setPending('suggestion'); setError('');
-    const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}) };
+    const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}), ...(photo ? { photo: `${photo.name}:${photo.size}:${photo.lastModified}` } : {}) };
     const key = JSON.stringify(input);
-    const previewOnly = !connected;
+    const previewOnly = !connected || Boolean(photo);
     if (suggestionAttempt.current?.key !== key) suggestionAttempt.current = { key, body: { ...input, requestId: crypto.randomUUID() } };
     try {
-      const body = previewOnly ? {
-        ...suggestionAttempt.current.body,
-        listRevision: workspace.listRevision,
-        preferences: workspace.preferences,
-        ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
-      } : suggestionAttempt.current.body;
-      const next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
+      let next;
+      if (photo) {
+        const formData = new FormData();
+        const fields = suggestionAttempt.current.body;
+        formData.set('workspaceId', fields.workspaceId);
+        formData.set('actorId', fields.actorId);
+        formData.set('requestId', fields.requestId);
+        formData.set('message', fields.message);
+        formData.set('planDate', fields.planDate);
+        formData.set('listRevision', String(workspace.listRevision));
+        formData.set('preferences', JSON.stringify(workspace.preferences));
+        if (draft && !entry.localOnly) formData.set('previousDraft', JSON.stringify(draft));
+        formData.set('image', photo);
+        next = await api.request('/api/ai/suggestions', { method: 'POST', formData });
+      } else {
+        const body = previewOnly ? {
+          ...suggestionAttempt.current.body,
+          listRevision: workspace.listRevision,
+          preferences: workspace.preferences,
+          ...(draft && !entry.localOnly ? { previousDraft: draft } : {}),
+        } : suggestionAttempt.current.body;
+        next = await api.request(previewOnly ? '/api/ai/suggestions' : '/api/suggestions', { method: 'POST', body });
+      }
       if (!isDraft(next, workspace.workspaceId)) throw new Error('The backend returned an unsupported draft. Your previous idea is still here.');
+      clearPhoto();
       showDraft(next, false, previewOnly); suggestionAttempt.current = null;
     } catch (err) { setError(err.message); }
     finally { busy.current = false; setPending(''); }
@@ -185,7 +219,12 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       onChange={e => setMessage(e.target.value)} disabled={locked}
       onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); requestSuggestion(message); } }}
       placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'Pasta tonight? Something quick? Groceries for the weekend?'} />
-    <div className="composer-bottom"><span className="small muted">{draft ? 'Tell us what to change.' : 'Or pick an idea below.'}</span>
+    <div className="composer-bottom">
+      <label className="text-button photo-picker">{photoName ? 'Change photo' : 'Add a photo'}
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={locked} />
+      </label>
+      {photoName && <span className="small muted photo-name">{photoName}<button type="button" className="text-button" onClick={clearPhoto} disabled={locked}>Remove</button></span>}
+      <span className="small muted">{draft ? 'Tell us what to change.' : 'Or pick an idea below. A photo needs a short note, like “healthier version of this.”'}</span>
       <button className="button primary" disabled={!message.trim() || locked}>
         {pending === 'suggestion' ? 'Thinking…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
       </button>

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { localDate, weekDates, shiftWeek } from './dates.js';
+import EventPlan from './EventPlan.jsx';
 
 const list = text => [...new Set(text.split(',').map(value => value.trim()).filter(Boolean))];
-export default function Plans({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected, onPlanDateChange }) {
+export default function Plans({ workspace, actorId, api, onWorkspaceChange, notify, connected, onPlanDateChange }) {
   const [anchor, setAnchor] = useState(localDate);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -11,9 +12,13 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, navi
   const [values, setValues] = useState({ servings: workspace.preferences.servings, restrictions: workspace.preferences.restrictions.join(', '), likes: workspace.preferences.likes?.join(', ') || '', maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 });
   const attempt = useRef(null);
   const busy = useRef(false);
+  const [eventDraft, setEventDraft] = useState(null);
   const dates = weekDates(anchor);
   const format = (date, options) => new Intl.DateTimeFormat(undefined, options).format(new Date(`${date}T12:00:00`));
-  function planFor(date) { onPlanDateChange(date); navigate('home'); }
+  function planFor(date) {
+    onPlanDateChange(date);
+    setEventDraft({ name: '', planDate: date, time: '18:30', theme: 'Weeknight dinner', notes: '' });
+  }
   function editPreferences() {
     setValues({ servings: workspace.preferences.servings, restrictions: workspace.preferences.restrictions.join(', '), likes: workspace.preferences.likes?.join(', ') || '', maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 });
     setEditing(true); setError(''); attempt.current = null;
@@ -34,6 +39,7 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, navi
     } catch (err) { setError(err.message); }
     finally { setPending(false); busy.current = false; }
   }
+  if (eventDraft) return <EventPlan workspace={workspace} api={api} initial={eventDraft} onBack={() => setEventDraft(null)} />;
   return <div className="plans-page">
     <div className="page-heading"><div><h1>A place for dinner plans.</h1><p className="intro">Keep what’s decided. Leave room for the rest.</p></div><button className="button primary" onClick={() => planFor(localDate())}>Plan a meal<Icon name="arrow" /></button></div>
     <div className="plans-layout"><section aria-labelledby="week-heading"><div className="week-toolbar"><h2 id="week-heading">{format(dates[0], { month: 'short', day: 'numeric' })} – {format(dates[6], { month: 'short', day: 'numeric', year: 'numeric' })}</h2><div><button className="text-button" aria-label="Previous week" onClick={() => setAnchor(shiftWeek(anchor, -1))}>Earlier</button><button className="text-button" onClick={() => setAnchor(localDate())}>This week</button><button className="text-button" aria-label="Next week" onClick={() => setAnchor(shiftWeek(anchor, 1))}>Later</button></div></div><ul className="week-list">{dates.map(date => {

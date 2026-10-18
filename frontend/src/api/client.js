@@ -10,7 +10,7 @@ export class ApiError extends Error {
 
 export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
   return {
-    async request(path, { method = 'GET', body, signal } = {}) {
+    async request(path, { method = 'GET', body, formData, signal } = {}) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 25000);
       const abort = () => controller.abort();
@@ -19,12 +19,12 @@ export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch } = {}) {
       try {
         const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}${path}`, {
           method, signal: controller.signal,
-          headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          headers: { Accept: 'application/json', ...(formData || body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          ...(formData ? { body: formData } : body === undefined ? {} : { body: JSON.stringify(body) }),
         });
         let payload;
         try { payload = await response.json(); } catch {
-          throw new ApiError('The server did not return JSON. Check the API address and try again.', { status: response.status, code: 'INVALID_RESPONSE' });
+          throw new ApiError('Cartners reached a webpage instead of its backend. AI and shared updates need the backend to be deployed and connected.', { status: response.status, code: 'INVALID_RESPONSE' });
         }
         if (!response.ok) {
           throw new ApiError(payload.error?.message || 'The request failed. Please try again.', {

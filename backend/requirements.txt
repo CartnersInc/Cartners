@@ -1,6 +1,7 @@
 # Shared backend (Xavier) + provider adapters (Ethan).
 google-genai>=1.0.0
 fastapi>=0.115.0
+python-multipart>=0.0.9
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 uvicorn[standard]>=0.30.0

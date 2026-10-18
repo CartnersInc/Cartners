@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from contextlib import asynccontextmanager
 from datetime import date
@@ -51,6 +52,9 @@ def _cors_origins() -> list[str]:
 
 
 # --- Ethan AI preview models (module-level for FastAPI + unit tests) ---
+
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 class SavedSuggestionInput(BaseModel):
@@ -120,6 +124,46 @@ def make_event_preview(result: dict) -> dict:
         for ingredient in option.get("ingredients") or []:
             ingredient["id"] = f"ingredient-{uuid4()}"
     return preview
+
+
+async def read_suggestion(request: Request) -> tuple[SuggestionRequest, bytes | None, str | None]:
+    """JSON for a text idea, or multipart when the homepage attaches a photo."""
+    if request.headers.get("content-type", "").startswith("multipart/form-data"):
+        form = await request.form()
+        try:
+            preferences = json.loads(form.get("preferences") or "{}")
+        except json.JSONDecodeError as exc:
+            raise ValueError("preferences must be JSON") from exc
+        previous = None
+        if form.get("previousDraft"):
+            try:
+                previous = json.loads(form.get("previousDraft"))
+            except json.JSONDecodeError as exc:
+                raise ValueError("previousDraft must be JSON") from exc
+        payload = SuggestionRequest.model_validate(
+            {
+                "workspaceId": form.get("workspaceId"),
+                "requestId": form.get("requestId") or None,
+                "message": form.get("message"),
+                "planDate": form.get("planDate"),
+                "listRevision": form.get("listRevision") or 0,
+                "preferences": preferences,
+                "previousDraft": previous,
+            }
+        )
+        upload = form.get("image")
+        if upload is None or isinstance(upload, str):
+            return payload, None, None
+        mime = (getattr(upload, "content_type", "") or "").split(";", 1)[0].strip().lower()
+        if mime not in IMAGE_TYPES:
+            raise ValueError("Photo must be a JPEG, PNG, or WebP.")
+        data = await upload.read()
+        if not data:
+            raise ValueError("The photo was empty.")
+        if len(data) > MAX_IMAGE_BYTES:
+            raise ValueError("Use a photo under 5 MB.")
+        return payload, data, mime
+    return SuggestionRequest.model_validate(await request.json()), None, None
 
 
 def create_app(db_path: Path | str | None = None) -> FastAPI:
@@ -313,15 +357,19 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
             )
 
     @application.post("/api/ai/suggestions")
-    async def ai_suggestion_preview(body: SuggestionRequest) -> dict:
+    async def ai_suggestion_preview(request: Request) -> dict:
+        payload = None
         try:
+            payload, image_bytes, image_mime_type = await read_suggestion(request)
             result = await run_in_threadpool(
                 generate_suggestion,
-                body.message,
-                preferences=body.preferences,
-                previous_draft=body.previousDraft,
+                payload.message,
+                preferences=payload.preferences,
+                previous_draft=payload.previousDraft,
+                image_bytes=image_bytes,
+                image_mime_type=image_mime_type,
             )
-            return make_preview_draft(result, body)
+            return make_preview_draft(result, payload)
         except RuntimeError as exc:
             message = str(exc)
             if "Set GEMINI_API_KEY" in message:
@@ -333,7 +381,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                         "code": "AI_UNAVAILABLE",
                         "message": message,
                         "retryable": True,
-                        "requestId": body.requestId,
+                        "requestId": payload.requestId if payload else None,
                     }
                 },
             )
@@ -345,7 +393,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                         "code": "INVALID_SUGGESTION_REQUEST",
                         "message": str(exc),
                         "retryable": False,
-                        "requestId": body.requestId,
+                        "requestId": payload.requestId if payload else None,
                     }
                 },
             )

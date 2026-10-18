@@ -122,7 +122,7 @@ test('phone navigation and sample drafts fit without horizontal overflow', async
   await expect(page.getByRole('link', { name: 'Groups', exact: true })).toBeInViewport();
 });
 
-test('Plans opens a dated Home request; preference save carries context without an AI call', async ({ page }) => {
+test('Plans opens an event for the chosen day; preference save carries context without an AI call', async ({ page }) => {
   let workspace = await fixture('workspace');
   let suggestions = 0;
   const preferences = [];
@@ -144,9 +144,9 @@ test('Plans opens a dated Home request; preference save carries context without 
   const dayButton = page.getByRole('button', { name: /Plan a meal for / }).first();
   const targetDate = (await dayButton.getAttribute('aria-label')).replace('Plan a meal for ', '');
   await dayButton.click();
-  await expect(page.getByRole('heading', { name: /What do you want to eat today/ })).toBeVisible();
-  await expect(page.getByLabel('Meal date', { exact: true })).toHaveValue(targetDate);
-  await page.getByRole('link', { name: 'Plans', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Plan this event' })).toBeVisible();
+  await expect(page.getByLabel('Date', { exact: true })).toHaveValue(targetDate);
+  await page.getByRole('button', { name: 'Back to the week', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A place for dinner plans.' })).toBeVisible();
   await page.getByRole('complementary', { name: 'Your usuals' }).getByRole('button', { name: 'Edit preferences', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Servings', exact: true }).fill('6');
