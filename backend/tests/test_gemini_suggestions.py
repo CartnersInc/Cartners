@@ -231,6 +231,22 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(draft["personalAllocations"], {"sam": 800})
         self.assertFalse(draft["saved"])
 
+    def test_expense_ai_reuses_last_split_when_the_note_omits_sharers(self):
+        with patch("app.main.draft_expense_from_note", return_value={
+            "totalCents": 4000, "payerName": None, "sharedNames": [],
+            "personalAmounts": [], "clarification": None,
+        }):
+            with TestClient(app) as client:
+                response = client.post("/api/ai/expense-draft", json={
+                    "workspaceId": "demo-roommates", "actorId": "leila", "requestId": "receipt-memory-1",
+                    "message": "The QFC receipt was $40.00.", "mode": "split",
+                })
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()
+        self.assertEqual(draft["totalCents"], 4000)
+        self.assertEqual(set(draft["sharedMemberIds"]), {"leila", "sam", "jordan", "maya"})
+        self.assertFalse(draft["saved"])
+
 
 if __name__ == "__main__":
     unittest.main()

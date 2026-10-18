@@ -30,6 +30,7 @@ from app.schemas import (
     TripPatchRequest,
     UndoRequest,
 )
+from app.money import remembered_split, shopper_for_unrecorded_run
 from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, generate_weekly_plan, suggest_for_event
 from app.store import Store
 from app.households import authorize_household, register_household_routes
@@ -410,13 +411,20 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                 mode=mode,
             )
             by_name = {person["name"].strip().casefold(): person["id"] for person in roster}
+            member_ids = [person["id"] for person in roster]
+            memory = remembered_split(snapshot.get("expenses") or [], member_ids)
             payer_id = by_name.get((parsed.get("payerName") or "").strip().casefold())
+            if not payer_id:
+                shopper = shopper_for_unrecorded_run(snapshot)
+                payer_id = shopper if shopper in member_ids else memory.get("payerId")
             allocations = {}
             for item in parsed.get("personalAmounts", []):
                 member_id = by_name.get((item.get("personName") or "").strip().casefold())
                 if member_id:
                     allocations[member_id] = item.get("amountCents")
             shared_ids = [by_name[name.strip().casefold()] for name in parsed.get("sharedNames", []) if name.strip().casefold() in by_name]
+            if mode == "split" and not shared_ids:
+                shared_ids = list(memory.get("sharedMemberIds") or member_ids)
             unresolved = []
             if parsed.get("totalCents") is None: unresolved.append("receipt total")
             if not payer_id: unresolved.append("who paid")
@@ -427,6 +435,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                 "personalAllocations": allocations,
                 "clarification": parsed.get("clarification"),
                 "missing": unresolved,
+                "rememberedFrom": "last confirmed split" if memory.get("payerId") or (memory.get("sharedMemberIds") and snapshot.get("expenses")) else None,
                 "sourceMode": "live_ai",
                 "saved": False,
             }

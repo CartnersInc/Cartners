@@ -52,6 +52,39 @@ def allocate_split(
     return allocations
 
 
+def remembered_split(expenses: list[dict], member_ids: list[str]) -> dict[str, object]:
+    """Last confirmed split's payer and sharers, still in this household. Never invents a total."""
+    allowed = {actor_id for actor_id in member_ids if actor_id}
+    last = next(
+        (
+            expense
+            for expense in reversed(expenses or [])
+            if expense.get("status") == "confirmed" and expense.get("mode") == "split"
+        ),
+        None,
+    )
+    if last:
+        sharers = [actor_id for actor_id in (last.get("sharedMemberIds") or []) if actor_id in allowed]
+        payer = last.get("payerId") if last.get("payerId") in allowed else None
+        return {"payerId": payer, "sharedMemberIds": sharers or list(member_ids)}
+    return {"payerId": None, "sharedMemberIds": list(member_ids)}
+
+
+def shopper_for_unrecorded_run(snapshot: dict) -> str | None:
+    expenses = snapshot.get("expenses") or []
+    recorded = {expense.get("runId") for expense in expenses if expense.get("runId")}
+    trip = snapshot.get("trip") or {}
+    completed = list(trip.get("completedTrips") or [])
+    current = trip if trip.get("claimedBy") and trip.get("state") not in {"finished", "released", "completed", "idle"} else None
+    runs = list(reversed(completed))
+    if current and current.get("id") and all(run.get("id") != current["id"] for run in completed):
+        runs.append(current)
+    for run in runs:
+        if run.get("id") and run["id"] not in recorded and run.get("claimedBy"):
+            return run["claimedBy"]
+    return None
+
+
 def balances_from_expenses(
     expenses: list[dict],
 ) -> list[dict[str, object]]:

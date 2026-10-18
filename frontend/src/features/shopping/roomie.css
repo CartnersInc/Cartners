@@ -262,6 +262,8 @@
 .rm-balance { display: flex; justify-content: space-between; gap: 12px; font-size: .88rem; padding: 6px 0; }
 .rm-muted { color: var(--muted); }
 .rm-settle { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.rm-split-preview { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--pale); }
+.rm-split-preview .rm-label { margin-bottom: 4px; }
 .rm-copy-amount, .rm-paylink { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: .82rem; margin-top: 8px; }
 .rm-mono { font-family: ui-monospace, monospace; font-size: .75rem; overflow-wrap: anywhere; min-width: 0; }
 .rm-sample { border: 1px dashed #d8c89a; border-radius: 12px; padding: 14px; display: grid; gap: 10px; margin-top: 10px; }

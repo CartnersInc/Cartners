@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
 import { householdKind, isFamilyTable, splitsCosts } from '../../src/household.js';
+import { allocateSplit, rememberedSharers, unrecordedRuns } from '../../src/features/spending/lib/remember.js';
 import { readFile } from 'node:fs/promises';
 
 test('writes preserve the caller action ID and structured conflicts', async () => {
@@ -55,4 +56,19 @@ test('family tables stay pooled; roommate tables split costs', () => {
   assert.ok(!isFamilyTable({ workspaceId: 'household-1', preferences: { spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }));
   assert.ok(splitsCosts({ preferences: { spendingMode: 'split' } }));
   assert.ok(!splitsCosts({ preferences: { spendingMode: 'pooled' } }));
+});
+
+test('roommate receipts reuse the last split and even-split leftover cents', () => {
+  const workspace = {
+    expenses: [
+      { status: 'confirmed', mode: 'split', payerId: 'leila', sharedMemberIds: ['leila', 'sam'], runId: 'run-1' },
+    ],
+  };
+  assert.deepEqual(rememberedSharers(workspace, ['leila', 'sam', 'jordan']), ['leila', 'sam']);
+  const alloc = allocateSplit(1001, ['a', 'b', 'c'], {});
+  assert.deepEqual(alloc, { a: 334, b: 334, c: 333 });
+  const withPersonal = allocateSplit(2000, ['leila', 'sam'], { sam: 600 });
+  assert.equal(withPersonal.sam, 1300);
+  assert.equal(withPersonal.leila, 700);
+  assert.deepEqual(unrecordedRuns([{ id: 'run-1' }, { id: 'run-2' }], workspace.expenses).map(run => run.id), ['run-2']);
 });
