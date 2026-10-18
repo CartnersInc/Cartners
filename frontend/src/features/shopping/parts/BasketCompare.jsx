@@ -20,8 +20,31 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
   const [zip, setZip] = useState(readZip);
   const [result, setResult] = useState(null);
   const [state, setState] = useState({ phase: 'idle', error: '' });
+  const [locating, setLocating] = useState(false);
   const zipId = useId();
   const nameOf = id => workspace.items.find(item => item.id === id)?.name || 'A grocery item';
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setState({ phase: 'error', error: 'This browser cannot use your location. Type a ZIP instead.' });
+      return;
+    }
+    setLocating(true);
+    setState({ phase: 'idle', error: '' });
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const found = await api.request(`/api/postal-code?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}`);
+        if (typeof found?.postalCode === 'string') setZip(found.postalCode);
+      } catch (err) {
+        setState({ phase: 'error', error: err.message || 'Could not find a ZIP for that location. Type it instead.' });
+      } finally {
+        setLocating(false);
+      }
+    }, () => {
+      setLocating(false);
+      setState({ phase: 'error', error: 'Location was not allowed. Type a ZIP instead.' });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
 
   async function compare(event) {
     event.preventDefault();
@@ -67,7 +90,8 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
           <label className="rm-field" htmlFor={zipId}>ZIP or postal code
             <input id={zipId} value={zip} maxLength={10} autoComplete="postal-code" inputMode="text" placeholder="Enter your area" onChange={e => setZip(e.target.value)} />
           </label>
-          <button type="submit" className="rm-btn" disabled={!connected || !items.length || state.phase === 'loading'}>
+          <button type="button" className="rm-btn rm-secondary" disabled={locating || state.phase === 'loading'} onClick={useMyLocation}>{locating ? 'Finding ZIP…' : 'Use my location'}</button>
+          <button type="submit" className="rm-btn" disabled={!connected || !items.length || state.phase === 'loading' || locating}>
             {state.phase === 'loading' ? 'Finding nearby prices…' : 'Compare my list'}
           </button>
         </div>
@@ -75,6 +99,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
         {!connected && <p className="rm-help">Store prices appear when Cartners is connected. We won’t show made-up prices.</p>}
       </form>
 
+      {locating && <p className="rm-help" role="status">Looking up the ZIP for your location.</p>}
       {state.phase === 'error' && <p className="rm-error" role="alert">{state.error}</p>}
       {state.phase === 'loading' && <p className="rm-help" role="status">Checking {items.length} {items.length === 1 ? 'item' : 'items'} near {zip.trim()}…</p>}
 
