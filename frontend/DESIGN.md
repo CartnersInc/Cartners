@@ -15,6 +15,9 @@ colors:
   gold: '#efb74e'
   parchment: '#faeac8'
   apron: '#f2e4cd'
+  notepad-paper: '#fff0b3'
+  notepad-binding: '#e7b64d'
+  notepad-rule: '#d8c58b'
 typography:
   display:
     fontFamily: Bricolage Grotesque, sans-serif
@@ -221,3 +224,6 @@ Reduced-motion preferences disable the welcome and recipe animations, surface an
 - **Don't** imply official DubHacks sponsorship or affiliation.
 - **Don't** introduce gradients as the new surface language.
 - **Don't** hide essential actions behind decorative motion.
+
+### Shared grocery notepad
+The Shopping list and Home list preview use a warm yellow paper surface (#fff0b3), a gold binding (#e7b64d), thin row rules (#d8c58b), and one fine notebook margin. These are literal notebook details requested by the user. Shopping keeps native checkbox semantics and keyboard focus, with a 220ms drawn tick and crossed-out purchased names. Purchased items remain visible in their own section; unchecking restores them. Reduced motion shows the check immediately, and forced-colors mode restores the native checkbox. Quantities, verified price labels, details, saving/error recovery, and removal remain functional.

@@ -105,6 +105,6 @@ test('outdated backend explains why setup cannot finish and keeps the answers', 
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Dietary needs').fill('Vegetarian');
   await page.getByRole('button', { name: 'Let’s find something to eat' }).click();
-  await expect(page.getByRole('alert')).toContainText('Deploy the latest main branch to Render');
+  await expect(page.getByRole('alert')).toContainText('The hosted API is behind this app');
   await expect(page.getByLabel('Dietary needs')).toHaveValue('Vegetarian');
 });
