@@ -15,7 +15,6 @@ export function recipeLookup(workspace) {
     ingredients: ingredientsOf(plan).map(ingredient => ({ name: norm(ingredient.name), unit: ingredient.unit || 'count' })),
   }));
   return item => {
-    if (!item.reservedPlanId) return [];
     const found = [];
     const add = plan => { if (plan && !found.includes(plan)) found.push(plan); };
     add(byId.get(item.reservedPlanId));

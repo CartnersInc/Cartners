@@ -4,6 +4,7 @@ import { formatCents, whenOf } from '../lib/format.js';
 const ZIP_KEY = 'cartners:price-area';
 const readZip = () => { try { return localStorage.getItem(ZIP_KEY) || ''; } catch { return ''; } };
 const SOURCE_LABEL = { live_api: 'Live Kroger prices' };
+const KROGER_LOGO = `${import.meta.env.BASE_URL}logos/kroger.jpg`;
 
 function pricesFromResult(result) {
   if (!result?.baskets?.length || result.sourceMode !== 'live_api') return {};
@@ -59,7 +60,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
     <section className="rm-card rm-compare rm-compare-prominent" aria-labelledby="rm-compare-heading" aria-busy={state.phase === 'loading'}>
       <div className="rm-compare-title">
         <div><h2 className="rm-h2" id="rm-compare-heading">Find your groceries at Kroger</h2><p className="rm-help">Match your list to nearby products, package sizes, and prices.</p></div>
-        <img className="rm-kroger-logo" src="/logos/kroger.jpg" alt="Kroger" />
+        <img className="rm-kroger-logo" src={KROGER_LOGO} alt="Kroger" />
       </div>
       <form onSubmit={compare} noValidate className="rm-compare-form">
         <div className="rm-compare-controls">
@@ -99,7 +100,7 @@ function stockLabel(value) {
 function Basket({ basket, best, nameOf, currency }) {
   return <section className={`rm-store-result ${best ? 'rm-store-best' : ''}`} aria-label={`${basket.storeName} basket`}>
     <div className="rm-basket-head">
-      <strong><img className="rm-store-logo" src="/logos/kroger.jpg" alt="" />{basket.storeName}</strong>
+      <strong><img className="rm-store-logo" src={KROGER_LOGO} alt="" />{basket.storeName}</strong>
       {best && <span className="rm-pill rm-pill-best">Lowest complete basket</span>}
       <span className="rm-price">{formatCents(basket.knownSubtotalCents, currency)}<small> estimated</small></span>
     </div>
