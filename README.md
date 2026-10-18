@@ -2,7 +2,7 @@
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 
-**[Open the shared demo](https://common-table-household-demo.crisp-tide-4075.chatgpt.site)** — public frontend preview with labeled sample data. [Hosting and automatic update setup](docs/DEMO_HOSTING.md).
+**Live demo:** [Open Cartners](https://xaviergorriti.github.io/Groceries_fun_time_with_friends/) — the same public URL updates from `main` after a repository admin enables GitHub Pages. [How the shared demo works](docs/DEMO_HOSTING.md).
 
 ## Team development
 

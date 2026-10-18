@@ -3,7 +3,6 @@ name: Publish Cartners demo
 on:
   push:
     branches: [main]
-    paths: ['frontend/**', 'docs/fixtures/**', '.github/workflows/deploy-demo.yml']
   workflow_dispatch:
 
 permissions:
