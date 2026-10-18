@@ -13,6 +13,20 @@ const NEED_PREFIX = /^(?:(?:please )?(?:can you )?(?:(?:i|we) )?(?:need|want|gra
 const MEALISH = /\b(?:tacos?|dinner|recipe|meal|cook|eat|for \d+|something (?:quick|easy|fun)|vegetarian|vegan)\b/i;
 const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|plan (?:this|our|the|my) week|week of meals|grocery list|groceries for)\b/i;
 
+const INVITE = /^(?:(?:connect|join|link)\s+)?([a-f0-9]{64})(?:\s+([A-Za-z][A-Za-z .'-]{0,40}))?\s*$/i;
+
+export function parseHouseholdInvite(text) {
+  const match = String(text || '').trim().match(INVITE);
+  if (!match) return null;
+  const name = (match[2] || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  return { inviteCode: match[1].toLowerCase(), name };
+}
+
+export function connectReply(line = '') {
+  const where = line ? ` to ${line}` : '';
+  return `This iPhone isn’t on a Cartners household yet. In the app, open Household and show the invitation code, then text that code here${where}. You can put your name after the code. After that, “need milk” goes on that shared list. Each person connects from their own phone, and each household uses its own code.`;
+}
+
 export function helpReply(kind = 'family', line = '') {
   const number = line ? `\n\nText ${line} from your iPhone. That’s the Cartners line.` : '';
   if (kind === 'roommates' || kind === 'friends') {

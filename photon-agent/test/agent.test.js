@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyMessage, formatDraft, handleMessage, makeRequestId } from '../src/agent.js';
+import { phoneKeys } from '../src/phone.js';
 import { handleSpectrumMessage, HELP_REPLY } from '../src/spectrum.js';
 
 const draft = {
@@ -245,4 +246,98 @@ test('Spectrum matches a 10-digit US number to the household actor', async () =>
   assert.equal(handled, true);
   assert.deepEqual(items, ['milk']);
   assert.match(replies[0], /Added milk/);
+});
+
+function phoneBook() {
+  const phones = new Map();
+  return {
+    pendingBySpace: {},
+    async save() {},
+    phoneFor(sender) {
+      for (const key of phoneKeys(sender)) if (phones.has(key)) return phones.get(key);
+      return null;
+    },
+    async linkPhone(sender, record) {
+      for (const key of phoneKeys(sender)) phones.set(key, record);
+    },
+  };
+}
+
+test('an invitation code links that phone, and the next text writes that household', async () => {
+  const replies = [];
+  const joins = [];
+  const items = [];
+  const state = phoneBook();
+  const code = 'b'.repeat(64);
+  const message = (id, text) => ({
+    direction: 'inbound',
+    id,
+    sender: { phoneNumber: '+14255006832' },
+    content: { type: 'text', text },
+    async reply(body) { replies.push(body); },
+  });
+  const connected = await handleSpectrumMessage({
+    space: { id: 'dm' },
+    message: message('join-1', `${code} Maya`),
+    config: { allowedSenders: new Set(), actorBySender: new Map(), workspaceId: '', imessageLine: '+14156055508' },
+    api: {
+      async joinHousehold(body) {
+        joins.push(body);
+        return {
+          actorId: 'member-maya',
+          workspace: { workspaceId: 'household-real', groups: [{ name: 'Maya house', kind: 'family' }], preferences: { householdKind: 'family' } },
+        };
+      },
+    },
+    state,
+  });
+  assert.equal(connected, true);
+  assert.equal(joins[0].name, 'Maya');
+  assert.equal(joins[0].inviteCode, code);
+  assert.match(replies[0], /Maya house/);
+
+  const added = await handleSpectrumMessage({
+    space: { id: 'dm' },
+    message: message('need-1', 'need milk'),
+    config: {
+      allowedSenders: new Set(),
+      actorBySender: new Map(),
+      workspaceId: 'demo-family',
+      apiForToken() {
+        return {
+          async addItem(body) {
+            items.push(body);
+            return { workspace: { items: [{ name: body.name, quantity: 1, unit: 'count', bought: false, removed: false }], trip: { claimedBy: null } } };
+          },
+        };
+      },
+    },
+    api: { async addItem() { throw new Error('default household should not be used'); } },
+    state,
+  });
+  assert.equal(added, true);
+  assert.equal(items[0].workspaceId, 'household-real');
+  assert.equal(items[0].actorId, 'member-maya');
+  assert.equal(items[0].name, 'milk');
+});
+
+test('a phone with no household is told to text an invitation code', async () => {
+  const replies = [];
+  const added = [];
+  const handled = await handleSpectrumMessage({
+    space: { id: 'dm' },
+    message: {
+      direction: 'inbound',
+      id: 'need-unlinked',
+      sender: { phoneNumber: '+14255006832' },
+      content: { type: 'text', text: 'need milk' },
+      async reply(body) { replies.push(body); },
+    },
+    config: { allowedSenders: new Set(), actorBySender: new Map(), workspaceId: '', imessageLine: '+14156055508' },
+    api: { async addItem(body) { added.push(body); } },
+    state: phoneBook(),
+  });
+  assert.equal(handled, true);
+  assert.equal(added.length, 0);
+  assert.match(replies[0], /invitation code/);
 });

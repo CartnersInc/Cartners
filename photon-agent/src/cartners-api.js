@@ -28,6 +28,7 @@ export function createCartnersApi({ baseUrl, token = '', fetchImpl = globalThis.
   }
   return {
     getWorkspace: (workspaceId) => request('GET', `/api/workspace?workspaceId=${encodeURIComponent(workspaceId)}`),
+    joinHousehold: (body) => request('POST', '/api/households/join', body),
     suggest: (body) => request('POST', '/api/suggestions', body),
     confirmDraft: (body) => request('POST', '/api/drafts/confirm', body),
     addItem: (body) => request('POST', '/api/items', body),

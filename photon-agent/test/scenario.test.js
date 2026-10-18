@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyHousehold, formatRunStarted, parseNeedItems, parseStoreName, windowOpen } from '../src/scenario.js';
+import { classifyHousehold, connectReply, formatRunStarted, parseHouseholdInvite, parseNeedItems, parseStoreName, windowOpen } from '../src/scenario.js';
 
 test('dad heading to the store starts a run, roommates add items, meals stay drafts', () => {
   assert.equal(classifyHousehold('Going to QFC — what do you guys need?').type, 'start_run');
@@ -22,6 +22,13 @@ test('dad heading to the store starts a run, roommates add items, meals stay dra
   assert.deepEqual(classifyHousehold('hey can you get eggs').items, ['eggs']);
   assert.deepEqual(classifyHousehold('we also need paper towels and dish soap please').items, ['paper towels', 'dish soap']);
   assert.equal(classifyHousehold('going to the store').type, 'start_run');
+});
+
+test('an invitation code connects a phone, and a grocery text does not look like one', () => {
+  const code = 'a'.repeat(64);
+  assert.deepEqual(parseHouseholdInvite(`${code} Maya`), { inviteCode: code, name: 'Maya' });
+  assert.equal(parseHouseholdInvite('need milk'), null);
+  assert.match(connectReply('+14156055508'), /invitation code/);
 });
 
 test('parses a short grocery ask without treating it as a meal', () => {

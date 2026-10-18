@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { Spectrum } from 'spectrum-ts';
 import { setLogLevel } from 'spectrum-ts/authoring';
@@ -12,10 +12,12 @@ import {
   activeTrip,
   actorName,
   classifyHousehold,
+  connectReply,
   formatAdded,
   formatRunStarted,
   formatRunStatus,
   helpReply,
+  parseHouseholdInvite,
   windowOpen,
 } from './scenario.js';
 import { expandPhoneMap, expandPhoneSet, matchPhoneMap, matchPhoneSet } from './phone.js';
@@ -45,7 +47,7 @@ export function loadSpectrumConfig(env = process.env) {
     allowedSenders,
     actorBySender,
     cartnersApiUrl: optional(env, 'CARTNERS_API_URL') || 'http://127.0.0.1:8000',
-    workspaceId: optional(env, 'CARTNERS_WORKSPACE_ID') || 'demo-family',
+    workspaceId: optional(env, 'CARTNERS_WORKSPACE_ID'),
     sessionToken: optional(env, 'CARTNERS_SESSION_TOKEN'),
     householdKind: optional(env, 'CARTNERS_HOUSEHOLD_KIND'),
     imessageLine: optional(env, 'CARTNERS_IMESSAGE_LINE') || optional(env, 'PHOTON_AGENT_HANDLE') || '+14156055508',
@@ -85,27 +87,83 @@ function actorFor(config, sender) {
   return matchPhoneMap(config.actorBySender, sender) || onlyMappedActor(config);
 }
 
+function apiForLink(config, api, link) {
+  if (!link?.sessionToken) return api;
+  if (typeof config.apiForToken === 'function') return config.apiForToken(link.sessionToken);
+  return createCartnersApi({ baseUrl: config.cartnersApiUrl, token: link.sessionToken });
+}
+
+export async function connectSender({ api, state, sender, inviteCode, name }) {
+  const sessionToken = randomBytes(32).toString('hex');
+  const result = await api.joinHousehold({
+    name: name || 'iPhone',
+    sessionToken,
+    inviteCode,
+  });
+  const workspace = result.workspace || {};
+  const record = {
+    workspaceId: workspace.workspaceId,
+    actorId: result.actorId,
+    sessionToken,
+    name: name || 'iPhone',
+    householdName: workspace.groups?.[0]?.name || 'your household',
+    householdKind: workspace.preferences?.householdKind || workspace.groups?.[0]?.kind || '',
+  };
+  if (!record.workspaceId || !record.actorId) throw new Error('Cartners did not return a household for that invitation.');
+  if (typeof state.linkPhone === 'function') await state.linkPhone(sender, record);
+  return record;
+}
+
 export async function handleSpectrumMessage({ space, message, config, api, state, logger = console }) {
   const sender = senderId(message);
   const text = inboundText(message);
   logger.info(`inbound ${message.direction || 'unknown'} from ${sender || 'unknown'}: ${text.slice(0, 80) || message.content?.type || '(empty)'}`);
   if (message.direction === 'outbound') return false;
   if (!text) return false;
-  if (sender && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
-    if (!onlyMappedActor(config)) {
-      logger.info(`Ignored a message from an unregistered sender (${sender}).`);
-      return false;
-    }
-    logger.info(`Unlisted sender ${sender}; using the household’s only mapped member.`);
-  }
-  const pending = state.pendingBySpace[space.id];
-  const intent = classifyHousehold(text, { hasPendingDraft: Boolean(pending) });
-  logger.info(`iMessage ${intent.type}: ${text.slice(0, 80)}`);
   const reply = async (body) => {
     if (typeof message.reply === 'function') await message.reply(body);
     else await space.send(body);
   };
-  const actorId = actorFor(config, sender);
+  const invite = parseHouseholdInvite(text);
+  if (invite && sender) {
+    try {
+      const record = await connectSender({ api, state, sender, inviteCode: invite.inviteCode, name: invite.name });
+      logger.info(`linked ${sender} to ${record.workspaceId} as ${record.actorId}`);
+      await reply(`This phone is on ${record.householdName} as ${record.name}. Text “need milk” and I’ll add it to that shared list. Someone else uses their own phone and their own household code.`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      await reply(detail && detail.length < 180
+        ? `I couldn’t join that household (${detail}). Check the invitation code in Cartners and text it again.`
+        : 'I couldn’t join that household. Check the invitation code in Cartners and text it again.');
+    }
+    return true;
+  }
+  const link = typeof state.phoneFor === 'function' ? state.phoneFor(sender) : null;
+  if (link?.workspaceId && link?.actorId) {
+    config = {
+      ...config,
+      workspaceId: link.workspaceId,
+      householdKind: link.householdKind || config.householdKind,
+    };
+    api = apiForLink(config, api, link);
+  } else if (sender && config.allowedSenders?.size && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
+    if (!onlyMappedActor(config)) {
+      if (!config.workspaceId) {
+        await reply(connectReply(config.imessageLine));
+        return true;
+      }
+      logger.info(`Ignored a message from an unregistered sender (${sender}).`);
+      return false;
+    }
+    logger.info(`Unlisted sender ${sender}; using the household’s only mapped member.`);
+  } else if (!config.workspaceId && !actorFor(config, sender)) {
+    await reply(connectReply(config.imessageLine));
+    return true;
+  }
+  const pending = state.pendingBySpace[space.id];
+  const intent = classifyHousehold(text, { hasPendingDraft: Boolean(pending) });
+  logger.info(`iMessage ${intent.type}: ${text.slice(0, 80)}`);
+  const actorId = link?.actorId || actorFor(config, sender);
 
   if (intent.type === 'ignore') {
     await reply('I can add groceries from here. Text “need milk”, or “going to QFC” when someone is shopping.');
@@ -116,7 +174,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
       delete state.pendingBySpace[space.id];
       await state.save();
     }
-    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family'), config.imessageLine));
+    await reply(helpReply(config.householdKind || ((config.workspaceId || '').includes('roommate') ? 'roommates' : 'family'), config.imessageLine));
     return true;
   }
   if (!actorId) {
