@@ -36,7 +36,8 @@
       "version": 1,
       "createdAt": "2026-10-17T17:59:00Z",
       "removed": false,
-      "runId": "run-sample-1"
+      "runId": "run-sample-1",
+      "punted": null
     },
     {
       "id": "item-milk",
@@ -50,7 +51,8 @@
       "version": 1,
       "createdAt": "2026-10-17T17:59:00Z",
       "removed": false,
-      "runId": "run-sample-1"
+      "runId": "run-sample-1",
+      "punted": null
     }
   ],
   "trip": {
