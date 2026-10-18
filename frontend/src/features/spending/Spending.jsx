@@ -41,7 +41,7 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
       </div>
       <p className="rm-intro">
         {isFamilyTable(workspace, membership)
-          ? <>This is a <strong>family grocery budget</strong>. Describe the store total — we remember who paid. Nobody owes anyone.{mode === 'split' ? ' This group was switched to split — debts appear below.' : ''}</>
+          ? <>This is a <strong>family grocery budget</strong>. Describe the store total. We remember who paid. Nobody owes anyone.{mode === 'split' ? ' This group was switched to split. Debts appear below.' : ''}</>
           : <>{mode === 'pooled'
             ? <>This household <strong>tracks who paid</strong>. Describe the receipt; nothing is saved until you confirm.</>
             : <>Type the store total. Cartners <strong>fills who paid and the split</strong>. Opening a pay link never marks a debt paid.{lastSplit ? ` Last split: ${(lastSplit.sharedMemberIds || []).map(name).join(', ')}.` : ''}</>}</>}{' '}

@@ -49,7 +49,7 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
           <section className="rm-card" aria-labelledby="rm-imessage">
             <h2 id="rm-imessage" className="rm-h2">Text the household line</h2>
             <p className="rm-help">From an iPhone on this household, text Cartners at <strong>{prettyPhone()}</strong>. “Going to the store” starts a run. “Need milk” adds it. The website never sends those texts for you.</p>
-            <p><a className="rm-btn" href={smsHref(isFamilyTable(workspace, membership) ? 'Going to the store — what does everyone need?' : 'Going to QFC — what do you guys need?')}>Text {prettyPhone()}</a></p>
+            <p><a className="rm-btn" href={smsHref(isFamilyTable(workspace, membership) ? 'Going to the store. What does everyone need?' : 'Going to QFC. What do you guys need?')}>Text {prettyPhone()}</a></p>
             <p className="rm-help">Line {IMESSAGE_LINE}. Open that thread, don’t start a new one to a different number.</p>
           </section>
           <Preferences {...shared} />
@@ -129,7 +129,7 @@ function PayHandles({ workspace, actorId, api, onWorkspaceChange, connected, not
     saveMembership(next);
     write.reset();
     onWorkspaceChange(withMemberPayLinks(workspace, next));
-    notify?.('Saved on this device. The hosted API cannot store handles until it is redeployed — opening a link still never marks a debt paid.');
+    notify?.('Saved on this device. The hosted API cannot store handles until it is redeployed. Opening a link still never marks a debt paid.');
   }
 
   return (
