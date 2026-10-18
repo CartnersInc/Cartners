@@ -33,17 +33,25 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
     setState({ phase: 'idle', error: '' });
     navigator.geolocation.getCurrentPosition(async (position) => {
       try {
-        const found = await api.request(`/api/postal-code?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}`);
-        if (typeof found?.postalCode === 'string') setZip(found.postalCode);
-      } catch (err) {
-        setState({ phase: 'error', error: err.message || 'Could not find a ZIP for that location. Type it instead.' });
+        const params = new URLSearchParams({
+          latitude: position.coords.latitude.toFixed(5),
+          longitude: position.coords.longitude.toFixed(5),
+          localityLanguage: 'en',
+        });
+        const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${params}`);
+        const found = response.ok ? await response.json() : null;
+        const zipCode = String(found?.postcode || '').match(/\d{5}/)?.[0];
+        if (zipCode) setZip(zipCode);
+        else setState({ phase: 'error', error: 'No US ZIP code was found for that location. Type a postal code instead.' });
+      } catch {
+        setState({ phase: 'error', error: 'Could not find a ZIP for that location. Type it instead.' });
       } finally {
         setLocating(false);
       }
     }, () => {
       setLocating(false);
       setState({ phase: 'error', error: 'Location was not allowed. Type a ZIP instead.' });
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   }
 
   async function compare(event) {

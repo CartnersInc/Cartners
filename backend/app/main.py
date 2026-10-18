@@ -11,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -31,7 +31,6 @@ from app.schemas import (
     UndoRequest,
 )
 from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, suggest_for_event
-from app.services.postal_code import PostalCodeUnavailable, postal_code_for_point
 from app.store import Store
 from app.suggestions import build_suggestion, require_message
 
@@ -422,19 +421,6 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
             return JSONResponse(status_code=503, content={"error": {"code": "AI_UNAVAILABLE", "message": message, "retryable": True, "requestId": body.requestId}})
         except ValueError as exc:
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_EXPENSE_NOTE", "message": str(exc), "retryable": False, "requestId": body.requestId}})
-
-    @application.get("/api/postal-code")
-    async def lookup_postal_code(
-        latitude: float = Query(ge=-90, le=90),
-        longitude: float = Query(ge=-180, le=180),
-    ) -> dict[str, str]:
-        try:
-            code = await run_in_threadpool(postal_code_for_point, latitude, longitude)
-        except LookupError as exc:
-            return JSONResponse(status_code=422, content={"error": {"code": "POSTAL_CODE_NOT_FOUND", "message": str(exc), "retryable": False, "requestId": None}})
-        except PostalCodeUnavailable as exc:
-            return JSONResponse(status_code=503, content={"error": {"code": "POSTAL_CODE_UNAVAILABLE", "message": str(exc), "retryable": True, "requestId": None}})
-        return {"postalCode": code}
 
     @application.post("/api/baskets/compare")
     def compare_baskets(body: BasketCompareRequest, request: Request) -> dict[str, Any]:
