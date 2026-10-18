@@ -172,7 +172,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     {!draft ? <div className="discovery discovery-focused">
       <div className="home-request">
         <div className="home-hero"><h1>What sounds<br />good <span>today?</span></h1>
-        <p className="intro">{isFamilyTable(workspace, membership) ? <>One family dinner. One shared grocery run.<br />Mom or dad can pick it up for the table.</> : <>One shared list. Split the receipt after.<br />Venmo, Zelle, or Cash App — not a family budget.</>}</p><KitchenArt /></div>
+        <p className="intro">{isFamilyTable(workspace, membership) ? <>One family dinner. One shared grocery run.<br />Mom or dad can pick it up for the table.</> : <>One shared list. Split the receipt after.<br />Venmo, Zelle, or Cash App, not a family budget.</>}</p><KitchenArt /></div>
         {composer}{starters}{options}
       </div>
       <aside className="home-list" aria-labelledby="home-list-title">
@@ -184,9 +184,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <div className="home-text-line">
           {isFamilyTable(workspace, membership)
             ? <><p><strong>Mom or dad heading to the store?</strong> Text Cartners from the car. The rest of the family can reply “need milk” and it lands on this list.</p>
-              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store — what does everyone need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>
-            : <><p><strong>Who’s grabbing groceries?</strong> Text “going to QFC — what do you guys need?” Roommates add “need milk.” Split later with Venmo, Zelle, or Cash App — not a family budget.</p>
-              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to QFC — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>}
+              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store. What does everyone need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>
+            : <><p><strong>Who’s grabbing groceries?</strong> Text “going to QFC. What do you guys need?” Roommates add “need milk.” Split later with Venmo, Zelle, or Cash App, not a family budget.</p>
+              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to QFC. What do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>}
         </div>
       </aside>
     </div> : <div className="idea-page-heading"><h1>{week ? 'Your week' : meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}
@@ -214,7 +214,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         })}</ol>
         {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">These meals are on This week. Groceries were not added.</p></div>
           <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('plans')}>View this week<Icon name="arrow" /></button>
-        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own week when connected.</p> : entry.aiPreviewOnly ? <p className="small muted">Connect the shared backend to save this week on the household calendar.</p> : staleDraft ? <><p className="small muted">Checking the latest household list before you save this week.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add groceries or duplicate meals.' : 'Saves these seven meals on This week. Does not add groceries — pick a night and add that dinner when you are ready to shop.'}</p>}</div>
+        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own week when connected.</p> : entry.aiPreviewOnly ? <p className="small muted">Connect the shared backend to save this week on the household calendar.</p> : staleDraft ? <><p className="small muted">Checking the latest household list before you save this week.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add groceries or duplicate meals.' : 'Saves these seven meals on This week. Does not add groceries. Pick a night and add that dinner when you are ready to shop.'}</p>}</div>
           <button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Saving…' : recoveringSave ? 'Retry save' : entry.aiPreviewOnly ? 'Cart connection needed' : 'Save this week'}<Icon name="arrow" /></button>
         </div>}
       </> : <>

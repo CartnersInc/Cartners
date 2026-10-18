@@ -29,7 +29,7 @@ export default class FeatureErrorBoundary extends Component {
         <h1>{label} couldn’t open</h1>
         <p>{stale
           ? 'Cartners was updated while this tab was open. Refresh to load the latest Household and Plans screens.'
-          : 'Something went wrong loading this screen. Your Home and cart are still fine — try again, or go back.'}</p>
+          : 'Something went wrong loading this screen. Your Home and cart are still fine. Try again, or go back.'}</p>
         <div className="preference-actions">
           {stale
             ? <button type="button" className="button primary" onClick={() => location.reload()}>Refresh Cartners<Icon name="arrow" /></button>

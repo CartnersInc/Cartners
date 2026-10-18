@@ -263,7 +263,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
                     <li key={id} className="rm-balance"><span><PersonName workspace={workspace} actorId={id}>{name(id)}</PersonName>{id === payerId ? ' (paid the store)' : ''}</span><span className="rm-price">{formatCents(cents)}</span></li>
                   ))}
                 </ul>
-                <p className="rm-help">Even split of what’s left after any personal amounts. Saving still needs your confirmation — this is not a payment.</p>
+                <p className="rm-help">Even split of what’s left after any personal amounts. Saving still needs your confirmation. This is not a payment.</p>
               </div>
             )}
             <div className="rm-field">

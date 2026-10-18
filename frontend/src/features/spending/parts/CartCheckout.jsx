@@ -32,8 +32,8 @@ export default function CartCheckout({ checkout, actorId, onDismiss, onEditProfi
         <button type="button" className="rm-link" onClick={dismiss}>Clear checkout</button>
       </div>
       <p className="rm-help">
-        These are the items still checked in Shopping. Opening Venmo or Zelle never marks a debt paid —
-        it only opens the payment app with the amount.
+        These are the items still checked in Shopping. Opening Venmo or Zelle never marks a debt paid.
+        It only opens the payment app with the amount.
       </p>
 
       <ul className="rm-checkout-lines">
