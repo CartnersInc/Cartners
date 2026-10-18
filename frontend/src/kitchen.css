@@ -441,3 +441,49 @@ button:disabled { opacity: .55; }
   .button:active:not(:disabled), .app-shell .rm-btn:active:not(:disabled), .setup-choices label:active, .home-hero:hover .kitchen-art, .sidebar nav a:hover .icon { transform: none; }
   details::details-content { transition: opacity 100ms ease; }
 }
+
+/* A shared shopping note: binding, ruled rows and a working purchase checkbox. */
+.grocery-notepad {
+  --paper: #fff0b3; --paper-rule: #d8c58b;
+  position: relative; margin-top: 26px; padding: 24px 22px 28px 54px;
+  background: var(--paper); border-top: 12px solid #e7b64d; /* impeccable-disable-line border-accent-on-rounded: literal notepad binding requested by the user */
+  border-radius: 5px 5px 12px 5px; box-shadow: 0 9px 22px #4b2d2610;
+}
+.grocery-notepad::before { content: ''; position: absolute; top: 0; bottom: 0; left: 35px; width: 1px; background: #b5412850; pointer-events: none; }
+.notepad-heading { padding-bottom: 20px; border-bottom: 1px solid var(--paper-rule); }
+.notepad-heading h2 { margin: 0 0 5px; font-size: 1.65rem; }
+.notepad-heading p { margin: 0; font-size: .83rem; color: #68512c; font-variant-numeric: tabular-nums; }
+.notepad-section-title { font-family: var(--display); font-size: .95rem; margin: 20px 0 8px; }
+.app-shell .grocery-notepad .rm-items { background: transparent; border-radius: 0; overflow: visible; }
+.app-shell .grocery-notepad .rm-item { border-bottom: 1px solid var(--paper-rule); padding: 17px 0; background: transparent; }
+.app-shell .grocery-notepad .rm-item:last-child { border-bottom: 1px solid var(--paper-rule); }
+.grocery-notepad .purchased-list { margin-top: 26px; }
+.grocery-notepad .rm-empty-state { background: transparent; padding: 24px 0 8px; border: 0; }
+.grocery-notepad .rm-empty-state h3 { font-size: 1.25rem; }
+.grocery-notepad .rm-help, .grocery-notepad .rm-item-meta, .grocery-notepad .rm-qty-badge { color: #68512c; }
+.grocery-notepad .rm-edit { padding: 16px; margin-top: 14px; background: var(--white); border-radius: 9px; }
+.notepad-check { position: relative; display: inline-grid; width: 28px; height: 28px; grid-column: 1; grid-row: 1; }
+.app-shell .notepad-check .rm-bought { appearance: none; width: 28px; height: 28px; margin: 0; border: 1.5px solid #856c40; border-radius: 5px; background: #fffdf680; transition: background-color 160ms ease, border-color 160ms ease; }
+.app-shell .notepad-check .rm-bought:checked { background: #e4e8bc; border-color: #526a42; }
+.notepad-check svg { position: absolute; inset: 2px; width: 24px; height: 24px; fill: none; stroke: #375235; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.notepad-check path { stroke-dasharray: 27; stroke-dashoffset: 27; transition: stroke-dashoffset 220ms var(--ease-kitchen); }
+.notepad-check input:checked + svg path { stroke-dashoffset: 0; animation: pencil-check 220ms var(--ease-kitchen); }
+@keyframes pencil-check { from { stroke-dashoffset: 27; } to { stroke-dashoffset: 0; } }
+.app-shell .grocery-notepad .rm-item-bought .rm-item-name { color: #685d3d; text-decoration-color: #685d3d; }
+.grocery-notepad .rm-item-name { transition: color 180ms ease, text-decoration-color 180ms ease; }
+.home-list { position: relative; background: #fff0b3; border-top: 10px solid #e7b64d; border-radius: 5px 5px 12px 5px; padding-left: 37px; } /* impeccable-disable-line border-accent-on-rounded: same requested notepad binding on the preview */
+.home-list::before { content: ''; position: absolute; top: 0; bottom: 0; left: 22px; width: 1px; background: #b5412850; pointer-events: none; }
+.home-list li, .home-list-heading { border-color: #d8c58b; }
+@media (max-width: 760px) {
+  .grocery-notepad { padding: 20px 16px 24px 40px; }
+  .grocery-notepad::before { left: 25px; }
+  .notepad-heading h2 { font-size: 1.4rem; }
+  .home-list { padding-left: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notepad-check path, .notepad-check input:checked + svg path { animation: none; transition: none; }
+}
+@media (forced-colors: active) {
+  .app-shell .notepad-check .rm-bought { appearance: auto; }
+  .notepad-check svg { display: none; }
+}

@@ -50,8 +50,11 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
     <BasketCompare key={workspace.listRevision} {...shared} items={needed} onPrices={values => setItemPrices({ revision: workspace.listRevision, values })} onStoreFound={setMatchedStore} />
     <div className="shopping-flow"><section className="shopping-list" aria-label="Shared shopping list">
       <AddItemForm {...shared} serverNowMs={serverNowMs} nameRef={nameRef} />
-      {needed.length ? <><h2 className="rm-h2">To pick up</h2><ul ref={listMotion} className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h2>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h2><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
-      {bought.length > 0 && <details className="purchased-list"><summary>Purchased · {bought.length}</summary><p className="rm-help">Uncheck an item to put it back on the list.</p><ul className="rm-items">{bought.map(row)}</ul></details>}
+      <div className="grocery-notepad">
+        <header className="notepad-heading"><h2>Our grocery list</h2><p>{needed.length} to pick up · {bought.length} purchased</p></header>
+        {needed.length ? <><h3 className="notepad-section-title">To pick up</h3><ul ref={listMotion} className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h3>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h3><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
+        {bought.length > 0 && <section className="purchased-list" aria-label="Purchased groceries"><h3 className="notepad-section-title">Purchased · {bought.length}</h3><p className="rm-help">Uncheck an item to put it back on the list.</p><ul className="rm-items">{bought.map(row)}</ul></section>}
+      </div>
     </section>
     {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Start a store run once you’ve picked a nearby trip. Live prices only appear when Kroger returns them.</p><TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} /></aside>}
     </div>
