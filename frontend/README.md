@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. By default Vite proxies `/api` to http://127.0.0.1:8000. For Xavier's shared server, copy `.env.example` to `.env.local`, set `VITE_API_BASE_URL` to the backend origin, and restart Vite. The backend must allow the frontend origin through CORS. At deployment, set that origin at build time or serve `/api` from the same origin; the Vite proxy is development-only. Never put a provider key in a VITE variable.
+Open http://127.0.0.1:5173. By default Vite proxies `/api` to http://127.0.0.1:8000. To use a remote backend locally, copy `.env.example` to `.env.local`, set `VITE_API_BASE_URL` to the backend origin, and restart Vite. The backend must allow the frontend origin through CORS. GitHub Pages receives its API origin at build time through the `VITE_API_BASE_URL` Actions variable; the Vite proxy is development-only. Never put a provider key in a VITE variable. See [demo hosting](../docs/DEMO_HOSTING.md) for the current public setup.
 
 When no backend is reachable, the app previews checked-in fixtures. Starter buttons show clearly labeled fixed examples while offline; connected starters and Make it quicker call AI immediately. Enter submits a request, and Shift+Enter adds a line. Dates/preferences and detailed ingredient edits expand only when needed. Sample buttons show fixed meal/grocery/clarification responses; they do not interpret arbitrary input, mutate a cart, generate debt, or claim live AI. Backend reads resume while the page is visible. A failed read after connection preserves the last snapshot and disables Home writes until reconnected.
 

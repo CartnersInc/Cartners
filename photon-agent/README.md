@@ -26,6 +26,6 @@ In the configured Photon conversation, try **“What should we eat tonight?”**
 
 ## Backend requirement
 
-This service calls the shared API contract routes `POST /api/suggestions` and `POST /api/drafts/confirm`. The current `main` branch still has the earlier temporary `/api/ai/*` preview endpoints, which cannot save or confirm shared drafts. The Photon flow becomes end-to-end only after the shared v2 backend routes are deployed and `CARTNERS_API_URL` points to that backend. This package does not implement a second database, AI provider, or cart.
+This service calls the shared API routes `POST /api/suggestions` and `POST /api/drafts/confirm`, which are implemented on `main`. The Photon flow becomes end-to-end once the FastAPI backend is deployed, `CARTNERS_API_URL` points to that backend, and its Gemini key is configured. This package does not implement a second database, AI provider, or cart. Photon is a separate service; GitHub Pages does not run it.
 
 The agent keeps a small local cursor/draft file under `.runtime/` so message retries do not repeat cart writes. For a shared deployment, mount persistent storage for that path or replace it with an agreed durable store. The current demo maps all configured Photon conversations to one seeded Cartners workspace.

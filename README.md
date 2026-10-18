@@ -2,7 +2,7 @@
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 
-**Live demo:** [Open Cartners](https://xaviergorriti.github.io/Cartners/) — one public URL that updates from `main`. [How the shared demo works](docs/DEMO_HOSTING.md).
+**Live demo:** [Open Cartners](https://cartnersinc.github.io/Cartners/) — the frontend deploys from `main`. The live AI and shared data need the separate backend described in [demo hosting](docs/DEMO_HOSTING.md).
 
 ## Team development
 
@@ -10,7 +10,17 @@ DubHacks 2026 concept: help families, roommates, and other shared households dec
 
 ## Run the React frontend
 
-See [frontend setup and integration](frontend/README.md) for requirements, the shared component interface, and checks.
+The full local demo uses two terminals. Start the backend first:
+
+```sh
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Then start the frontend in another terminal:
 
 ```sh
 cd frontend
@@ -18,7 +28,7 @@ npm ci
 npm run dev
 ```
 
-Home and Plans run without a backend using visibly labeled previews. Live AI, committed cart changes, Undo, and preference saves require the team's backend. Shopping, Spending, and Groups remain teammate-owned integration points.
+Open http://127.0.0.1:5173. Without the backend, the frontend shows labeled sample previews. Add provider keys to `backend/.env` for live Gemini and Kroger access; never commit that file. See [frontend setup and integration](frontend/README.md) for more detail.
 
 ## Run the earlier demo
 
