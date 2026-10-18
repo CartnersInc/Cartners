@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
 async function serve(page, handlers) {
+  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
   const calls = [];
@@ -47,16 +48,16 @@ test('add a Just me request, lose a start race, and release a run', async ({ pag
   await page.getByRole('textbox', { name: 'Add an item' }).fill('Hot sauce');
   await page.getByRole('radio', { name: 'Just me' }).first().check();
   await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
-  await expect(page.getByText('Just you', { exact: false }).first()).toBeVisible();
+  await expect(page.locator('.rm-cart-row').filter({ hasText: 'Hot sauce' }).locator('.rm-cart-amount')).toHaveText('1');
   const add = calls.find(c => c.path === '/api/items');
   expect(add.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', name: 'Hot sauce', requestFor: 'leila', quantity: 1, unit: 'count' });
   expect(add.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
 
   // Only 5/10/15 are offered; start loses the race and names the winner.
-  await expect(page.locator('.rm-inline-select option')).toHaveText(['5 minutes', '10 minutes', '15 minutes']);
+  await expect(page.locator('.rm-run-window select option')).toHaveText(['5 minutes', '10 minutes', '15 minutes']);
   await page.getByRole('button', { name: 'Start store run' }).click();
   await expect(page.getByText(/Sam started a run to Safeway/)).toBeVisible();
-  await expect(page.getByText(/Sam is going to the store\. Want anything\?/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: "Sam is shopping at Safeway" })).toBeVisible();
   expect(calls.find(c => c.body?.action === 'start').body).toMatchObject({ expectedTripVersion: 3, storeName: 'QFC', requestWindowMinutes: 10 });
 
   // As Sam, release the run.
@@ -182,21 +183,65 @@ test('a needs-review receipt can be filled in and confirmed', async ({ page }) =
   expect(update.body).toMatchObject({ totalCents: 2000, payerId: 'leila', personalAllocations: { sam: 600 }, status: 'confirmed' });
 });
 
-test('price comparison includes the selected actor and request ID', async ({ page }) => {
+test('nearby Kroger prices are prominent and compare every open cart item on request', async ({ page }) => {
   const pricing = await fixture('pricing');
-  const calls = await serve(page, ({ path }) => path === '/api/baskets/compare'
-    ? { json: pricing }
+  pricing.sourceMode = 'live_api';
+  pricing.baskets = [pricing.baskets[0]];
+  Object.assign(pricing.baskets[0].items[0], { productName: 'Kroger Flour Tortillas', brand: 'Kroger', productSize: '8 count', pricePerPackageCents: 250, stockLevel: 'HIGH', imageUrl: 'https://www.kroger.com/product/images/medium/front/0001111041700' });
+  const calls = await serve(page, ({ path, body }) => path === '/api/baskets/compare'
+    ? { json: { ...pricing, requestPostalCode: body.postalCode } }
     : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } });
 
   await page.goto('/#shopping');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-  await page.locator('details.rm-compare > summary').click();
-  await page.getByLabel('ZIP or postal code').fill('98105');
-  await page.getByRole('button', { name: 'Compare prices' }).click();
-  await expect(page.getByText('Sample prices')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Kroger' }).first()).toBeVisible();
+  await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
+  await page.getByRole('button', { name: 'Compare my list' }).click();
+  await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
 
   const compare = calls.find(call => call.path === '/api/baskets/compare');
   expect(compare.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', postalCode: '98105' });
   expect(compare.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
   expect(compare.body.itemIds).toEqual(['item-tortillas', 'item-milk']);
+  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-price')).toHaveText('$2.50');
+  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-amount')).toHaveText('6');
+});
+
+test('live Kroger matches show the product and prefill the store run', async ({ page }) => {
+  const pricing = await fixture('pricing');
+  pricing.sourceMode = 'live_api';
+  pricing.baskets = [pricing.baskets[0]];
+  pricing.baskets[0].storeName = 'QFC University Village';
+  Object.assign(pricing.baskets[0].items[0], {
+    productName: 'Kroger Flour Tortillas', brand: 'Kroger', productSize: '8 count',
+    stockLevel: 'HIGH', aisle: '8', imageUrl: 'https://www.kroger.com/product/images/medium/front/0001111041700',
+  });
+  await serve(page, ({ path }) => path === '/api/baskets/compare' ? { json: pricing } : { status: 404, json: { error: { message: 'Not in this check' } } });
+  await page.goto('/#shopping');
+  await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
+  await page.getByRole('button', { name: 'Compare my list' }).click();
+  await expect(page.getByAltText('Kroger', { exact: true })).toBeVisible();
+  await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
+  await expect(page.getByText('Kroger · 8 count')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Store' })).toHaveValue('QFC University Village');
+});
+
+test('clear list removes all needed requests after one clear confirmation', async ({ page }) => {
+  const calls = await serve(page, ({ path, body, workspace, set }) => {
+    if (path.startsWith('/api/items/') && body.removed) {
+      const id = decodeURIComponent(path.split('/').pop());
+      const next = { ...workspace, listRevision: workspace.listRevision + 1, items: workspace.items.map(item => item.id === id ? { ...item, removed: true, version: item.version + 1 } : item) };
+      set(next);
+      return { json: { workspace: next, actionId: `remove-${id}` } };
+    }
+    return { status: 404, json: { error: { message: 'Not in this check' } } };
+  });
+  await page.goto('/#shopping');
+  await page.getByRole('button', { name: 'Clear list' }).click();
+  await expect(page.getByText('Remove all 2 items that still need buying?')).toBeVisible();
+  await page.getByRole('button', { name: 'Remove all 2' }).click();
+  await expect(page.getByText('Your list is clear.')).toBeVisible();
+  expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
+  await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
 });

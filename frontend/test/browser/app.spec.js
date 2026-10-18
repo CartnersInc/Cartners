@@ -2,38 +2,26 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../docs/fixtures/${name}.json`, import.meta.url)));
 
-test('sample meal, refinement, grocery, clarification, and draft restoration are honest', async ({ page }) => {
+test('first visit starts with preferences and a clean, non-sample workspace', async ({ page }) => {
   await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ status: 503, json: { error: { message: 'Backend not started' } } }));
   await page.goto('/');
-  await expect(page.getByText('Sample preview', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Let’s set the table.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Oat milk' })).toHaveCount(0);
+  await expect(page.getByText('Sample preview', { exact: true })).toHaveCount(0);
+  await page.getByRole('checkbox', { name: 'Vegetarian' }).check();
+  await page.getByRole('textbox', { name: /What do you like/ }).fill('Tacos');
+  await page.getByRole('button', { name: 'Next: choose dinner' }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
+  await expect(page.locator('.request-options > summary')).toContainText('vegetarian');
   await expect(page.getByRole('heading', { name: 'Something new to try' })).toBeVisible();
-  await page.getByRole('button', { name: 'Surprise me', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add to cart', exact: true })).toBeDisabled();
+  await expect(page.getByText('Offline · changes paused')).toBeVisible();
   await page.getByRole('link', { name: 'Shopping', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Shopping', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
-  await page.getByRole('button', { name: 'Make it quicker', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Quick black bean wraps' })).toBeVisible();
-  await page.getByRole('button', { name: 'Previous idea', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
-  await page.getByText('Try another sample', { exact: true }).click();
-  await page.getByRole('button', { name: 'Weekend groceries', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your grocery list' })).toBeVisible();
-  await page.getByText('Review 2 ingredients and requests', { exact: true }).click();
-  await expect(page.getByText('1 pack · Sam · Unsweetened')).toBeVisible();
-  await page.getByRole('button', { name: 'See a dietary clarification', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'One thing to check' })).toBeVisible();
-  await expect(page.getByText(/saved restriction is vegetarian/)).toBeVisible();
-  await page.getByRole('textbox', { name: 'Change this idea', exact: true }).fill('A quick dinner for tomorrow');
-  await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Change this idea', exact: true })).toHaveValue('A quick dinner for tomorrow');
+  await expect(page.getByText('Your list is clear.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
 });
 
-test('Home requests a live AI preview without pretending the sample cart is connected', async ({ page }) => {
+test('Home requests a live AI preview when the shared backend is offline', async ({ page }) => {
   const draft = await fixture('suggestions');
   draft.sourceMode = 'live_ai';
   draft.recommendation.listPreview = draft.recommendation.ingredients.map(item => ({ ingredientId: item.id, action: 'review' }));
@@ -48,6 +36,8 @@ test('Home requests a live AI preview without pretending the sample cart is conn
     return route.fulfill({ status: 503, json: { error: { message: 'Not available' } } });
   });
   await page.goto('/');
+  await page.getByRole('checkbox', { name: 'Vegetarian' }).check();
+  await page.getByRole('button', { name: 'Next: choose dinner' }).click();
   await page.getByRole('textbox', { name: /What do you want/ }).fill('Something quick and vegetarian');
   await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
@@ -79,6 +69,7 @@ test('live contract save retries the same action and Undo updates server state',
     }
     return route.fulfill({ status: 404, json: { error: { message: 'Not implemented in test' } } });
   });
+  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   await page.goto('/');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
   await page.getByRole('textbox', { name: /What do you want/ }).fill('Something fun for dinner');
@@ -101,29 +92,33 @@ test('live contract save retries the same action and Undo updates server state',
   await page.getByText('Review 5 ingredients and requests', { exact: true }).click();
   await expect(page.getByRole('checkbox').first()).not.toBeChecked();
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
-  await expect(page.getByText('Added tacos to your cart.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Recent cart update' }).getByText('Added tacos to your cart.')).toBeVisible();
   expect(attempts).toHaveLength(2);
   expect(attempts[0]).toEqual(attempts[1]);
   expect(attempts[0].excludedIngredientIds).toEqual(['ing-tortillas']);
+  await expect(page).toHaveURL(/#shopping$/);
+  await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#shopping$/);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Draft additions reversed' })).toBeVisible();
 });
 
-test('phone navigation and sample drafts fit without horizontal overflow', async ({ page }) => {
+test('phone first-use and navigation fit without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ status: 503, json: { error: { message: 'Offline sample' } } }));
   await page.goto('/');
-  await expect(page.getByText('Sample preview', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Let’s set the table.' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Surprise me', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
+  await page.getByRole('button', { name: 'Next: choose dinner' }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(page.getByRole('link', { name: 'Groups', exact: true })).toBeInViewport();
+  await page.getByText('More', { exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Household', exact: true })).toBeInViewport();
 });
 
-test('Plans opens an event for the chosen day; preference save carries context without an AI call', async ({ page }) => {
+test('Plans returns to the AI request with the chosen day; preferences save without an AI call', async ({ page }) => {
   let workspace = await fixture('workspace');
   let suggestions = 0;
   const preferences = [];
@@ -138,28 +133,33 @@ test('Plans opens an event for the chosen day; preference save carries context w
     if (path === '/api/suggestions') suggestions++;
     return route.fulfill({ status: 404, json: { error: { message: 'Not implemented in test' } } });
   });
+  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   await page.goto('/');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'Plans', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A place for dinner plans.' })).toBeVisible();
   const dayButton = page.getByRole('button', { name: /Plan a meal for / }).first();
   const targetDate = (await dayButton.getAttribute('aria-label')).replace('Plan a meal for ', '');
   await dayButton.click();
-  await expect(page.getByRole('heading', { name: 'Plan this event' })).toBeVisible();
-  await expect(page.getByLabel('Date', { exact: true })).toHaveValue(targetDate);
-  await page.getByRole('button', { name: 'Back to the week', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
+  await page.locator('.request-options > summary').click();
+  await expect(page.getByLabel('Meal date', { exact: true })).toHaveValue(targetDate);
+  await page.getByText('More', { exact: true }).click();
+  await page.getByRole('link', { name: 'Plans', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A place for dinner plans.' })).toBeVisible();
   await page.getByRole('complementary', { name: 'Your usuals' }).getByRole('button', { name: 'Edit preferences', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Servings', exact: true }).fill('6');
   await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
   await expect(page.getByRole('definition').filter({ hasText: '6 servings' })).toBeVisible();
   await page.getByRole('link', { name: 'Home', exact: true }).click();
-  await expect(page.getByRole('heading', { name: /What do you want to eat today/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
   await expect(page.locator('.request-options > summary')).toContainText('6 servings');
   expect(preferences).toHaveLength(1);
   expect(preferences[0].workspaceId).toBe('demo-family');
   expect(preferences[0].requestId).toBeTruthy();
   expect(suggestions).toBe(0);
+  await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'Plans', exact: true }).click();
   await page.getByRole('complementary', { name: 'Your usuals' }).getByRole('button', { name: 'Edit preferences', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Servings', exact: true }).fill('9');
@@ -169,14 +169,20 @@ test('Plans opens an event for the chosen day; preference save carries context w
   expect(preferences).toHaveLength(1);
 });
 
-test('first-use starter and quick refinement each call AI in one click without setup', async ({ page }) => {
+test('first-use saves preferences before asking AI, and quick refinement stays one click', async ({ page }) => {
   const workspace = await fixture('workspace');
   const meal = await fixture('suggestions'); meal.sourceMode = 'live_ai';
   const quick = await fixture('refinement'); quick.sourceMode = 'live_ai';
   const requests = [];
+  const preferences = [];
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/workspace') return route.fulfill({ json: workspace });
+    if (path === '/api/preferences') {
+      const body = route.request().postDataJSON(); preferences.push(body);
+      const next = { ...workspace, preferences: { ...workspace.preferences, ...body } };
+      return route.fulfill({ json: { workspace: next, actionId: 'prefs-1' } });
+    }
     if (path === '/api/suggestions') {
       requests.push(route.request().postDataJSON());
       return route.fulfill({ json: requests.length === 1 ? meal : quick });
@@ -185,8 +191,13 @@ test('first-use starter and quick refinement each call AI in one click without s
   });
   await page.goto('/');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Meal date', { exact: true })).not.toBeVisible();
-  await expect(page.getByText('No recent activity.', { exact: false })).toHaveCount(0);
+  await page.getByRole('spinbutton', { name: 'How many are eating?' }).fill('5');
+  await page.getByRole('checkbox', { name: 'Vegetarian' }).check();
+  await page.getByRole('textbox', { name: /What do you like/ }).fill('Tacos');
+  await page.getByRole('button', { name: 'Next: choose dinner' }).click();
+  await expect(page.getByRole('heading', { name: 'What are we eating?' })).toBeVisible();
+  expect(preferences).toHaveLength(1);
+  expect(preferences[0]).toMatchObject({ servings: 5, restrictions: ['vegetarian'], likes: ['Tacos'] });
   expect(requests).toHaveLength(0);
   await page.getByRole('button', { name: 'Surprise me', exact: true }).click();
   await expect(page.getByRole('heading', { name: meal.recommendation.title })).toBeVisible();
@@ -197,6 +208,7 @@ test('first-use starter and quick refinement each call AI in one click without s
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[1].previousDraftId).toBe(meal.draftId);
+  await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'Plans', exact: true }).click();
   await page.getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();

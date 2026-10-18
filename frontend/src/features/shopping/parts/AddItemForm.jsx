@@ -81,7 +81,7 @@ export default function AddItemForm({ workspace, actorId, api, onWorkspaceChange
           </div>
         </div>
         <button type="button" className="rm-link" aria-expanded={details} aria-controls={ids.details} onClick={() => setDetails(v => !v)}>
-          {details ? 'Hide details' : 'Quantity, unit, note'}
+          {details ? 'Hide details' : 'Add quantity or notes'}
         </button>
         {details && (
           <div id={ids.details} className="rm-add-row rm-details">

@@ -1,157 +1,123 @@
 import { useId, useState } from 'react';
-import samplePricing from '../../../../../docs/fixtures/pricing.json';
 import { formatCents, whenOf } from '../lib/format.js';
 
-const ZIP_KEY = 'roomie:compareZip';
+const ZIP_KEY = 'cartners:price-area';
 const readZip = () => { try { return localStorage.getItem(ZIP_KEY) || ''; } catch { return ''; } };
-const SOURCE_LABEL = { live_api: 'Live prices', sample: 'Sample prices', unavailable: 'Prices unavailable' };
+const SOURCE_LABEL = { live_api: 'Live Kroger prices' };
 
 function pricesFromResult(result) {
-  if (!result?.baskets?.length) return {};
+  if (!result?.baskets?.length || result.sourceMode !== 'live_api') return {};
   const best = result.baskets.find(basket => basket.id === result.cheapestCompleteBasketId)
-    || result.baskets.find(basket => basket.complete)
-    || result.baskets[0];
-  const currency = result.currency || 'USD';
-  const next = {};
-  for (const line of best.items || []) {
-    if (line?.itemId && Number.isInteger(line.lineTotalCents)) {
-      next[line.itemId] = { cents: line.lineTotalCents, currency };
-    }
-  }
-  return next;
+    || result.baskets.find(basket => basket.complete);
+  return Object.fromEntries((best?.items || [])
+    .filter(line => line?.itemId && Number.isInteger(line.lineTotalCents))
+    .map(line => [line.itemId, { cents: line.lineTotalCents, currency: result.currency || 'USD' }]));
 }
 
-// Nearby basket comparison (#4). The server/provider ranks baskets and calculates package
-// costs; this only displays them. Offline, it shows the checked-in sample under a Sample label.
-// Chosen basket line totals are also passed up so cart rows can show price beside Bought.
-export default function BasketCompare({ workspace, actorId, api, connected, items, onPrices }) {
+// The price check is optional, visible, and only shows store results returned by the backend.
+export default function BasketCompare({ workspace, actorId, api, connected, items, onPrices, onStoreFound }) {
   const [zip, setZip] = useState(readZip);
-  const [selected, setSelected] = useState(() => new Set(items.map(item => item.id)));
   const [result, setResult] = useState(null);
   const [state, setState] = useState({ phase: 'idle', error: '' });
-  const [perItem, setPerItem] = useState(false);
   const zipId = useId();
-  const nameOf = id => (workspace.items || []).find(item => item.id === id)?.name || 'A request';
-
-  function toggle(id) {
-    setSelected(current => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
-  }
-
-  function applyResult(next) {
-    setResult(next);
-    onPrices?.(pricesFromResult(next));
-  }
+  const nameOf = id => workspace.items.find(item => item.id === id)?.name || 'A grocery item';
 
   async function compare(event) {
     event.preventDefault();
     const postalCode = zip.trim();
-    if (!/^[A-Za-z0-9][A-Za-z0-9 -]{2,9}$/.test(postalCode)) { setState({ phase: 'error', error: 'Enter a ZIP or postal code.' }); return; }
-    try { localStorage.setItem(ZIP_KEY, postalCode); } catch { /* Remembering the ZIP is only a convenience. */ }
-    if (!connected) { applyResult(samplePricing); setState({ phase: 'idle', error: '' }); return; }
+    if (!/^[A-Za-z0-9][A-Za-z0-9 -]{2,9}$/.test(postalCode)) {
+      setState({ phase: 'error', error: 'Enter your ZIP or postal code to check nearby stores.' });
+      return;
+    }
+    if (!connected || !items.length) return;
+    try { localStorage.setItem(ZIP_KEY, postalCode); } catch { /* A saved area is only a convenience. */ }
     setState({ phase: 'loading', error: '' });
+    setResult(null);
     try {
-      const response = await api.request('/api/baskets/compare', { method: 'POST', body: { workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), itemIds: [...selected], postalCode } });
-      applyResult(response); setState({ phase: 'idle', error: '' });
+      const response = await api.request('/api/baskets/compare', { method: 'POST', body: {
+        workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(),
+        itemIds: items.map(item => item.id), postalCode,
+      } });
+      setResult(response);
+      onPrices?.(pricesFromResult(response));
+      if (response.sourceMode === 'live_api') {
+        const store = response.baskets?.find(basket => basket.storeName)?.storeName;
+        if (store) onStoreFound?.(store);
+      }
+      setState({ phase: 'idle', error: '' });
     } catch (err) {
-      setState({ phase: 'error', error: err.message || 'Price comparison failed.' });
+      setState({ phase: 'error', error: err.message || 'Could not check nearby prices. Your list is still available.' });
     }
   }
 
-  const baskets = result?.baskets || [];
+  const baskets = result?.sourceMode === 'live_api' ? result.baskets || [] : [];
   const complete = baskets.filter(basket => basket.complete);
   const incomplete = baskets.filter(basket => !basket.complete);
   const best = complete.find(basket => basket.id === result?.cheapestCompleteBasketId);
 
   return (
-    <details className="rm-card rm-compare">
-      <summary className="rm-h2">Compare nearby baskets</summary>
+    <section className="rm-card rm-compare rm-compare-prominent" aria-labelledby="rm-compare-heading" aria-busy={state.phase === 'loading'}>
+      <div className="rm-compare-title">
+        <div><h2 className="rm-h2" id="rm-compare-heading">Find your groceries at Kroger</h2><p className="rm-help">Match your list to nearby products, package sizes, and prices.</p></div>
+        <img className="rm-kroger-logo" src="/logos/kroger.jpg" alt="Kroger" />
+      </div>
       <form onSubmit={compare} noValidate className="rm-compare-form">
-        <div className="rm-add-row">
-          <div className="rm-field">
-            <label htmlFor={zipId}>ZIP or postal code</label>
-            <input id={zipId} value={zip} maxLength={10} autoComplete="postal-code" inputMode="text" placeholder="98105" onChange={e => setZip(e.target.value)} />
-          </div>
-          <div className="rm-actions rm-end">
-            <button type="submit" className="rm-btn" disabled={state.phase === 'loading' || (connected && !selected.size)}>{state.phase === 'loading' ? 'Checking…' : connected ? 'Compare prices' : 'Show sample comparison'}</button>
-          </div>
+        <div className="rm-compare-controls">
+          <label className="rm-field" htmlFor={zipId}>ZIP or postal code
+            <input id={zipId} value={zip} maxLength={10} autoComplete="postal-code" inputMode="text" placeholder="Enter your area" onChange={e => setZip(e.target.value)} />
+          </label>
+          <button type="submit" className="rm-btn" disabled={!connected || !items.length || state.phase === 'loading'}>
+            {state.phase === 'loading' ? 'Finding nearby prices…' : 'Compare my list'}
+          </button>
         </div>
-        {connected && items.length > 0 && (
-          <fieldset className="rm-fieldset rm-checks">
-            <legend className="rm-label">Requests to price</legend>
-            {items.map(item => <label key={item.id} className="rm-check"><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} /><span>{item.name}</span></label>)}
-          </fieldset>
-        )}
-        {!connected && <p className="rm-help">The backend isn't connected, so this shows the checked-in sample for two requests. It is not a store quote.</p>}
+        {!items.length && <p className="rm-help">Add groceries to your list and Cartners can price them together.</p>}
+        {!connected && <p className="rm-help">Store prices appear when Cartners is connected. We won’t show made-up prices.</p>}
       </form>
+
       {state.phase === 'error' && <p className="rm-error" role="alert">{state.error}</p>}
+      {state.phase === 'loading' && <p className="rm-help" role="status">Checking {items.length} {items.length === 1 ? 'item' : 'items'} near {zip.trim()}…</p>}
 
-      {result && (
-        <div className="rm-compare-result" aria-live="polite">
-          <p className="rm-compare-source">
-            <span className={`rm-pill ${result.sourceMode === 'live_api' ? 'rm-pill-live' : 'rm-pill-sample'}`}>{SOURCE_LABEL[result.sourceMode] || 'Unverified prices'}</span>
-            {result.checkedAt && <span>Checked {whenOf(result.checkedAt)}</span>}
-            {result.currency && <span>{result.currency}</span>}
-          </p>
-          {result.sampleNotice && <p className="rm-help">{result.sampleNotice}</p>}
-          {result.sourceMode === 'unavailable' && <p className="rm-help">No authorized price source answered. Your list still works without it.</p>}
-
-          {complete.length > 0 && (
-            <>
-              <h3 className="rm-h3">Complete baskets</h3>
-              <ul className="rm-baskets">
-                {complete.map(basket => <Basket key={basket.id} basket={basket} best={basket.id === best?.id} nameOf={nameOf} currency={result.currency} />)}
-              </ul>
-            </>
-          )}
-          {incomplete.length > 0 && (
-            <>
-              <h3 className="rm-h3">Incomplete baskets <span className="rm-help">(can't be ranked)</span></h3>
-              <ul className="rm-baskets">
-                {incomplete.map(basket => <Basket key={basket.id} basket={basket} nameOf={nameOf} currency={result.currency} />)}
-              </ul>
-            </>
-          )}
-          <p className="rm-help rm-fee">{result.feeStatus || 'Fees, tax and delivery are not included; final totals are unverified.'}</p>
-
-          {result.perItemCheapest?.length > 0 && (
-            <div>
-              <button type="button" className="rm-link" aria-expanded={perItem} onClick={() => setPerItem(v => !v)}>{perItem ? 'Hide cheapest per item' : 'Show cheapest per item'}</button>
-              {perItem && (
-                <>
-                  <ul className="rm-plain">
-                    {result.perItemCheapest.map(entry => (
-                      <li key={entry.itemId}>{nameOf(entry.itemId)}: {formatCents(entry.lineTotalCents, result.currency)} at {baskets.find(b => b.id === entry.basketId)?.storeName || 'another store'}</li>
-                    ))}
-                  </ul>
-                  <p className="rm-help">Buying each item at a different store can mean extra stops and fees that erase the savings.</p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </details>
+      {result && result.sourceMode !== 'live_api' && <p className="rm-notice" role="status">{result.sourceMode === 'sample' ? 'Kroger has not returned verified prices yet. No sample prices are shown.' : 'Kroger prices are unavailable right now. Your list is ready to use.'}</p>}
+      {result?.sourceMode === 'live_api' && <div className="rm-compare-result" aria-live="polite">
+        <p className="rm-compare-source"><span className="rm-pill rm-pill-live">{SOURCE_LABEL.live_api}</span>{result.checkedAt && <span>Checked {whenOf(result.checkedAt)}</span>}</p>
+        {[...complete, ...incomplete].map(basket => <Basket key={basket.id} basket={basket} best={basket.id === best?.id} nameOf={nameOf} currency={result.currency} />)}
+        <p className="rm-help rm-fee">{result.feeStatus || 'Tax, discounts, and delivery may change the final total.'}</p>
+      </div>}
+    </section>
   );
 }
 
+function stockLabel(value) {
+  const level = String(value || '').toLowerCase();
+  if (!level) return 'Availability not reported';
+  if (level.includes('out') || level.includes('none')) return 'Reported out of stock';
+  if (level.includes('low')) return 'Reported low stock';
+  if (level.includes('high') || level.includes('in stock') || level.includes('available')) return 'Reported in stock';
+  return `Availability: ${value}`;
+}
+
 function Basket({ basket, best, nameOf, currency }) {
-  return (
-    <li className={`rm-basket ${best ? 'rm-basket-best' : ''}`}>
-      <div className="rm-basket-head">
-        <strong>{basket.storeName}</strong>
-        {Number.isFinite(basket.distanceKm) && <span className="rm-help">{basket.distanceKm} km</span>}
-        {best && <span className="rm-pill rm-pill-best">Lowest complete basket checked</span>}
-        <span className="rm-price">{formatCents(basket.knownSubtotalCents, currency)}{basket.complete ? '' : ' known'}</span>
-      </div>
-      <ul className="rm-plain">
-        {basket.items.map(line => (
-          <li key={line.itemId}>
-            {nameOf(line.itemId)}: {line.packagesNeeded} × {line.packageSize.unit === 'pack' ? `${line.packageSize.quantity} pack` : `${line.packageSize.quantity} ${line.packageSize.unit} pack`} at {formatCents(line.pricePerPackageCents, currency)} = {formatCents(line.lineTotalCents, currency)}
-          </li>
-        ))}
-        {basket.missingItemIds?.map(id => <li key={id} className="rm-missing">Missing: {nameOf(id)}</li>)}
-      </ul>
-      <p className="rm-help">Tax {Number.isInteger(basket.taxCents) ? formatCents(basket.taxCents, currency) : 'not included'} · delivery {Number.isInteger(basket.deliveryFeeCents) ? formatCents(basket.deliveryFeeCents, currency) : 'not included'}</p>
-    </li>
-  );
+  return <section className={`rm-store-result ${best ? 'rm-store-best' : ''}`} aria-label={`${basket.storeName} basket`}>
+    <div className="rm-basket-head">
+      <strong><img className="rm-store-logo" src="/logos/kroger.jpg" alt="" />{basket.storeName}</strong>
+      {best && <span className="rm-pill rm-pill-best">Lowest complete basket</span>}
+      <span className="rm-price">{formatCents(basket.knownSubtotalCents, currency)}<small> estimated</small></span>
+    </div>
+    {basket.items.map(line => <ProductLine key={line.itemId} line={line} name={nameOf(line.itemId)} currency={currency} />)}
+    {basket.missingItemIds?.map(id => <p key={id} className="rm-missing">No Kroger match for {nameOf(id)}</p>)}
+  </section>;
+}
+
+function ProductLine({ line, name, currency }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const title = line.productName || line.description || name;
+  const hasImage = line.imageUrl?.startsWith('https://') && !imageFailed;
+  return <article className="rm-product">
+    {hasImage ? <img className="rm-product-image" src={line.imageUrl} alt={title} loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} /> : <span className="rm-product-image rm-product-placeholder" aria-hidden="true">Item</span>}
+    <div className="rm-product-copy"><strong>{title}</strong>
+      <small>{[line.brand, line.productSize].filter(Boolean).join(' · ') || name}</small>
+      <small>{line.packagesNeeded} × {line.packageSize.quantity} {line.packageSize.unit} · {stockLabel(line.stockLevel)}{line.aisle ? ` · aisle ${line.aisle}` : ''}</small>
+    </div>
+    <span className="rm-price">{formatCents(line.pricePerPackageCents, currency)}<small> / pack</small></span>
+  </article>;
 }
