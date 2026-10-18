@@ -8,11 +8,11 @@ import { initialWorkspace } from './samples.js';
 import { clearPurchasePrompt } from './features/groups/parts/TripPanel.jsx';
 import Onboarding from './features/onboarding/Onboarding.jsx';
 import { readMembership, leaveMembership } from './features/onboarding/session.js';
+import { useSurfaceMotion } from './components/useMotion.js';
 
 const api = createApi({ baseUrl: import.meta.env.VITE_API_BASE_URL || '', getToken: () => readMembership()?.sessionToken });
 const pages = ['home', 'plans', 'shopping', 'spending', 'groups'];
-const mainPages = ['home', 'shopping'];
-const morePages = ['plans', 'spending', 'groups'];
+const navigationPages = ['home', 'shopping', 'plans', 'spending', 'groups'];
 const pageLabels = { home: 'Home', plans: 'This week', shopping: 'Shopping', spending: 'Spending', groups: 'Household' };
 // Only page entry modules — not helpers like Preferences.jsx — so More-nav chunks stay stable.
 const featureFiles = import.meta.glob([
@@ -44,6 +44,7 @@ export default function App() {
 
 function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
   const [page, setPage] = useState(currentPage);
+  const routeMotion = useSurfaceMotion(page);
   const [workspace, setWorkspace] = useState(() => initialSnapshot || { ...initialWorkspace, workspaceId: membership.workspaceId, actors: [{ id: membership.actorId, name: membership.name }], groups: [{ workspaceId: membership.workspaceId, name: membership.householdName }], preferences: { ...initialWorkspace.preferences, spendingMode: 'pooled' } });
   const [actorId, setActorId] = useState(membership.actorId);
   const [connection, setConnection] = useState('loading');
@@ -142,9 +143,10 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
   }
   const connected = connection === 'connected' && !switching;
   const featureProps = { workspace, actorId, api, onWorkspaceChange, navigate, notify: setNotice, onUseDraft: useDraft, connection, membership, onLeave };
-  return <div className="app-shell">
+  const navLink = id => <a key={id} href={`#${id}`} aria-current={page === id ? 'page' : undefined}><Icon name={id} /><span>{pageLabels[id]}</span>{id === 'shopping' && workspace.items.some(item => !item.removed && !item.bought) && <span className="nav-count" aria-hidden="true">{workspace.items.filter(item => !item.removed && !item.bought).length}</span>}</a>;
+  return <div className={`app-shell page-${page}`}>
     <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
-    <aside className="sidebar"><a className="wordmark" href="#home" aria-label="Cartners Home">cartners<span>.</span></a><div className="sidebar-house"><Icon name="home" /><span>{workspace.groups.find(group => group.workspaceId === workspace.workspaceId)?.name || 'Your group'}</span></div><nav aria-label="Main navigation">{mainPages.map(id => <a key={id} href={`#${id}`} aria-current={page === id ? 'page' : undefined}><Icon name={id} /><span>{pageLabels[id]}</span></a>)}<details className="sidebar-more" open={morePages.includes(page)}><summary><Icon name="groups" /><span>More</span></summary><div>{morePages.map(id => <a key={id} href={`#${id}`} aria-current={page === id ? 'page' : undefined}><Icon name={id} /><span>{pageLabels[id]}</span></a>)}</div></details></nav><div className="sidebar-footer"><Icon name="leaf" /><p>A little more together.</p><span>A shared table.<br />A lighter everyday.</span></div></aside>
+    <aside className="sidebar"><a className="wordmark" href="#home" aria-label="Cartners Home">cartners<span>.</span></a><div className="sidebar-house"><Icon name="home" /><span>{workspace.groups.find(group => group.workspaceId === workspace.workspaceId)?.name || 'Your group'}</span></div><nav aria-label="Main navigation">{navigationPages.map(navLink)}</nav><div className="sidebar-footer"><Icon name="leaf" /><p>A little more together.</p><span>A shared table.<br />A lighter everyday.</span></div></aside>
     <div className="app-stage"><header className="topbar"><a className="mobile-wordmark" href="#home">cartners<span>.</span></a>{membership.demo ? <ContextPicker label="Sample household" value={workspace.workspaceId} options={workspace.groups.map(group => ({ value: group.workspaceId, label: group.name }))} disabled={!connected} onChange={changeGroup} icon="home" /> : <button className="text-button household-link" onClick={() => navigate('groups')}><Icon name="home" />{workspace.groups[0]?.name || membership.householdName}</button>}<div className="session-controls">{page !== 'home' && <a className="home-return" href="#home"><Icon name="home" /><span>Home</span></a>}<span className="connection-label">{connection === 'loading' ? 'Connecting…' : connection === 'connected' ? (membership.demo ? 'Shared demo' : 'List up to date') : connection === 'stale' ? 'Connection lost · showing last update' : 'Offline · changes paused'}</span>{membership.demo ? <ContextPicker label="Demo as" value={actorId} options={workspace.actors.map(actor => ({ value: actor.id, label: actor.name }))} disabled={switching} onChange={setActorId} /> : <button className="text-button" onClick={() => navigate('groups')}>{membership.name}</button>}</div></header>
       <main id="content" ref={mainRef} tabIndex={-1} className="main-content">
         {accessLost && <p className="notice error" role="alert">Your household membership is no longer available on the server. <button className="text-button" onClick={onLeave}>Return to setup</button></p>}
@@ -154,9 +156,9 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
           <button className="text-button" disabled={undoingDraft || !connected} onClick={undoLatestDraft}>{undoingDraft ? 'Undoing…' : 'Undo'}</button>
           {draftUndoError && <span className="cart-undo-error" role="alert">{draftUndoError}</span>}
         </aside>}
-        {connection === 'stale' && <p className="connection-note" role="status">{connection === 'stale' ? 'Updates are paused. Your last saved data is still visible; reconnect before making changes.' : 'Your shared list is a sample. Recipe discovery is live; AI meal planning and cart saves need the backend.'}</p>}
-        <div hidden={page !== 'home'}><Home key={workspace.workspaceId} {...featureProps} active={page === 'home'} connected={connected} entry={drafts[workspace.workspaceId]} onEntryChange={entry => updateEntry(workspace.workspaceId, entry)} planDate={planDate} onPlanDateChange={setPlanDate} /></div>
-        {page !== 'home' && <FeatureErrorBoundary page={page} label={pageLabels[page]} icon={page} navigate={navigate}><Suspense fallback={<p role="status">Opening {pageLabels[page] || page}…</p>}>{Feature ? <Feature key={workspace.workspaceId} {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense></FeatureErrorBoundary>}
+        {(connection === 'stale' || connection === 'sample') && <p className="connection-note" role="status">{connection === 'stale' ? 'Updates are paused. Your last saved data is still visible; reconnect before making changes.' : 'The shared list is offline. Your changes are paused; reconnect to save meals or groceries.'}</p>}
+        <div ref={routeMotion} className="route-content"><div hidden={page !== 'home'}><Home key={workspace.workspaceId} {...featureProps} active={page === 'home'} connected={connected} entry={drafts[workspace.workspaceId]} onEntryChange={entry => updateEntry(workspace.workspaceId, entry)} planDate={planDate} onPlanDateChange={setPlanDate} /></div>
+        {page !== 'home' && <FeatureErrorBoundary page={page} label={pageLabels[page]} icon={page} navigate={navigate}><Suspense fallback={<p role="status">Opening {pageLabels[page] || page}…</p>}>{Feature ? <Feature key={workspace.workspaceId} {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense></FeatureErrorBoundary>}</div>
       </main><footer className="app-footer">Cartners · made for the things you share.<span>Your table</span></footer>
     </div><div className={`toast ${notice ? 'visible' : ''}`} role="status" aria-live="polite">{notice}</div>
   </div>;

@@ -125,7 +125,7 @@ test('phone opens on dinner prompt and navigation fits without horizontal overfl
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'What sounds good today?' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByText('More', { exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'The shared list is offline.' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Household', exact: true })).toBeInViewport();
   await page.getByRole('link', { name: 'Shopping', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Ask Cartners', exact: true })).toBeVisible();
@@ -192,9 +192,88 @@ test('AI request is the first step, and quick refinement stays one click', async
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[1].previousDraftId).toBe(meal.draftId);
-  await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'This week', exact: true }).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
+});
+
+test('all five areas are visible on desktop and reduced motion pauses discovery', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const workspace = await fixture('workspace');
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  for (const [name, heading] of [['Shopping', 'Shopping'], ['This week', 'This week'], ['Spending', 'Spending'], ['Household', 'Your household'], ['Home', 'What sounds good today?']]) {
+    await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+    await nav.getByRole('link', { name, exact: true }).click();
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: 'Play slideshow' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('waiting for AI is visible in the composer and the result receives focus', async ({ page }) => {
+  const workspace = await fixture('workspace');
+  const draft = await fixture('suggestions'); draft.sourceMode = 'live_ai';
+  let release;
+  const waiting = new Promise(resolve => { release = resolve; });
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    if (new URL(route.request().url()).pathname === '/api/suggestions') {
+      await waiting;
+      return route.fulfill({ json: draft });
+    }
+    return route.fulfill({ json: workspace });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Shared demo', { exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: /What do you want/ }).fill('An easy dinner for four');
+  await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
+  await expect(page.getByRole('progressbar', { name: 'Waiting for your meal or grocery idea' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /What do you want/ })).toBeDisabled();
+  release();
+  await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeFocused();
+  await expect(page.getByRole('progressbar')).toHaveCount(0);
+});
+
+test('recipe discovery supports dragging and every phone destination is one tap away', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/json/v1/1/random.php', route => route.abort());
+  const workspace = await fixture('workspace');
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/');
+  await expect(page.getByText('Showing saved picks while discovery reconnects.')).toBeVisible();
+  const carousel = page.getByRole('region', { name: 'Featured recipes' });
+  await carousel.scrollIntoViewIfNeeded();
+  const first = await carousel.getByRole('heading', { level: 3 }).innerText();
+  const box = await page.locator('.featured-media').boundingBox();
+  await page.mouse.move(box.x + box.width * .8, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * .2, box.y + 62, { steps: 5 });
+  await page.mouse.up();
+  await expect(carousel.getByRole('heading', { level: 3 })).not.toHaveText(first);
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  for (const name of ['Home', 'Shopping', 'This week', 'Spending', 'Household']) {
+    await expect(nav.getByRole('link', { name, exact: true })).toBeInViewport();
+  }
+});
+
+test('navigation responds with motion and respects reduced motion', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.surfaceAnimations = [];
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (frames, options) {
+      if (this.classList.contains('route-content')) window.surfaceAnimations.push(options.duration);
+      return animate.call(this, frames, options);
+    };
+  });
+  const workspace = await fixture('workspace');
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await nav.getByRole('link', { name: 'Shopping', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.surfaceAnimations)).toEqual([220]);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await nav.getByRole('link', { name: 'Home', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What sounds good today?' })).toBeVisible();
+  expect(await page.evaluate(() => window.surfaceAnimations)).toEqual([220]);
 });

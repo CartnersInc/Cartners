@@ -69,7 +69,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
 
 
   return (
-    <li className={`rm-item ${shownChecked ? 'rm-item-bought' : ''}`}>
+    <li data-item-id={item.id} className={`rm-item ${shownChecked ? 'rm-item-bought' : ''}`}>
       <div className="rm-item-main">
         <input id={checkId} type="checkbox" className="rm-bought" checked={shownChecked} disabled={toggle.locked || !connected}
           aria-label={`${shownChecked ? 'Mark needed' : 'Mark purchased'}: ${item.name}`} aria-busy={toggle.saving} onChange={e => onCheckChange(e.target.checked)} />
