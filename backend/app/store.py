@@ -1635,12 +1635,18 @@ class Store:
                 missing.append(item["id"])
                 continue
             subtotal += line
+            image_url = option.get("imageUrl")
             lines.append(
                 {
                     "itemId": item["id"],
                     "productId": option.get("productId") or new_id("kroger"),
                     "productName": option.get("description") or item["name"],
                     "description": option.get("description") or "",
+                    "brand": option.get("brand") or "",
+                    "productSize": option.get("size") or "",
+                    "stockLevel": option.get("stockLevel") or "",
+                    "aisle": option.get("aisle") or "",
+                    "imageUrl": image_url if isinstance(image_url, str) and image_url.startswith("https://") else None,
                     "packageSize": plan["packageSize"],
                     "packagesNeeded": packages,
                     "pricePerPackageCents": price_per,

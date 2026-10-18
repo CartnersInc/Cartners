@@ -84,12 +84,14 @@ class KrogerLookupTests(unittest.TestCase):
                     },
                     {
                         "productId": "t1",
+                        "brand": "Kroger",
                         "description": "Flour tortillas",
                         "size": "10 ct",
                         "soldBy": "UNIT",
                         "promoPrice": 0,
                         "regularPrice": 3.50,
                         "stockLevel": "HIGH",
+                        "imageUrl": "https://www.kroger.com/product/images/medium/front/t1",
                     },
                 ],
             }],
@@ -98,6 +100,8 @@ class KrogerLookupTests(unittest.TestCase):
         basket = Store._baskets_from_kroger(None, items, live)[0]
         line = basket["items"][0]
         self.assertEqual(line["productId"], "t1")
+        self.assertEqual(line["imageUrl"], "https://www.kroger.com/product/images/medium/front/t1")
+        self.assertEqual(line["brand"], "Kroger")
         self.assertEqual(line["packagesNeeded"], 2)
         self.assertEqual(line["pricePerPackageCents"], 350)
         self.assertEqual(line["lineTotalCents"], 700)
