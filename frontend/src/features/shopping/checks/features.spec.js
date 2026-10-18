@@ -5,6 +5,9 @@ import { readFile } from 'node:fs/promises';
 
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
+// The workspace fixture's sample items start purchased; price-comparison checks need them on the list.
+const stillNeeded = workspace => ({ ...workspace, items: workspace.items.map(item => ({ ...item, bought: false })) });
+
 async function serve(page, handlers, seed) {
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
@@ -245,7 +248,7 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   Object.assign(pricing.baskets[0].items[0], { productName: 'Kroger Flour Tortillas', brand: 'Kroger', productSize: '8 count', pricePerPackageCents: 250, stockLevel: 'HIGH', imageUrl: 'https://www.kroger.com/product/images/medium/front/0001111041700' });
   const calls = await serve(page, ({ path, body }) => path === '/api/baskets/compare'
     ? { json: { ...pricing, requestPostalCode: body.postalCode } }
-    : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } });
+    : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }, stillNeeded);
 
   await page.goto('/#shopping');
   await expect(page.getByText('Shared demo', { exact: true })).toBeVisible();
@@ -253,8 +256,8 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   const logo = page.getByRole('img', { name: 'Kroger' }).first();
   await expect(logo).toBeVisible();
   await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  // A five-digit ZIP starts the comparison by itself.
   await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
-  await page.getByRole('button', { name: 'Compare my list' }).click();
   await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
 
   const compare = calls.find(call => call.path === '/api/baskets/compare');
@@ -274,10 +277,10 @@ test('live Kroger matches show the product and prefill the store run', async ({ 
     productName: 'Kroger Flour Tortillas', brand: 'Kroger', productSize: '8 count',
     stockLevel: 'HIGH', aisle: '8', imageUrl: 'https://www.kroger.com/product/images/medium/front/0001111041700',
   });
-  await serve(page, ({ path }) => path === '/api/baskets/compare' ? { json: pricing } : { status: 404, json: { error: { message: 'Not in this check' } } });
+  await serve(page, ({ path }) => path === '/api/baskets/compare' ? { json: pricing } : { status: 404, json: { error: { message: 'Not in this check' } } }, stillNeeded);
   await page.goto('/#shopping');
+  // A five-digit ZIP starts the comparison by itself.
   await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
-  await page.getByRole('button', { name: 'Compare my list' }).click();
   await expect(page.getByAltText('Kroger', { exact: true })).toBeVisible();
   await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
   await expect(page.getByText('Kroger · 8 count')).toBeVisible();
@@ -359,4 +362,23 @@ test('cart rows name the saved recipes each request is for', async ({ page }) =>
   await expect(recipesOf('Black beans')).toHaveText('Black bean tacos');
   await expect(recipesOf('Lime')).toHaveText('Black bean tacos, Pad Thai');
   await expect(recipesOf('Oat milk')).toHaveCount(0);
+});
+
+test('the list splits into My items and Everyone else; only your items can be edited', async ({ page }) => {
+  const base = await fixture('workspace');
+  const item = (id, name, requestFor, addedBy) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor, addedBy, bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null });
+  const workspace = { ...base, serverNow: new Date().toISOString(), trip: null, items: [item('i-1', 'Paper plates', 'household', 'leila'), item('i-2', 'Hot sauce', 'leila', 'leila'), item('i-3', 'Oat milk', 'sam', 'sam'), item('i-4', 'Rice', 'household', 'sam')] };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
+  await page.goto('/#shopping');
+  const mine = page.getByRole('region', { name: 'My items' });
+  const rowOf = (list, name) => list.locator('.rm-item').filter({ has: page.locator('.rm-item-name', { hasText: new RegExp(`^${name}`) }) });
+  const others = page.getByRole('region', { name: 'Everyone else' });
+  await expect(mine.locator('.rm-item-name')).toHaveText([/Paper plates/, /Hot sauce/]);
+  await expect(others.locator('.rm-item-name')).toHaveText([/Oat milk/, /Rice/]);
+  await expect(rowOf(mine, 'Hot sauce').locator('.rm-item-meta')).toHaveText('Not shared · added by you');
+  await expect(rowOf(others, 'Oat milk').locator('.rm-item-meta')).toHaveText('Not shared · added by Sam');
+  await expect(rowOf(others, 'Rice').locator('.rm-item-meta')).toHaveText('Shared · added by Sam');
+  await expect(mine.getByRole('button', { name: /More options/ })).toHaveCount(2);
+  await expect(others.getByRole('button', { name: /More options/ })).toHaveCount(0);
+  await expect(page.getByRole('checkbox')).toHaveCount(0); // nobody is shopping
 });

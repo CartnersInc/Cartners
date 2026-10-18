@@ -52,7 +52,7 @@ export function people(workspace, actorId) {
   return { name, possessive, members, group };
 }
 
-export const scopeLabel = (item, name) => (item.requestFor === 'household' || !item.requestFor ? 'Shared' : `Just ${name(item.requestFor).replace(/^You$/, 'you')}`);
+export const scopeLabel = item => (item.requestFor === 'household' || !item.requestFor ? 'Shared' : 'Not shared');
 
 export function spendingModeOf(workspace) {
   return workspace.preferences?.spendingMode || people(workspace).group?.spendingMode || 'split';

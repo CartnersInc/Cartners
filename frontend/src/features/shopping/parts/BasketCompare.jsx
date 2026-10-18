@@ -223,7 +223,7 @@ function TripPicker({ baskets, nearest, cheapest, split, openTrip, setOpenTrip, 
         {open && <>
           {basket.items.map(line => <ProductLine key={line.itemId} line={line} name={nameOf(line.itemId)} currency={currency} />)}
           {basket.missingItemIds?.map(id => <p key={id} className="rm-missing">No Kroger match for {nameOf(id)}</p>)}
-          <button type="button" className="rm-btn" onClick={() => onShop?.(basket.storeName)}>Shop this store · {formatCents(basket.knownSubtotalCents, currency)}</button>
+          <button type="button" className="rm-btn" onClick={() => onShop?.(basket.storeName)}>Shop here</button>
         </>}
       </section>;
     })}
