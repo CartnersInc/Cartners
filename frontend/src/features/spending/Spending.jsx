@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import sampleExpense from '../../../../docs/fixtures/expense.json';
 import ReceiptForm, { runsOf } from './parts/ReceiptForm.jsx';
 import ExpenseCard from './parts/ExpenseCard.jsx';
 import Balances from './parts/Balances.jsx';
@@ -7,13 +6,22 @@ import Payments from './proposal/Payments.jsx';
 import PayProfile from './proposal/PayProfile.jsx';
 import { PAYMENTS_PROPOSAL } from './proposal/payLinks.js';
 import { formatCents, people, spendingModeOf } from '../shopping/lib/format.js';
+import { clearPurchasePrompt, pendingPurchasePrompt } from '../groups/parts/TripPanel.jsx';
 import '../shopping/roomie.css';
 
 // Spending (#8): record the actual purchase after a run, then show who paid and who owes whom.
 // Allocations and balances come only from the server; this page never calculates them.
 const TABS = [['receipts', 'Receipts'], ['payments', 'Payments'], ['profile', 'Your profile']];
 const TAB_KEY = 'roomie:spendingTab';
-const readTab = () => { try { const saved = sessionStorage.getItem(TAB_KEY); return TABS.some(([id]) => id === saved) ? saved : 'receipts'; } catch { return 'receipts'; } };
+const readTab = () => {
+  if (pendingPurchasePrompt()) return 'receipts';
+  try {
+    const saved = sessionStorage.getItem(TAB_KEY);
+    return TABS.some(([id]) => id === saved) ? saved : 'receipts';
+  } catch {
+    return 'receipts';
+  }
+};
 
 // The shell has five fixed pages, so the proposed Payments and Your profile views are tabs inside
 // Spending for now. If they get their own shell tab later, these components move unchanged.
@@ -61,7 +69,8 @@ function TabPage({ title, children }) {
 }
 
 function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
-  const [recording, setRecording] = useState(false);
+  const [promptRunId] = useState(pendingPurchasePrompt);
+  const [recording, setRecording] = useState(promptRunId != null);
   const { name } = people(workspace, actorId);
   const mode = spendingModeOf(workspace);
   const expenses = workspace.expenses || [];
@@ -70,13 +79,12 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
   const paidBy = {};
   for (const expense of expenses) if (expense.status !== 'needs_review') paidBy[expense.payerId] = (paidBy[expense.payerId] || 0) + expense.totalCents;
   const reviewCount = expenses.filter(expense => expense.status === 'needs_review').length;
-  const showSample = !connected && expenses.length === 0;
 
   return (
     <div className="rm-page">
       <div className="rm-title-row">
         <h1 className="rm-h1">Spending</h1>
-        {!connected && <span className="rm-pill rm-pill-sample">Sample preview</span>}
+        {!connected && <span className="rm-pill rm-pill-sample">Offline</span>}
       </div>
       <p className="rm-intro">
         This group's spending is <strong>{mode === 'pooled' ? 'pooled' : 'split'}</strong>. {mode === 'pooled' ? 'Receipts show who paid; nobody owes anyone.' : 'Confirmed receipts decide who owes whom.'}{' '}
@@ -86,21 +94,13 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
       <div className="rm-columns">
         <div className="rm-main">
           {recording
-            ? <ReceiptForm key={`${workspace.workspaceId}-${actorId}`} workspace={workspace} actorId={actorId} api={api} onWorkspaceChange={onWorkspaceChange} connected={connected} notify={notify} mode={mode} onDone={() => setRecording(false)} />
+            ? <ReceiptForm key={`${workspace.workspaceId}-${actorId}-${promptRunId || 'new'}`} workspace={workspace} actorId={actorId} api={api} onWorkspaceChange={onWorkspaceChange} connected={connected} notify={notify} mode={mode} initialRunId={promptRunId} onDone={() => { clearPurchasePrompt(); setRecording(false); }} />
             : <div className="rm-actions"><button type="button" className="rm-btn" disabled={!connected} onClick={() => setRecording(true)}>Record a purchase</button>{!connected && <span className="rm-help">Needs the backend.</span>}</div>}
 
           <h2 className="rm-h2 rm-section">Receipts</h2>
-          {expenses.length === 0 && !showSample && <p className="rm-empty">No receipts yet. Record one after a store run; it's optional.</p>}
+          {expenses.length === 0 && <p className="rm-empty">No receipts yet. Record one after a store run; it's optional.</p>}
           {[...expenses].reverse().map(expense => <ExpenseCard key={expense.id} expense={expense} name={name} run={runs.find(run => run.id === expense.runId)} />)}
 
-          {showSample && (
-            <section className="rm-sample" aria-labelledby="rm-sample-title">
-              <h3 id="rm-sample-title" className="rm-h3"><span className="rm-pill rm-pill-sample">Sample</span> How a split receipt reads</h3>
-              <p className="rm-help">{sampleExpense.sampleNotice} Not saved, and not part of this group's balances.</p>
-              <ExpenseCard expense={sampleExpense.expense} name={name} sample />
-              <Balances balances={sampleExpense.balances} workspace={workspace} actorId={actorId} name={name} />
-            </section>
-          )}
         </div>
 
         <div className="rm-side">

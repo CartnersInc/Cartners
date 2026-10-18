@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
-import { sampleDrafts, starterPrompts } from '../../samples.js';
+import { starterPrompts } from '../../samples.js';
 import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
 
-export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
+const FIRST_USE_KEY = 'cartners:first-use-complete';
+const DIET_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free', 'Nut-free'];
+
+export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, connection, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
   const setMessage = value => onEntryChange({ ...entry, message: value });
   const [pending, setPending] = useState('');
@@ -18,7 +21,12 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
+  const setupAttempt = useRef(null);
   const busy = useRef(false);
+  const [firstUse, setFirstUse] = useState(() => { try { return localStorage.getItem(FIRST_USE_KEY) !== 'yes'; } catch { return true; } });
+  const [setup, setSetup] = useState(() => ({ servings: workspace.preferences.servings || 2, restrictions: workspace.preferences.restrictions || [], likes: (workspace.preferences.likes || []).join(', '), maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 }));
+  const [setupError, setSetupError] = useState('');
+  const [setupSaving, setSetupSaving] = useState(false);
   const draft = entry?.draft;
   const meal = draft?.recommendation;
   const rows = meal?.ingredients || draft?.items || [];
@@ -31,11 +39,29 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     onEntryChange({ draft: nextDraft, localOnly, aiPreviewOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
     setExcluded([]); setError(''); attempt.current = null; undoAttempt.current = null;
   }
-  function showSample(key) {
-    if (busy.current) return;
-    const sample = structuredClone(sampleDrafts[key]);
-    // shortcut: fixtures preview one fictional family; never reinterpret them as another group's preferences.
-    showDraft(sample, true);
+  async function finishSetup(event) {
+    event.preventDefault();
+    const servings = Number(setup.servings);
+    if (!Number.isInteger(servings) || servings < 1 || servings > 12) { setSetupError('Choose between 1 and 12 servings.'); return; }
+    const preferences = { servings, restrictions: setup.restrictions, likes: setup.likes.split(',').map(value => value.trim()).filter(Boolean), maxPrepMinutes: Number(setup.maxPrepMinutes) };
+    setSetupError(''); setSetupSaving(true);
+    try {
+      if (connected) {
+        const key = JSON.stringify(preferences);
+        if (setupAttempt.current?.key !== key) setupAttempt.current = { key, body: { workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), ...preferences } };
+        const result = await api.request('/api/preferences', { method: 'PATCH', body: setupAttempt.current.body });
+        if (!result.workspace) throw new Error('Cartners could not confirm those preferences. Try again.');
+        onWorkspaceChange(result.workspace);
+        setupAttempt.current = null;
+      } else {
+        onWorkspaceChange({ ...workspace, preferences });
+        try { localStorage.setItem('cartners:local-preferences', JSON.stringify(preferences)); } catch { /* The current session keeps these preferences in workspace state. */ }
+      }
+      try { localStorage.setItem(FIRST_USE_KEY, 'yes'); } catch { /* The user can still continue for this visit. */ }
+      setFirstUse(false);
+      notify?.(connected ? 'Your dinner preferences are ready.' : 'Preferences saved on this device.');
+    } catch (err) { setSetupError(err.message || 'Could not save preferences. Try again.'); }
+    finally { setSetupSaving(false); }
   }
   async function requestSuggestion(text) {
     if (busy.current || recoveringSave || !text.trim()) return;
@@ -136,7 +162,34 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   </form>;
   const starters = <div className="suggestion-starters" aria-label={connected ? 'Ideas to get started' : 'Sample ideas'}>
     {starterPrompts.map(prompt => <button key={prompt.key} className="chip" disabled={locked}
-      onClick={() => connected ? requestSuggestion(prompt.message) : showSample(prompt.key)}>{prompt.label}</button>)}
+      onClick={() => requestSuggestion(prompt.message)}>{prompt.label}</button>)}
+  </div>;
+
+  if (firstUse) return <div className="home-page first-use-page">
+    <section className="first-use" aria-labelledby="first-use-title">
+      <h1 id="first-use-title">Let’s set the table.</h1>
+      <p className="intro">A few preferences help Cartners find dinner that fits. You can change these any time.</p>
+      <form onSubmit={finishSetup}>
+        <div className="first-use-row">
+          <label className="date-control">How many are eating?
+            <input type="number" min="1" max="12" value={setup.servings} onChange={event => setSetup({ ...setup, servings: event.target.value })} />
+          </label>
+          <label className="date-control">Weeknight time
+            <select value={setup.maxPrepMinutes} onChange={event => setSetup({ ...setup, maxPrepMinutes: event.target.value })}><option value="20">About 20 minutes</option><option value="30">About 30 minutes</option><option value="45">About 45 minutes</option><option value="60">An hour is fine</option></select>
+          </label>
+        </div>
+        <fieldset className="first-use-diets">
+          <legend>Anything to avoid?</legend>
+          <div className="first-use-chips">{DIET_OPTIONS.map(option => <label key={option}><input type="checkbox" checked={setup.restrictions.includes(option.toLowerCase())} onChange={event => setSetup({ ...setup, restrictions: event.target.checked ? [...setup.restrictions, option.toLowerCase()] : setup.restrictions.filter(value => value !== option.toLowerCase()) })} /><span>{option}</span></label>)}</div>
+        </fieldset>
+        <label className="date-control first-use-likes">What do you like? <span className="small muted">Optional</span>
+          <input value={setup.likes} maxLength="120" placeholder="Tacos, spicy food, comfort meals" onChange={event => setSetup({ ...setup, likes: event.target.value })} />
+        </label>
+        {setupError && <p className="notice error" role="alert">{setupError}</p>}
+        {connection === 'loading' ? <p className="small muted" role="status">Connecting to your table…</p> : !connected && <p className="small muted">Offline for now. These preferences stay on this device until Cartners reconnects.</p>}
+        <div className="first-use-actions"><button className="button primary" disabled={setupSaving || connection === 'loading'}>{setupSaving ? 'Saving…' : 'Next: choose dinner'}<Icon name="arrow" /></button></div>
+      </form>
+    </section>
   </div>;
 
   return <div className="home-page">
@@ -157,7 +210,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
 
     {!draft && <RecipeCarousel active={active} pending={!!pending} onTry={requestSuggestion} />}
 
-    {error && <div className="notice error" role="alert"><p>{error}</p>{!recoveringSave && !saved && !undoAttempt.current && <button className="text-button" onClick={() => showSample('meal')}>Explore a sample meal<Icon name="arrow" /></button>}</div>}
+    {error && <div className="notice error" role="alert"><p>{error}</p></div>}
     {entry?.undoMessage && <p className="notice" role="status">{entry.undoMessage}</p>}
     {pending === 'suggestion' && <p className="notice" role="status">Finding something that fits your group…</p>}
 
@@ -170,7 +223,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <div className="recipe-copy"><h2 id="draft-title">{meal?.title || 'Here’s what you asked for'}</h2>
           {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span>{meal.servings} servings</span><span>For {draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
             {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}
-            <div className="refinement-actions"><button className="chip" disabled={locked} onClick={() => entry.localOnly ? showSample('refinement') : requestSuggestion('Make it quicker')}>Make it quicker</button></div>
+            <div className="refinement-actions"><button className="chip" disabled={locked} onClick={() => requestSuggestion('Make it quicker')}>Make it quicker</button></div>
             <details><summary>How to make it</summary><ol className="recipe-steps">{meal.steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details>
             {meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}
           </> : <p>{draft.inputSummary?.summary || 'These requests are ready to review.'}</p>}
@@ -198,9 +251,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       </>}
     </section>}
 
-    {draft && <section className="followup" aria-label="Refine your idea"><h2>{draft.kind === 'clarification' ? 'Your reply' : 'Want to change anything?'}</h2>{composer}
-      {!connected && <details className="sample-examples"><summary>Try another sample</summary>{starters}<button className="text-button" disabled={locked} onClick={() => showSample('clarification')}>See a dietary clarification</button></details>}
-    </section>}
+    {draft && <section className="followup" aria-label="Refine your idea"><h2>{draft.kind === 'clarification' ? 'Your reply' : 'Want to change anything?'}</h2>{composer}</section>}
     {workspace.activity?.length > 0 && <section className="recent-section" aria-labelledby="recent-heading"><div className="section-heading"><h2 id="recent-heading">Around your table</h2><button className="text-button" onClick={() => navigate('shopping')}>Open cart<Icon name="arrow" /></button></div><ul className="activity-list">{workspace.activity.slice(-5).reverse().map((event, index) => <li key={event.id || index}><Icon name="leaf" /><span>{event.message || event.summary || 'Group activity recorded'}</span></li>)}</ul></section>}
   </div>;
 }

@@ -1,11 +1,26 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useWrite } from '../../shopping/lib/useWrite.js';
 import { clock, people, timeOf, WINDOW_MINUTES } from '../../shopping/lib/format.js';
 import { acceptingRequests, activeTrip, lastStore, liveItems } from '../../shopping/lib/trip.js';
 
 // The one store-run action for the group. With no run it starts one; during a run it shows
 // the shopper and countdown, and the shopper can Release or Finish. An active shopper is never replaced.
-export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, startRef, finishRef }) {
+export const RECORD_PURCHASE_KEY = 'roomie:recordPurchase';
+let pendingPurchaseRunId = null;
+export function queuePurchasePrompt(runId) {
+  pendingPurchaseRunId = runId;
+  try { sessionStorage.setItem(RECORD_PURCHASE_KEY, runId); } catch { /* The in-memory prompt still opens the receipt form. */ }
+}
+export function pendingPurchasePrompt() {
+  if (pendingPurchaseRunId) return pendingPurchaseRunId;
+  try { return sessionStorage.getItem(RECORD_PURCHASE_KEY); } catch { return null; }
+}
+export function clearPurchasePrompt() {
+  pendingPurchaseRunId = null;
+  try { sessionStorage.removeItem(RECORD_PURCHASE_KEY); } catch { /* Leaving the key only reopens the form once. */ }
+}
+
+export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, navigate, startRef, preferredStoreName }) {
   const [notice, setNotice] = useState(null);
   const trip = activeTrip(workspace);
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice };
@@ -17,19 +32,24 @@ export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, 
           <button type="button" className="rm-link" onClick={() => setNotice(null)}>Dismiss</button>
         </div>
       )}
-      {trip ? <ActiveTrip {...shared} trip={trip} finishRef={finishRef} /> : <StartTrip {...shared} startRef={startRef} />}
+      {trip ? <ActiveTrip {...shared} trip={trip} navigate={navigate} /> : <StartTrip {...shared} startRef={startRef} preferredStoreName={preferredStoreName} />}
     </section>
   );
 }
 
-function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, notify, setNotice, startRef }) {
-  const [store, setStore] = useState(() => lastStore(workspace));
+function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, notify, setNotice, startRef, preferredStoreName }) {
+  const [store, setStore] = useState(() => lastStore(workspace) || preferredStoreName || '');
   const [minutes, setMinutes] = useState(10);
   const [missing, setMissing] = useState(false);
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });
   const storeId = useId(), windowId = useId();
   const { name } = people(workspace, actorId);
   const waiting = liveItems(workspace).filter(item => !item.bought).length;
+  const recentStore = lastStore(workspace);
+
+  useEffect(() => {
+    if (preferredStoreName && (!store.trim() || store === recentStore)) setStore(preferredStoreName);
+  }, [preferredStoreName, recentStore, store]);
 
   async function start(event) {
     event.preventDefault();
@@ -52,24 +72,16 @@ function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, noti
 
   return (
     <form onSubmit={start} noValidate>
-      <h2 id="rm-run-title" className="rm-h2">Going to the store?</h2>
+      <h2 id="rm-run-title" className="rm-h2">Heading to the store?</h2>
       <fieldset disabled={write.locked || !connected} className="rm-fieldset">
-        <p className="rm-sentence">
-          <label htmlFor={storeId}>I'm going to</label>{' '}
-          <input id={storeId} ref={startRef} className="rm-inline-input" value={store} placeholder="store" maxLength={60} aria-invalid={missing} onChange={e => setStore(e.target.value)} />
-          .{' '}
-          <label htmlFor={windowId}>Want anything in the next</label>{' '}
-          <select id={windowId} className="rm-inline-select" value={minutes} onChange={e => setMinutes(Number(e.target.value))}>
-            {WINDOW_MINUTES.map(value => <option key={value} value={value}>{value} minutes</option>)}
-          </select>
-          ?
-        </p>
+        <label className="rm-field rm-run-store" htmlFor={storeId}>Store<input id={storeId} ref={startRef} value={store} placeholder={preferredStoreName || 'Where are you going?'} maxLength={60} aria-invalid={missing} onChange={e => setStore(e.target.value)} /></label>
+        <details className="rm-run-window"><summary>Request window · {minutes} minutes</summary><label className="rm-field" htmlFor={windowId}>Keep requests open for<select id={windowId} value={minutes} onChange={e => setMinutes(Number(e.target.value))}>
+          {WINDOW_MINUTES.map(value => <option key={value} value={value}>{value} minutes</option>)}
+        </select></label></details>
       </fieldset>
       {missing && <p className="rm-error" role="alert">Where are you going? Type a store.</p>}
       {write.state.phase === 'error' && write.state.status !== 409 && <p className="rm-error" role="alert">{write.state.error}</p>}
-      <p className="rm-help">
-        {waiting ? `Starting the run takes the ${waiting} request${waiting === 1 ? '' : 's'} still needed.` : 'Nothing is on the list yet. Others can add requests while the window is open.'}
-      </p>
+      <p className="rm-help">{waiting ? `${waiting} ${waiting === 1 ? 'item' : 'items'} ready to go. The group can add anything else before you leave.` : 'Start a run when you’re ready to shop.'}</p>
       <div className="rm-actions">
         <button type="submit" className="rm-btn" disabled={write.saving || !connected}>
           {write.saving ? 'Starting…' : write.state.retryable ? 'Try again' : 'Start store run'}
@@ -80,7 +92,7 @@ function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, noti
   );
 }
 
-function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice, trip, finishRef }) {
+function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice, trip, navigate }) {
   const [confirming, setConfirming] = useState(null); // 'finish' | 'release'
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });
   const { name } = people(workspace, actorId);
@@ -99,6 +111,10 @@ function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, ser
         : 'Run released. Unbought requests stay on the list for whoever goes next.');
       setNotice({ kind: 'ok', text });
       notify?.(text);
+      if (action === 'finish') {
+        queuePurchasePrompt(trip.id);
+        navigate?.('spending');
+      }
     }
   }
 
@@ -117,7 +133,7 @@ function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, ser
 
       {isShopper && !confirming && (
         <div className="rm-actions">
-          <button type="button" ref={finishRef} className="rm-btn" disabled={!connected} onClick={() => { write.reset(); setConfirming('finish'); }}>Finish run</button>
+          <button type="button" className="rm-btn" disabled={!connected} onClick={() => { write.reset(); setConfirming('finish'); }}>Finish run</button>
           <button type="button" className="rm-btn rm-secondary" disabled={!connected} onClick={() => { write.reset(); setConfirming('release'); }}>Release run</button>
         </div>
       )}
@@ -125,7 +141,7 @@ function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, ser
         <div className="rm-confirm" role="group" aria-label={confirming === 'finish' ? 'Confirm finishing the run' : 'Confirm releasing the run'}>
           <p>
             {confirming === 'finish'
-              ? <>Finish this run? {unchecked ? `${unchecked} unchecked request${unchecked === 1 ? '' : 's'} will stay on the list for the next run.` : 'Everything is checked off.'} No prices needed.</>
+              ? <>Finish this run? {unchecked ? `${unchecked} unchecked request${unchecked === 1 ? '' : 's'} will stay on the list for the next run.` : 'Everything is checked off.'} You'll record the receipt next. No prices are needed to finish.</>
               : <>Release this run? You stop being the shopper and nothing is marked bought. Others can start a new run.</>}
           </p>
           {write.state.phase === 'error' && <p className="rm-error" role="alert">{write.state.error}</p>}

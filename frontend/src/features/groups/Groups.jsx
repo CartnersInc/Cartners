@@ -19,7 +19,7 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
     <div className="rm-page">
       <div className="rm-title-row">
         <h1 className="rm-h1">Groups</h1>
-        {!connected && <span className="rm-pill rm-pill-sample">Sample preview</span>}
+        {!connected && <span className="rm-pill rm-pill-sample">Offline</span>}
       </div>
       <p className="rm-intro">Everything here belongs to {group?.name || 'this group'}. Lists, runs and spending never mix between groups.</p>
 
