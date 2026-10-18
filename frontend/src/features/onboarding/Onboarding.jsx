@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { saveMembership, secret } from './session.js';
+import KitchenArt from '../../components/KitchenArt.jsx';
 
 const names = { family: 'Our family', roommates: 'Our kitchen', friends: 'Our get-together', other: 'Our table' };
 const split = value => [...new Set(value.split(',').map(s => s.trim()).filter(Boolean))];
@@ -41,10 +42,10 @@ export default function Onboarding({ api, onComplete }) {
     try { saveMembership(membership); onComplete(membership); } catch { setError('Allow browser storage to continue.'); }
   }
   function next(event) { event.preventDefault(); setError(''); setStep(step + 1); }
-  return <main className="setup-page">
+  return <main className="setup-page" data-step={step}>
     <a className="wordmark setup-logo" href="#home" onClick={e => { e.preventDefault(); if (!pending) setStep(0); }}>cartners<span>.</span></a>
     <div className="setup-layout">
-      <aside className="setup-story"><Icon name="leaf" /><h1>A little less planning.<br />A little more dinner.</h1><p>Find something everyone wants to eat, bring the groceries together, and keep track of who picked them up.</p><div className="setup-example"><p>“Something quick for four. One of us is vegetarian.”</p><span>One idea. One shared list. Dinner sorted.</span></div></aside>
+      <aside className="setup-story"><h1>A little less planning.<br /><span>A little more dinner.</span></h1><p>Find something everyone wants to eat, bring the groceries together, and keep track of who picked them up.</p><KitchenArt /><div className="setup-example"><p>“Something quick for four. One of us is vegetarian.”</p><span>One idea. One shared list. Dinner sorted.</span></div></aside>
       <section className="setup-content" aria-label="Set up Cartners">
         {step > 0 && <div className="setup-progress"><button className="text-button" disabled={pending} onClick={() => { setError(''); setStep(step - 1); }}>Back</button><span>Step {step} of {mode === 'join' ? 2 : 3}</span></div>}
         {step === 0 ? <><h2>Make room at your table.</h2><p>Start with your name and who you’re planning for. You can invite everyone else later.</p><button className="button primary" onClick={() => setStep(1)}>Get started<Icon name="arrow" /></button><button className="text-button setup-demo" onClick={demo}>Explore a sample household</button><p className="small muted">Your membership stays in this browser. No password or payment details needed.</p></> : step === 1 ? <form onSubmit={next}><h2>First, what should we call you?</h2><label>Your name<input autoFocus autoComplete="given-name" value={name} maxLength={60} required onChange={e => setName(e.target.value)} /></label><p className="small muted">This is the name your household will see when you add groceries or record a purchase.</p><button className="button primary" disabled={!name.trim()}>Continue<Icon name="arrow" /></button></form> : step === 2 ? <form onSubmit={mode === 'join' ? finish : next}><h2>Who’s at your table, {name.trim()}?</h2><fieldset disabled={pending}><legend>Start or join a household</legend><div className="setup-choices">{[['create','Start a household'],['join','Join with a code']].map(([value,label]) => <label key={value}><input type="radio" name="setup-mode" checked={mode===value} onChange={() => setMode(value)} />{label}</label>)}</div></fieldset>

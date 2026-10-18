@@ -125,6 +125,7 @@ test('phone opens on dinner prompt and navigation fits without horizontal overfl
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'What sounds good today?' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.getByRole('status').filter({ hasText: 'The shared list is offline.' })).toBeVisible();
   await page.getByText('More', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Household', exact: true })).toBeInViewport();
   await page.getByRole('link', { name: 'Shopping', exact: true }).click();
@@ -192,9 +193,22 @@ test('AI request is the first step, and quick refinement stays one click', async
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[1].previousDraftId).toBe(meal.draftId);
-  await page.getByText('More', { exact: true }).click();
   await page.getByRole('link', { name: 'This week', exact: true }).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
+});
+
+test('all five areas are visible on desktop and reduced motion pauses discovery', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const workspace = await fixture('workspace');
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  for (const [name, heading] of [['Shopping', 'Shopping'], ['This week', 'This week'], ['Spending', 'Spending'], ['Household', 'Your household'], ['Home', 'What sounds good today?']]) {
+    await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+    await nav.getByRole('link', { name, exact: true }).click();
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: 'Play slideshow' })).toHaveAttribute('aria-pressed', 'true');
 });

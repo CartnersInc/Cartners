@@ -1,9 +1,4 @@
-:root {
-  font-family: Manrope, Arial, sans-serif; color: #233c2c; background: #faf9f2; font-synthesis: none;
-  --ink: #233c2c; --muted: #596751; --green: #347841; --dark: #244c2c; --rail: #d9e7cd;
-  --ground: #faf9f2; --line: #dbe0d1; --pale: #eaf0e1; --white: #fffef9;
-  --tomato: #b95035; --tomato-pale: #f6e3d9; --sun: #e4af45; --sun-pale: #fbf0cf;
-}
+/* Layout and feature primitives; the current identity is defined in kitchen.css. */
 * { box-sizing: border-box; scrollbar-color: #a1b393 var(--ground); scrollbar-width: thin; }
 body { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -257,7 +252,7 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
   .app-footer { margin: 0 20px; flex-direction: column; gap: 8px; }
   .toast { bottom: calc(85px + env(safe-area-inset-bottom)); width: 90vw; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 .page-heading { display: flex; gap: 25px; justify-content: space-between; align-items: start; margin: 18px 0 35px; }
 .page-heading h1 { font-size: 2rem; }
 .page-heading > .button { flex-shrink: 0; }

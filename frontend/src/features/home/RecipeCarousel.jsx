@@ -40,7 +40,7 @@ export default function RecipeCarousel({ active, pending, onTry }) {
   return <section className="featured-recipes" aria-label="Featured recipes" aria-roledescription="carousel"
     onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)}
     onFocusCapture={() => setInteracting(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
-    <div className="featured-heading"><div><span className="eyebrow">A little inspiration</span><h2>Something new to try</h2></div><span>{index + 1} of {recipes.length}</span></div>
+    <div className="featured-heading"><h2>Something new to try</h2><span>{index + 1} of {recipes.length}</span></div>
     {recipe ? <article key={recipe.id} className="featured-slide" aria-roledescription="slide" aria-label={`${index + 1} of ${recipes.length}: ${recipe.title}`}>
       <div className="featured-media">{!imageFailed ? <img src={recipe.thumbnailUrl} alt={`Recipe for ${recipe.title}`} loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} /> : <div className="featured-image-fallback"><Icon name="leaf" /><span>{recipe.title}</span></div>}<span className="featured-badge">{recipe.sourceType === 'article' ? 'Recipe find' : 'Video find'}</span></div>
       <div className="featured-copy"><p className="featured-source">{[recipe.cuisine, recipe.sourceName].filter(Boolean).join(' · ')}</p><h3>{recipe.title}</h3>

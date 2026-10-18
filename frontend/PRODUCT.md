@@ -1,24 +1,38 @@
-# Cartners product context
+# Cartners
 
 <!-- impeccable:product-schema 1 -->
 
 ## Platform
+
 web
 
-## Stack
-User-selected React/Vite frontend, Python/FastAPI backend, SQL. Backend/provider implementation belongs to other teammates; PRD v2 chooses SQLite for the hackathon.
+## Users
 
-## Users and purpose
-Families, roommates, and other groups deciding meals and coordinating shared grocery requests. Help carry a request into a reviewed draft, shared cart, store run, and optional actual-purchase record. Diners and people splitting expenses are not necessarily the same people.
+Families, roommates, and friends coordinating meals and groceries. New visitors need to establish their own household and identity before using shared data.
 
-## Confirmed constraints
-The user requested an AI-first input, few manual steps, all five areas (Home, Plans, Shopping, Spending, Groups), and a hackathon-sized build. Preserve the existing warm green visual direction. No required user-uploaded photo, event, or account setup. Home may show an optional featured feed of source-attributed recipe and cooking video links. This branch owns the shared frontend shell, Home, and Plans/preferences only; teammates own the remaining screens, backend, and provider services.
+## Product Purpose
 
-## Evidence and limits
-The scope source is ../docs/FINAL_BRAINSTORM.md and ../docs/PRD.md. Fictional fixtures live in ../docs/fixtures/. The older static demo in ../demo/dist/ provides visual authority; its interactions are superseded by PRD v2. No measured time/money savings, live prices, real payments, or live AI are established by samples.
+Turn a meal idea or grocery request into a reviewed shared list, a coordinated store run, and an optional record of actual spending. Reduce the coordination work usually carried by one person.
 
-## Product principles
-Start with the user's request. Reuse context. Confirm consequential changes once. Show sample/stale/error states truthfully. Keep simple direct entry available in the teammate-owned cart.
+## Capabilities and Constraints
+
+React/Vite frontend, FastAPI backend, SQLite storage. Preserve onboarding, household membership, Gemini meal and grocery drafts, refinements, recipe discovery carousel, dated plans, food preferences, shared/personal shopping requests, purchasing status, list clearing and Undo, Kroger comparison, store runs, receipt drafts, reviewed expenses, and household invitations. AI outputs require review. Store estimates, sample data and real provider prices must remain distinguishable. No invented pantry, prices, transactions or account security claims.
+
+## Brand Commitments
+
+Name and lowercase wordmark: cartners. The user requests a complete replacement of the muted green appearance, with vibrant colors, animations and ingredient sketches inspired by DubHacks 2026's cooking theme. This is a functional product rather than a sponsor-branded site. Preserve every existing feature and the recipe carousel.
+
+## Product Principles
+
+- One primary next action per decision.
+- Carry existing information forward instead of repeating forms.
+- Make the interface useful with or without AI and preserve input on failure.
+- People confirm purchases, spending, restrictions and shared changes.
+
+## Evidence on Hand
+
+Current frontend and backend, ../docs/PRD.md, ../docs/API_CONTRACT.md and fictional ../docs/fixtures. The user supplied Cook Smarter and kitchen-themed track language. No official DubHacks art or permission to imply an affiliation is supplied.
 
 ## Accessibility
-Labeled keyboard-operable controls, visible focus, at least 44px controls, no phone overflow, and reduced-motion support as specified by the PRD.
+
+Labeled keyboard-operable controls, visible focus, at least 44px primary touch controls, layouts without phone overflow, and reduced-motion support.

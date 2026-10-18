@@ -1,28 +1,260 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-18T00:11:32.293476+00:00",
+  "generatedAt": "2026-10-18T11:01:06.804646+00:00",
   "title": "Design System: Cartners",
   "extensions": {
-    "shadows": [],
+    "colorMeta": {
+      "cobalt": {
+        "displayName": "Cobalt",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.2008 269.96)",
+          "oklch(26% 0.2008 269.96)",
+          "oklch(38% 0.2008 269.96)",
+          "oklch(49% 0.2008 269.96)",
+          "oklch(61% 0.2008 269.96)",
+          "oklch(72% 0.2008 269.96)",
+          "oklch(84% 0.2008 269.96)",
+          "oklch(95% 0.2008 269.96)"
+        ]
+      },
+      "cobalt-hover": {
+        "displayName": "Cobalt Hover",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.1722 269.84)",
+          "oklch(26% 0.1722 269.84)",
+          "oklch(38% 0.1722 269.84)",
+          "oklch(49% 0.1722 269.84)",
+          "oklch(61% 0.1722 269.84)",
+          "oklch(72% 0.1722 269.84)",
+          "oklch(84% 0.1722 269.84)",
+          "oklch(95% 0.1722 269.84)"
+        ]
+      },
+      "ink": {
+        "displayName": "Ink",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0562 291.20)",
+          "oklch(26% 0.0562 291.20)",
+          "oklch(38% 0.0562 291.20)",
+          "oklch(49% 0.0562 291.20)",
+          "oklch(61% 0.0562 291.20)",
+          "oklch(72% 0.0562 291.20)",
+          "oklch(84% 0.0562 291.20)",
+          "oklch(95% 0.0562 291.20)"
+        ]
+      },
+      "muted": {
+        "displayName": "Muted",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0391 302.10)",
+          "oklch(26% 0.0391 302.10)",
+          "oklch(38% 0.0391 302.10)",
+          "oklch(49% 0.0391 302.10)",
+          "oklch(61% 0.0391 302.10)",
+          "oklch(72% 0.0391 302.10)",
+          "oklch(84% 0.0391 302.10)",
+          "oklch(95% 0.0391 302.10)"
+        ]
+      },
+      "ground": {
+        "displayName": "Ground",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0163 79.35)",
+          "oklch(26% 0.0163 79.35)",
+          "oklch(38% 0.0163 79.35)",
+          "oklch(49% 0.0163 79.35)",
+          "oklch(61% 0.0163 79.35)",
+          "oklch(72% 0.0163 79.35)",
+          "oklch(84% 0.0163 79.35)",
+          "oklch(95% 0.0163 79.35)"
+        ]
+      },
+      "white": {
+        "displayName": "White",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0069 88.64)",
+          "oklch(26% 0.0069 88.64)",
+          "oklch(38% 0.0069 88.64)",
+          "oklch(49% 0.0069 88.64)",
+          "oklch(61% 0.0069 88.64)",
+          "oklch(72% 0.0069 88.64)",
+          "oklch(84% 0.0069 88.64)",
+          "oklch(95% 0.0069 88.64)"
+        ]
+      },
+      "line": {
+        "displayName": "Line",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0151 70.87)",
+          "oklch(26% 0.0151 70.87)",
+          "oklch(38% 0.0151 70.87)",
+          "oklch(49% 0.0151 70.87)",
+          "oklch(61% 0.0151 70.87)",
+          "oklch(72% 0.0151 70.87)",
+          "oklch(84% 0.0151 70.87)",
+          "oklch(95% 0.0151 70.87)"
+        ]
+      },
+      "pale": {
+        "displayName": "Pale",
+        "role": "tertiary",
+        "tonalRamp": [
+          "oklch(15% 0.0262 300.27)",
+          "oklch(26% 0.0262 300.27)",
+          "oklch(38% 0.0262 300.27)",
+          "oklch(49% 0.0262 300.27)",
+          "oklch(61% 0.0262 300.27)",
+          "oklch(72% 0.0262 300.27)",
+          "oklch(84% 0.0262 300.27)",
+          "oklch(95% 0.0262 300.27)"
+        ]
+      },
+      "tomato": {
+        "displayName": "Tomato",
+        "role": "secondary",
+        "tonalRamp": [
+          "oklch(15% 0.1757 30.83)",
+          "oklch(26% 0.1757 30.83)",
+          "oklch(38% 0.1757 30.83)",
+          "oklch(49% 0.1757 30.83)",
+          "oklch(61% 0.1757 30.83)",
+          "oklch(72% 0.1757 30.83)",
+          "oklch(84% 0.1757 30.83)",
+          "oklch(95% 0.1757 30.83)"
+        ]
+      },
+      "tomato-pale": {
+        "displayName": "Tomato Pale",
+        "role": "secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0370 43.08)",
+          "oklch(26% 0.0370 43.08)",
+          "oklch(38% 0.0370 43.08)",
+          "oklch(49% 0.0370 43.08)",
+          "oklch(61% 0.0370 43.08)",
+          "oklch(72% 0.0370 43.08)",
+          "oklch(84% 0.0370 43.08)",
+          "oklch(95% 0.0370 43.08)"
+        ]
+      },
+      "sun": {
+        "displayName": "Sun",
+        "role": "secondary",
+        "tonalRamp": [
+          "oklch(15% 0.1280 94.13)",
+          "oklch(26% 0.1280 94.13)",
+          "oklch(38% 0.1280 94.13)",
+          "oklch(49% 0.1280 94.13)",
+          "oklch(61% 0.1280 94.13)",
+          "oklch(72% 0.1280 94.13)",
+          "oklch(84% 0.1280 94.13)",
+          "oklch(95% 0.1280 94.13)"
+        ]
+      },
+      "sun-pale": {
+        "displayName": "Sun Pale",
+        "role": "secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0757 95.32)",
+          "oklch(26% 0.0757 95.32)",
+          "oklch(38% 0.0757 95.32)",
+          "oklch(49% 0.0757 95.32)",
+          "oklch(61% 0.0757 95.32)",
+          "oklch(72% 0.0757 95.32)",
+          "oklch(84% 0.0757 95.32)",
+          "oklch(95% 0.0757 95.32)"
+        ]
+      },
+      "lilac": {
+        "displayName": "Lilac",
+        "role": "tertiary",
+        "tonalRamp": [
+          "oklch(15% 0.0418 300.75)",
+          "oklch(26% 0.0418 300.75)",
+          "oklch(38% 0.0418 300.75)",
+          "oklch(49% 0.0418 300.75)",
+          "oklch(61% 0.0418 300.75)",
+          "oklch(72% 0.0418 300.75)",
+          "oklch(84% 0.0418 300.75)",
+          "oklch(95% 0.0418 300.75)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home cookbook headline."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Feature page headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Readable content and input."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Primary controls."
+      }
+    },
+    "shadows": [
+      {
+        "name": "toast",
+        "value": "0 12px 28px #29234225",
+        "purpose": "Temporary status overlay."
+      },
+      {
+        "name": "mobile-more",
+        "value": "0 12px 35px #2923421c",
+        "purpose": "Navigation disclosure above the bottom bar."
+      }
+    ],
     "motion": [
       {
-        "name": "button-background",
-        "value": "background 180ms ease-out",
-        "purpose": "Primary and secondary button hover; removed under reduced motion."
+        "name": "ease-kitchen",
+        "value": "cubic-bezier(.16,1,.3,1)",
+        "purpose": "Control movement and welcome artwork arrival."
+      },
+      {
+        "name": "control-feedback",
+        "value": "160ms",
+        "purpose": "Background, text and transform feedback."
+      },
+      {
+        "name": "ingredients-arrive",
+        "value": "700ms",
+        "purpose": "One welcome-art entrance from opacity .3, translateY(16px), rotate(-4deg) to resting position."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Disable decorative animation and initialize carousel autoplay paused."
       }
     ],
     "breakpoints": [
       {
-        "name": "wide",
-        "value": "1600px"
+        "name": "shopping-stack",
+        "value": "1200px"
       },
       {
-        "name": "compact-desktop",
-        "value": "1100px"
+        "name": "compact-sidebar",
+        "value": "1020px"
       },
       {
-        "name": "single-column",
-        "value": "900px"
+        "name": "setup-stack",
+        "value": "760px"
       },
       {
         "name": "bottom-navigation",
@@ -32,76 +264,96 @@
   },
   "components": [
     {
-      "name": "Primary button",
+      "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Confirmed primary action.",
-      "html": "<button class=\"ds-button ds-primary\">Find an idea</button>",
-      "css": ".ds-button{font-family:Manrope,Arial,sans-serif;min-height:44px;padding:11px 16px;border:1px solid #bdcbb2;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:var(--white,#fffef9);color:var(--ink,#233c2c);font-size:.82rem;font-weight:750;cursor:pointer;transition:background 180ms ease-out}.ds-button:hover:not(:disabled){background:var(--pale,#eaf0e1)}.ds-button:focus-visible{outline:3px solid #4575a0;outline-offset:4px}.ds-button:disabled{cursor:not-allowed;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}.ds-primary{background:var(--green,#347841);color:#fff;border-color:var(--green,#347841)}.ds-primary:hover:not(:disabled){background:var(--dark,#244c2c)}"
+      "description": "Cobalt primary action with explicit hover, focus and press feedback.",
+      "html": "<button class=\"ds-primary\">Review ingredients</button>",
+      "css": ".ds-primary{font-family:'DM Sans',sans-serif;min-height:46px;padding:11px 16px;border:1px solid var(--cobalt,#3549cb);border-radius:10px;font-size:.84rem;font-weight:700;cursor:pointer;transition:background-color 160ms ease,color 160ms ease,transform 160ms cubic-bezier(.16,1,.3,1);background:var(--cobalt,#3549cb);color:#fff}.ds-primary:hover{background:#25349f;border-color:#25349f}.ds-primary:focus-visible{outline:3px solid var(--cobalt,#3549cb);outline-offset:4px;}.ds-primary:active{transform:translateY(1px)}.ds-primary:disabled{opacity:.55;cursor:not-allowed}"
     },
     {
-      "name": "Secondary button",
+      "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Supporting action beside a primary action.",
-      "html": "<button class=\"ds-button\">Cancel</button>",
-      "css": ".ds-button{font-family:Manrope,Arial,sans-serif;min-height:44px;padding:11px 16px;border:1px solid #bdcbb2;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:var(--white,#fffef9);color:var(--ink,#233c2c);font-size:.82rem;font-weight:750;cursor:pointer;transition:background 180ms ease-out}.ds-button:hover:not(:disabled){background:var(--pale,#eaf0e1)}.ds-button:focus-visible{outline:3px solid #4575a0;outline-offset:4px}.ds-button:disabled{cursor:not-allowed;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}"
+      "description": "Quiet secondary action in the feature control family.",
+      "html": "<button class=\"ds-secondary\">Back to list</button>",
+      "css": ".ds-secondary{font-family:'DM Sans',sans-serif;min-height:46px;padding:11px 16px;border:1px solid var(--cobalt,#3549cb);border-radius:10px;font-size:.84rem;font-weight:700;cursor:pointer;transition:background-color 160ms ease,color 160ms ease,transform 160ms cubic-bezier(.16,1,.3,1);background:var(--white,#fffdf8);border-color:#b5a8c5;color:var(--ink,#292342)}.ds-secondary:hover{background:var(--lilac,#e6dcfa)}.ds-secondary:focus-visible{outline:3px solid var(--cobalt,#3549cb);outline-offset:4px;}.ds-secondary:active{transform:translateY(1px)}"
     },
     {
-      "name": "Text action",
-      "kind": "button",
-      "description": "Compact supporting navigation or refinement.",
-      "html": "<button class=\"ds-text\">Edit preferences</button>",
-      "css": ".ds-text{display:inline-flex;align-items:center;min-height:44px;padding:5px 0;border:0;background:transparent;color:var(--green,#347841);font-family:Manrope,Arial,sans-serif;font-size:.8rem;font-weight:700;cursor:pointer}.ds-text:hover:not(:disabled){text-decoration:underline;text-underline-offset:4px}.ds-text:focus-visible{outline:3px solid #4575a0;outline-offset:4px}.ds-text:disabled{opacity:.55;cursor:not-allowed}"
-    },
-    {
-      "name": "Preference field",
+      "name": "Text Field",
       "kind": "input",
-      "description": "Inline labeled group preference.",
-      "html": "<label class=\"ds-field\">Servings<input type=\"number\" min=\"1\" max=\"12\" value=\"4\" /></label>",
-      "css": ".ds-field{display:grid;gap:8px;font-family:Manrope,Arial,sans-serif;color:var(--ink,#233c2c);font-size:.8rem;font-weight:700}.ds-field input{border:1px solid #b9c7ae;background:var(--white,#fffef9);color:inherit;border-radius:7px;min-height:44px;padding:11px;width:100%;min-width:0;font:500 .85rem Manrope,Arial,sans-serif;caret-color:var(--green,#347841)}.ds-field input:focus-visible{outline:3px solid #4575a0;outline-offset:4px}"
+      "refersTo": "input",
+      "description": "Standard feature input with visible label and keyboard focus.",
+      "html": "<label class=\"ds-field\">Item note<input placeholder=\"For Saturday dinner\"></label>",
+      "css": ".ds-field{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);display:grid;gap:7px;font-size:.83rem}.ds-field input{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);background:var(--white,#fffdf8);border:1px solid #b5a8c5;border-radius:9px;min-height:44px;padding:8px 11px;font-size:.9rem}.ds-field input:focus{border-color:var(--cobalt,#3549cb)}.ds-field input:focus-visible{outline:3px solid var(--cobalt,#3549cb);outline-offset:4px;}"
+    },
+    {
+      "name": "Suggestion Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A warm suggestion starter; its paired variant uses lilac.",
+      "html": "<button class=\"ds-chip\">A quick dinner</button>",
+      "css": ".ds-chip{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);background:var(--sun-pale,#fff0b6);border:1px solid transparent;border-radius:24px;min-height:44px;padding:9px 12px;font-size:.78rem;font-weight:600;cursor:pointer}.ds-chip:hover{filter:brightness(.97)}.ds-chip:focus-visible{outline:3px solid var(--cobalt,#3549cb);outline-offset:4px;}.ds-chip:active{transform:translateY(1px)}"
     },
     {
       "name": "Navigation",
       "kind": "nav",
       "refersTo": "navigation-active",
-      "description": "Labeled active and inactive area links on the rail.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#home\" aria-current=\"page\">Home</a><a href=\"#plans\">Plans</a></nav>",
-      "css": ".ds-nav{display:grid;gap:6px;padding:12px;background:var(--rail,#d9e7cd);font-family:Manrope,Arial,sans-serif;color:var(--ink,#233c2c)}.ds-nav a{display:flex;align-items:center;gap:13px;padding:13px 15px;min-height:48px;border-radius:8px;font-size:.87rem;font-weight:650;text-decoration:none}.ds-nav a:hover{background:#cddfc0}.ds-nav a[aria-current]{color:var(--white,#fffef9);background:var(--dark,#244c2c)}.ds-nav a:focus-visible{outline:3px solid #4575a0;outline-offset:4px}"
+      "description": "Desktop navigation links with the implemented active color treatment.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><a href=\"#home\" aria-current=\"page\">Home</a><a href=\"#shopping\">Shopping</a><a href=\"#plans\">Plans</a></nav>",
+      "css": ".ds-nav{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);display:grid;gap:7px}.ds-nav a{display:flex;align-items:center;min-height:50px;padding:13px 14px;border-radius:10px;font-size:.9rem;font-weight:600;text-decoration:none;color:inherit}.ds-nav a[aria-current]{background:var(--tomato-pale,#ffe1d5);color:#9d291c}.ds-nav a:hover{background:#f2ece4}.ds-nav a[aria-current]:hover{background:#ffd2c1}.ds-nav a:focus-visible{outline:3px solid var(--cobalt,#3549cb);outline-offset:4px;}"
     },
     {
-      "name": "Starter chip",
-      "kind": "chip",
-      "description": "A sample preview or request starter.",
-      "html": "<button class=\"ds-chip\">Something fun for dinner</button>",
-      "css": ".ds-chip{min-height:44px;border-radius:24px;padding:9px 12px;font:650 .75rem Manrope,Arial,sans-serif;color:var(--ink,#233c2c);border:1px solid #c6d2bd;background:transparent;cursor:pointer}.ds-chip:hover:not(:disabled){background:var(--pale,#eaf0e1)}.ds-chip:focus-visible{outline:3px solid #4575a0;outline-offset:4px}.ds-chip:disabled{opacity:.55;cursor:not-allowed}"
-    },
-    {
-      "name": "Preferences surface",
+      "name": "Task Card",
       "kind": "card",
-      "refersTo": "preferences-panel",
-      "description": "Pale surface for the group preferences summary and editor.",
-      "html": "<aside class=\"ds-preferences\"><h2>Your usuals</h2><p>Remembered for this group, so you don’t have to repeat yourself.</p></aside>",
-      "css": ".ds-preferences{border-radius:14px;background:var(--pale,#eaf0e1);color:var(--ink,#233c2c);padding:22px;font-family:Manrope,Arial,sans-serif}.ds-preferences h2{font-size:1.1rem;font-weight:700;line-height:1.3;letter-spacing:-.025em;margin:0 0 12px}.ds-preferences p{font-size:.8rem;color:var(--muted,#596751);line-height:1.65;margin:0}"
+      "refersTo": "card",
+      "description": "Flat cream surface for ordinary task content.",
+      "html": "<section class=\"ds-card\"><h2>Household preferences</h2><p>Keep everyone\u2019s needs in view.</p></section>",
+      "css": ".ds-card{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);background:var(--white,#fffdf8);border-radius:14px;padding:24px}.ds-card h2{font-family:var(--display,\"Bricolage Grotesque\",sans-serif);font-size:1.3rem;font-weight:700;margin:0}.ds-card p{font-size:.82rem;line-height:1.65;margin:12px 0 0;color:var(--muted,#675e76)}"
+    },
+    {
+      "name": "Shared List",
+      "kind": "custom",
+      "refersTo": "shared-list",
+      "description": "Butter summary field with divided rows instead of individual cards.",
+      "html": "<section class=\"ds-list\"><h2>Your shared list</h2><ul><li><span>Tomatoes</span><span>4</span></li><li><span>Pasta</span><span>1 box</span></li></ul></section>",
+      "css": ".ds-list{font-family:'DM Sans',sans-serif;color:var(--ink,#292342);background:var(--sun,#ffe27a);border-radius:16px;padding:24px}.ds-list h2{font-family:var(--display,\"Bricolage Grotesque\",sans-serif);font-size:1.22rem;margin:0;padding-bottom:16px;border-bottom:1px solid #d7b947}.ds-list ul{list-style:none;padding:0;margin:0}.ds-list li{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #d7b947;font-size:.85rem;font-weight:700}"
     }
   ],
   "narrative": {
-    "northStar": "Cartners' established warm green world",
-    "overview": "Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and a featured recipe carousel using thumbnails supplied by discovery sources. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.",
+    "northStar": "The Shared Kitchen Cookbook",
+    "overview": "A contemporary illustrated cookbook translated into a working household app. Warm paper, expressive headings, original ingredient sketches and saturated color fields carry the collaborative cooking energy requested for DubHacks 2026 and the Cook Smarter track. The lowercase cartners wordmark remains the product identity; no sponsor marks or affiliation are implied.\n\nThe task area stays readable and direct. Color distinguishes actions and supporting surfaces, while dense shopping and ingredient content remains in rows. Decorative motion is brief; frequently used controls respond immediately.",
     "keyCharacteristics": [
-      "Warm tonal surfaces and fine dividing lines.",
-      "Rounded controls, recipe-source thumbnails, and compact supporting text.",
-      "A five-area shell that changes from a side rail to bottom navigation."
+      "Warm paper and aubergine ink.",
+      "Cobalt actions, tomato display accents, butter and lilac fields.",
+      "Expressive cookbook headings with clear everyday controls.",
+      "Ingredient illustration alongside real recipe photography."
     ],
-    "rules": [],
+    "rules": [
+      {
+        "name": "The Cobalt Action Rule",
+        "body": "Cobalt identifies primary actions and focus; tomato supplies display emphasis rather than coloring every button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shared Table Rule",
+        "body": "Use broad tonal fields to organize work; preserve compact rows for dense task content.",
+        "section": "elevation"
+      }
+    ],
     "dos": [
-      "Do retain Manrope, the established palette, and source-attributed recipe thumbnails.",
-      "Do use visible keyboard focus, labeled controls, and the implemented 44px minimum control height.",
-      "Do distinguish sample, pending, error, stale, and saved states with explicit text."
+      "Do use cobalt for the primary action and visible keyboard focus.",
+      "Do retain ingredient sketches as decorative art with empty alternative text.",
+      "Do keep shopping and ingredient information readable as rows.",
+      "Do preserve reduced-motion behavior and the recipe carousel\u2019s pause control.",
+      "Do keep navigation, review, confirmation and recovery controls available at every viewport."
     ],
     "donts": [
-      "Don't introduce a replacement visual identity or new palette in this scoped extension.",
-      "Don't imply a preview has been saved or a live service is available before the corresponding state is confirmed."
+      "Don't return to the muted green identity.",
+      "Don't replace recipe photography with decorative ingredient art.",
+      "Don't imply official DubHacks sponsorship or affiliation.",
+      "Don't introduce gradients as the new surface language.",
+      "Don't hide essential actions behind decorative motion."
     ]
   }
 }

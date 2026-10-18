@@ -4,6 +4,7 @@ import { isDraft } from '../../api/client.js';
 import { starterPrompts } from '../../samples.js';
 import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
+import KitchenArt from '../../components/KitchenArt.jsx';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
@@ -155,8 +156,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   return <div className="home-page">
     {!draft ? <div className="discovery discovery-focused">
       <div className="home-request">
-        <h1>What sounds good today?</h1>
-        <p className="intro">Ask for a meal or tell us what you need to buy. We’ll put together an idea and a shared shopping list.</p>
+        <div className="home-hero"><h1>What sounds<br />good <span>today?</span></h1>
+        <p className="intro">One dinner idea. One shared list.<br />A little less “what’s for dinner?”</p><KitchenArt /></div>
         {composer}{starters}{options}
       </div>
       <aside className="home-list" aria-labelledby="home-list-title">
