@@ -6,7 +6,6 @@ import { readFile } from 'node:fs/promises';
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
 async function serve(page, handlers) {
-  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
   const calls = [];
@@ -255,4 +254,28 @@ test('phone shopping makes the store-run action easy to find without covering th
   await expect(startShortcut).toBeVisible();
   await startShortcut.click();
   await expect(page.getByRole('textbox', { name: 'Store' })).toBeFocused();
+});
+
+test('cart rows name the saved recipes each request is for', async ({ page }) => {
+  const base = await fixture('workspace');
+  const item = (id, name, extra = {}) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor: 'household', addedBy: 'leila', bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null, ...extra });
+  const workspace = {
+    ...base, serverNow: new Date().toISOString(), trip: null,
+    plans: [
+      { id: 'plan-tacos', date: '2026-10-18', title: 'Black bean tacos', recommendation: { requestFor: 'household', ingredients: [{ name: 'Lime', unit: 'count' }, { name: 'Black beans', unit: 'can' }] } },
+      { id: 'plan-pad-thai', date: '2026-10-19', title: 'Pad Thai', recommendation: { requestFor: 'household', ingredients: [{ name: 'lime', unit: 'count' }, { name: 'Rice noodles', unit: 'pack' }] } },
+    ],
+    items: [
+      item('i-beans', 'Black beans', { reservedPlanId: 'plan-tacos' }),
+      item('i-lime', 'Lime', { reservedPlanId: 'plan-tacos' }),
+      item('i-milk', 'Oat milk'),
+    ],
+  };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
+  await page.goto('/#shopping');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  const recipesOf = name => page.locator('.rm-item').filter({ hasText: name }).locator('.rm-item-recipes');
+  await expect(recipesOf('Black beans')).toHaveText('Black bean tacos');
+  await expect(recipesOf('Lime')).toHaveText('Black bean tacos, Pad Thai');
+  await expect(recipesOf('Oat milk')).toHaveCount(0);
 });

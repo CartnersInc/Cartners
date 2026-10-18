@@ -41,13 +41,44 @@ def find_compatible(
     return None
 
 
+def find_combinable(
+    items: list[dict[str, Any]],
+    *,
+    name: str,
+    unit: str,
+    request_for: str,
+    open_run_id: str | None,
+) -> dict[str, Any] | None:
+    """A compatible row already reserved for another saved meal that hasn't gone shopping yet:
+    waiting for the next run, or on a run still taking requests. Its quantity stays committed to
+    that meal, so a new recipe adds its full amount to the same row instead of a second entry."""
+    target = normalize_name(name)
+    for item in active_items(items):
+        if not item.get("reservedPlanId"):
+            continue
+        if item.get("runId") not in (None, open_run_id):
+            continue
+        if normalize_name(item["name"]) != target or item.get("unit") != unit:
+            continue
+        if item.get("requestFor") != request_for:
+            continue
+        return item
+    return None
+
+
 def build_list_preview(
     proposed: list[dict[str, Any]],
     cart_items: list[dict[str, Any]],
     *,
     default_request_for: str = "household",
+    combine_reserved: bool = False,
+    open_run_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Compare proposed recipe/grocery lines to the live cart."""
+    """Compare proposed recipe/grocery lines to the live cart.
+
+    With combine_reserved (meal recipes), a need that matches a row already planned for another
+    meal increases that row by the full amount instead of adding a duplicate row. Recipe notes are
+    cooking instructions ("peeled and quartered"), so recipes match by name, unit, and scope only."""
     preview: list[dict[str, Any]] = []
     for row in proposed:
         unit = row.get("unit") or "count"
@@ -69,6 +100,28 @@ def build_list_preview(
             request_for=request_for,
         )
         needed = float(row["quantity"])
+        if existing is None and combine_reserved:
+            combined = find_combinable(
+                cart_items,
+                name=row["name"],
+                unit=unit,
+                request_for=request_for,
+                open_run_id=open_run_id,
+            )
+            if combined is not None:
+                current = float(combined["quantity"])
+                preview.append(
+                    {
+                        "ingredientId": row["id"],
+                        "action": "increase",
+                        "existingItemId": combined["id"],
+                        "existingQuantity": current,
+                        "deltaQuantity": needed,
+                        "combined": True,
+                        "reason": f"Adds {needed:g} to the {current:g} already planned for another meal.",
+                    }
+                )
+                continue
         if existing is None:
             preview.append(
                 {
@@ -188,7 +241,8 @@ def apply_preview_to_cart(
             before = dict(item)
             item["quantity"] = float(item["quantity"]) + float(row["deltaQuantity"])
             item["version"] = int(item["version"]) + 1
-            if reserved_plan_id:
+            if reserved_plan_id and not before.get("reservedPlanId"):
+                # A combined row keeps its first meal's reservation; the added amount is on top.
                 item["reservedPlanId"] = reserved_plan_id
             deltas.append(
                 {

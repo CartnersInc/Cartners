@@ -348,8 +348,8 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         return draft
 
     @application.get("/api/suggestions/{draftId}")
-    def get_suggestion(draftId: str, workspaceId: str, request: Request) -> dict[str, Any]:
-        return store_of(request).get_draft(draftId, workspaceId)
+    def get_suggestion(draftId: str, workspaceId: str, request: Request, requestFor: str | None = None) -> dict[str, Any]:
+        return store_of(request).get_draft(draftId, workspaceId, requestFor)
 
     @application.post("/api/drafts/confirm")
     def confirm_draft(body: ConfirmDraftRequest, request: Request) -> dict[str, Any]:

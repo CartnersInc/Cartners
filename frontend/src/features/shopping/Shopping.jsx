@@ -7,6 +7,7 @@ import RunBanner from '../groups/parts/RunBanner.jsx';
 import { people, useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
 import { PUNT_PROPOSAL } from './lib/proposal.js';
+import { recipeLookup } from './lib/recipes.js';
 import './roomie.css';
 
 const byCreated = (a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0);
@@ -25,6 +26,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const items = liveItems(workspace);
   const isShopper = trip?.claimedBy === actorId;
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify, navigate };
+  const recipesFor = useMemo(() => recipeLookup(workspace), [workspace]);
   const onRun = useMemo(
     () => (trip ? items.filter(item => item.runId === trip.id).sort(byCreated) : []),
     [items, trip],
@@ -36,7 +38,18 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const needed = items.filter(item => !item.bought);
   const waiting = offRun.filter(item => !item.bought);
   const newCount = onRun.filter(item => !item.bought && itemBadge(item, trip, actorId)?.kind === 'new').length;
-  const row = item => <ItemRow key={item.id} item={item} {...shared} trip={trip} badge={itemBadge(item, trip, actorId)} price={itemPrices[item.id] || null} />;
+
+  const row = item => (
+    <ItemRow
+      key={item.id}
+      item={item}
+      {...shared}
+      trip={trip}
+      badge={itemBadge(item, trip, actorId)}
+      price={itemPrices[item.id] || null}
+      recipes={recipesFor(item)}
+    />
+  );
   const focusAdd = () => { nameRef.current?.scrollIntoView({ block: 'center' }); nameRef.current?.focus(); };
 
   async function clearList() {

@@ -33,6 +33,8 @@ class ConfirmDraftRequest(WriteBase):
     expectedListRevision: int = Field(ge=0)
     excludedIngredientIds: list[str] = Field(default_factory=list)
     target: Literal["cart", "plans"] = "cart"
+    # Shared ("household") or one member's personal requests, applied to every recipe ingredient.
+    requestFor: str | None = Field(default=None, max_length=80)
 
 
 class UndoRequest(WriteBase):

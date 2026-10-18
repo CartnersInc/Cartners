@@ -5,25 +5,20 @@ import { starterPrompts } from '../../samples.js';
 import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
 
-const FIRST_USE_KEY = 'cartners:first-use-complete';
-const DIET_OPTIONS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free', 'Nut-free'];
-
-export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, connection, entry, onEntryChange, planDate, onPlanDateChange }) {
+export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
   const setMessage = value => onEntryChange({ ...entry, message: value });
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
   const [excluded, setExcluded] = useState(entry?.confirmAttempt?.excludedIngredientIds || entry?.excluded || []);
+  // Shared or Just me for every ingredient of a recipe, like a single request in Shopping.
+  const scope = (entry?.confirmAttempt?.requestFor || entry?.scope || 'household') === 'household' ? 'household' : actorId;
+  const setScope = next => onEntryChange({ ...entry, scope: next });
   const saved = entry?.saved || null;
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
-  const setupAttempt = useRef(null);
   const busy = useRef(false);
-  const [firstUse, setFirstUse] = useState(() => { try { return localStorage.getItem(FIRST_USE_KEY) !== 'yes'; } catch { return true; } });
-  const [setup, setSetup] = useState(() => ({ servings: workspace.preferences.servings || 2, restrictions: workspace.preferences.restrictions || [], likes: (workspace.preferences.likes || []).join(', '), maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 }));
-  const [setupError, setSetupError] = useState('');
-  const [setupSaving, setSetupSaving] = useState(false);
   const draft = entry?.draft;
   const meal = draft?.recommendation;
   const rows = meal?.ingredients || draft?.items || [];
@@ -35,30 +30,6 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   function showDraft(nextDraft, localOnly, aiPreviewOnly = false) {
     onEntryChange({ draft: nextDraft, localOnly, aiPreviewOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
     setExcluded([]); setError(''); attempt.current = null; undoAttempt.current = null;
-  }
-  async function finishSetup(event) {
-    event.preventDefault();
-    const servings = Number(setup.servings);
-    if (!Number.isInteger(servings) || servings < 1 || servings > 12) { setSetupError('Choose between 1 and 12 servings.'); return; }
-    const preferences = { servings, restrictions: setup.restrictions, likes: setup.likes.split(',').map(value => value.trim()).filter(Boolean), maxPrepMinutes: Number(setup.maxPrepMinutes) };
-    setSetupError(''); setSetupSaving(true);
-    try {
-      if (connected) {
-        const key = JSON.stringify(preferences);
-        if (setupAttempt.current?.key !== key) setupAttempt.current = { key, body: { workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), ...preferences } };
-        const result = await api.request('/api/preferences', { method: 'PATCH', body: setupAttempt.current.body });
-        if (!result.workspace) throw new Error('Cartners could not confirm those preferences. Try again.');
-        onWorkspaceChange(result.workspace);
-        setupAttempt.current = null;
-      } else {
-        onWorkspaceChange({ ...workspace, preferences });
-        try { localStorage.setItem('cartners:local-preferences', JSON.stringify(preferences)); } catch { /* The current session keeps these preferences in workspace state. */ }
-      }
-      try { localStorage.setItem(FIRST_USE_KEY, 'yes'); } catch { /* The user can still continue for this visit. */ }
-      setFirstUse(false);
-      notify?.(connected ? 'Your dinner preferences are ready.' : 'Preferences saved on this device.');
-    } catch (err) { setSetupError(err.message || 'Could not save preferences. Try again.'); }
-    finally { setSetupSaving(false); }
   }
   async function requestSuggestion(text) {
     if (busy.current || recoveringSave || !text.trim()) return;
@@ -88,6 +59,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     if (!attempt.current) attempt.current = {
       workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), draftId: draft.draftId,
       expectedListRevision: draft.listRevision, excludedIngredientIds: excluded, target: 'cart',
+      ...(meal ? { requestFor: scope } : {}),
     };
     onEntryChange({ ...entry, confirmAttempt: attempt.current });
     try {
@@ -120,27 +92,30 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     } catch (err) { setError(err.message); }
     finally { busy.current = false; setPending(''); }
   }
-  async function refreshDraft() {
+  async function refreshDraft(requestFor = scope, pendingState = 'refresh') {
     if (busy.current) return;
-    busy.current = true; setPending('refresh'); setError('');
+    busy.current = true; setPending(pendingState); setError('');
     try {
-      const next = await api.request(`/api/suggestions/${encodeURIComponent(draft.draftId)}?workspaceId=${encodeURIComponent(workspace.workspaceId)}`);
+      const next = await api.request(`/api/suggestions/${encodeURIComponent(draft.draftId)}?workspaceId=${encodeURIComponent(workspace.workspaceId)}&requestFor=${encodeURIComponent(requestFor)}`);
       if (!isDraft(next, workspace.workspaceId) || next.listRevision !== workspace.listRevision) throw new Error('The cart preview is still out of date. The backend needs to refresh it before you can save.');
-      showDraft(next, false);
-    } catch (err) { setError(err.message); }
+      onEntryChange({ ...entry, draft: next, scope: requestFor });
+    } catch (err) {
+      if (pendingState === 'scope') onEntryChange({ ...entry, scope });
+      setError(err.message);
+    }
     finally { busy.current = false; setPending(''); }
   }
 
-  const cartChanges = rows.filter(item => !excluded.includes(item.id) && previews.find(row => row.ingredientId === item.id)?.action !== 'keep');
+  function changeScope(next) {
+    if (next === scope) return;
+    if (!connected || entry.localOnly || entry.aiPreviewOnly) { setScope(next); return; }
+    onEntryChange({ ...entry, scope: next });
+    refreshDraft(next, 'scope');
+  }
+
   const neededItems = liveItems(workspace).filter(item => !item.bought);
   const trip = activeTrip(workspace);
   const shopper = trip && workspace.actors.find(person => person.id === trip.claimedBy);
-  const cartSummary = cartChanges.map(item => {
-    const preview = previews.find(row => row.ingredientId === item.id);
-    const amount = preview?.deltaQuantity ?? item.quantity;
-    const unit = item.unit === 'count' ? '' : ` ${item.unit}${['can', 'pack'].includes(item.unit) && amount !== 1 ? 's' : ''}`;
-    return `${item.name}${preview?.action === 'review' ? ' (check variant)' : ` (${preview?.action === 'increase' ? '+' : ''}${amount}${unit})`}${item.note ? ` · ${item.note}` : ''}`;
-  }).join(', ');
   const selectedDate = new Date(`${planDate}T12:00:00`);
   const dateLabel = Number.isNaN(selectedDate.getTime()) ? 'Choose a date' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(selectedDate);
   const options = <details className="request-options">
@@ -166,33 +141,6 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const starters = <div className="suggestion-starters" aria-label={connected ? 'Ideas to get started' : 'Sample ideas'}>
     {starterPrompts.map(prompt => <button key={prompt.key} className="chip" disabled={locked}
       onClick={() => requestSuggestion(prompt.message)}>{prompt.label}</button>)}
-  </div>;
-
-  if (firstUse) return <div className="home-page first-use-page">
-    <section className="first-use" aria-labelledby="first-use-title">
-      <h1 id="first-use-title">Let’s set the table.</h1>
-      <p className="intro">A few preferences help Cartners find dinner that fits. You can change these any time.</p>
-      <form onSubmit={finishSetup}>
-        <div className="first-use-row">
-          <label className="date-control">How many are eating?
-            <input type="number" min="1" max="12" value={setup.servings} onChange={event => setSetup({ ...setup, servings: event.target.value })} />
-          </label>
-          <label className="date-control">Weeknight time
-            <select value={setup.maxPrepMinutes} onChange={event => setSetup({ ...setup, maxPrepMinutes: event.target.value })}><option value="20">About 20 minutes</option><option value="30">About 30 minutes</option><option value="45">About 45 minutes</option><option value="60">An hour is fine</option></select>
-          </label>
-        </div>
-        <fieldset className="first-use-diets">
-          <legend>Anything to avoid?</legend>
-          <div className="first-use-chips">{DIET_OPTIONS.map(option => <label key={option}><input type="checkbox" checked={setup.restrictions.includes(option.toLowerCase())} onChange={event => setSetup({ ...setup, restrictions: event.target.checked ? [...setup.restrictions, option.toLowerCase()] : setup.restrictions.filter(value => value !== option.toLowerCase()) })} /><span>{option}</span></label>)}</div>
-        </fieldset>
-        <label className="date-control first-use-likes">What do you like? <span className="small muted">Optional</span>
-          <input value={setup.likes} maxLength="120" placeholder="Tacos, spicy food, comfort meals" onChange={event => setSetup({ ...setup, likes: event.target.value })} />
-        </label>
-        {setupError && <p className="notice error" role="alert">{setupError}</p>}
-        {connection === 'loading' ? <p className="small muted" role="status">Connecting to your table…</p> : !connected && <p className="small muted">Offline for now. These preferences stay on this device until Cartners reconnects.</p>}
-        <div className="first-use-actions"><button className="button primary" disabled={setupSaving || connection === 'loading'}>{setupSaving ? 'Saving…' : 'Next: choose dinner'}<Icon name="arrow" /></button></div>
-      </form>
-    </section>
   </div>;
 
   return <div className="home-page">
@@ -231,16 +179,20 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
             {meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}
           </> : <p>{draft.inputSummary?.summary || 'These requests are ready to review.'}</p>}
         </div>
-        <div className="cart-preview compact-cart"><h3>{entry.aiPreviewOnly ? 'Ingredient preview' : 'Ready for the cart'}</h3>{entry.aiPreviewOnly && <p className="small muted">AI generated this idea; cart matching and saving need the shared backend.</p>}<p className="cart-summary">{cartSummary || (excluded.length === rows.length ? 'No new items selected.' : 'These items are already on your list.')}</p>
-          <details><summary>Review {rows.length} ingredients and requests</summary><p className="small muted">Uncheck anything you already have.</p><ul className="ingredient-list">{rows.map(item => {
+        <div className="cart-preview compact-cart"><div className="cart-heading"><h3>{entry.aiPreviewOnly ? 'Ingredient preview' : 'Ready for the cart'}</h3>
+            {meal && <div className="scope-switch" role="radiogroup" aria-label="Who these ingredients are for">
+              {[['household', 'Shared'], ['mine', 'Just me']].map(([id, label]) => <label key={id}><input type="radio" name="recipe-scope" checked={(scope === 'household') === (id === 'household')} disabled={!!pending || !!saved || recoveringSave} onChange={() => changeScope(id === 'household' ? 'household' : actorId)} /><span>{label}</span></label>)}
+            </div>}</div>
+          <ul className="ingredient-list">{rows.map(item => {
             const preview = previews.find(row => row.ingredientId === item.id);
-            const owner = item.requestFor && item.requestFor !== 'household' ? workspace.actors.find(actor => actor.id === item.requestFor)?.name || item.requestFor : 'Shared';
+            const itemScope = meal ? scope : item.requestFor;
+            const owner = itemScope && itemScope !== 'household' ? (itemScope === actorId ? 'Just you' : workspace.actors.find(actor => actor.id === itemScope)?.name || itemScope) : 'Shared';
             return <li key={item.id}><label><input type="checkbox" checked={!excluded.includes(item.id)} disabled={!!pending || !!saved || !!attempt.current}
               onChange={e => { const next = e.target.checked ? excluded.filter(id => id !== item.id) : [...excluded, item.id]; setExcluded(next); onEntryChange({ ...entry, excluded: next }); }} />
               <span><strong>{item.name}</strong><small>{item.quantity} {item.unit} · {owner}{item.note ? ` · ${item.note}` : ''}</small>
-                <small>{preview?.action === 'keep' ? 'Already on the list' : preview?.action === 'increase' ? `Add ${preview.deltaQuantity}; ${preview.existingQuantity} already requested` : preview?.action === 'review' ? 'Check this variant' : `Add ${preview?.deltaQuantity ?? item.quantity}`}</small>
+                <small>{pending === 'scope' ? 'Updating match…' : preview?.action === 'keep' ? 'Already on the list' : preview?.action === 'increase' ? `Add ${preview.deltaQuantity}; ${preview.existingQuantity} already requested` : preview?.action === 'review' ? 'Check this variant' : `Add ${preview?.deltaQuantity ?? item.quantity}`}</small>
               </span></label></li>;
-          })}</ul></details>
+          })}</ul>
         </div>
         {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">{meal ? 'Your meal plan was saved too.' : 'Your shared cart is up to date.'}</p></div>
           <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('shopping')}>View cart<Icon name="arrow" /></button>
