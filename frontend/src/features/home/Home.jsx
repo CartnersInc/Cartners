@@ -134,7 +134,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     <div className="composer-bottom">
       <span className="small muted">{draft ? 'Tell us what to change.' : 'We’ll check the shared list before anything is added.'}</span>
       <button className="button primary" disabled={!message.trim() || locked}>
-        {pending === 'suggestion' ? 'Working…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
+        {pending === 'suggestion' ? 'Finding an idea…' : draft ? 'Update idea' : 'Get a dinner idea'}<Icon name="arrow" />
       </button>
     </div>
   </form>;
@@ -147,7 +147,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     {!draft ? <div className="discovery discovery-focused">
       <div className="home-request">
         <h1>What are we eating?</h1>
-        <p className="intro">Tell us a craving or what you need. Cartners suggests dinner or builds a grocery list, then checks what’s already requested.</p>
+        <p className="intro">Tell Cartners what sounds good. It suggests a meal or builds your grocery list, checks what’s already there, and lets you review everything before it’s added.</p>
         {composer}{starters}{options}
       </div>
       <aside className="home-list" aria-labelledby="home-list-title">

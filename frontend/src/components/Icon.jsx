@@ -7,6 +7,8 @@ const paths = {
   arrow: 'M4 12h16m-6-6 6 6-6 6',
   leaf: 'M20 4C8 2 2 9 6 16s16 4 14-12ZM6 18l9-9',
   clock: 'M12 8v5l3 2m7-3a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
+  chevron: 'm7 10 5 5 5-5',
+  check: 'm5 12 4 4L19 6',
 };
 export default function Icon({ name, ...props }) {
   return <svg viewBox="0 0 24 24" className="icon" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}><path d={paths[name] || paths.arrow} /></svg>;
