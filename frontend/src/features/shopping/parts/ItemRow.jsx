@@ -5,7 +5,7 @@ import { PUNT_PROPOSAL } from '../lib/proposal.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
-// One request: a large Bought checkbox, name/quantity/scope/note, price, and Details for edits.
+// One request stays readable in the cart: item, amount, estimated price, and instructions.
 // Bought stays in place (green highlight) instead of moving to a separate Bought list.
 // Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
 export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price }) {
@@ -65,24 +65,22 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   }
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
-  const scope = scopeLabel(item, name);
-
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
 
   return (
     <li className={`rm-item ${shownBought ? 'rm-item-bought' : ''}`}>
-      <div className="rm-item-main">
+      <div className="rm-item-main rm-cart-row">
         <input id={checkId} type="checkbox" className="rm-bought" checked={shownBought} disabled={toggle.locked || !connected}
           aria-busy={toggle.saving} onChange={e => setBought(e.target.checked)} />
         <label htmlFor={checkId} className="rm-item-text">
-          <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
-          {item.note && <span className="rm-item-note">{item.note}</span>}
-          <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
-          {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
+          <span className="rm-item-name">{item.name}</span>
           {shownBought && <span className="rm-bought-label">Bought</span>}
+          {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
           <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}{priceLabel ? `, about ${priceLabel}` : ''}</span>
         </label>
-        {priceLabel && <span className="rm-item-price" aria-hidden="true">{priceLabel}</span>}
+        <span className="rm-cart-amount" aria-label={`Amount ${quantityLabel(item)}`}>{quantityLabel(item)}</span>
+        <span className="rm-cart-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
+        <span className="rm-cart-instruction">{item.note || <span className="rm-help">No special instructions</span>}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
@@ -91,7 +89,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
-          <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Details for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Details</button>
+          <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Edit ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Edit</button>
         </div>
       </div>
 
