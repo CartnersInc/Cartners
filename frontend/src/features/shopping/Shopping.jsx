@@ -119,6 +119,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
           {cartItems.length} in cart
           {cartItems.length > 0 && <> · {formatCents(cartTotalCents, cartCurrency)}</>}
         </span>
+        <button type="button" className="rm-btn rm-plan-with-ai" onClick={() => navigate('home')}>Plan with AI</button>
         {items.length > 0 && (
           <button type="button" className="rm-btn rm-empty-cart" disabled={!connected || clearState.phase === 'saving'} onClick={clearList}>
             {clearState.phase === 'saving' ? 'Emptying…' : clearState.phase === 'confirm' ? `Remove all ${items.length}` : 'Empty cart'}
