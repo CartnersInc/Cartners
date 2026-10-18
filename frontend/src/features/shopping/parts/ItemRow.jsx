@@ -65,22 +65,23 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   }
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
+  const scope = scopeLabel(item, name);
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
 
   return (
     <li className={`rm-item ${shownBought ? 'rm-item-bought' : ''}`}>
-      <div className="rm-item-main rm-cart-row">
+      <div className="rm-item-main">
         <input id={checkId} type="checkbox" className="rm-bought" checked={shownBought} disabled={toggle.locked || !connected}
           aria-busy={toggle.saving} onChange={e => setBought(e.target.checked)} />
         <label htmlFor={checkId} className="rm-item-text">
-          <span className="rm-item-name">{item.name}</span>
-          {shownBought && <span className="rm-bought-label">Bought</span>}
+          <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
+          {item.note && <span className="rm-item-note">{item.note}</span>}
+          <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
+          {shownBought && <span className="rm-bought-label">Bought</span>}
           <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}{priceLabel ? `, about ${priceLabel}` : ''}</span>
         </label>
-        <span className="rm-cart-amount" aria-label={`Amount ${quantityLabel(item)}`}>{quantityLabel(item)}</span>
-        <span className="rm-cart-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
-        <span className="rm-cart-instruction">{item.note || <span className="rm-help">No special instructions</span>}</span>
+        <span className="rm-item-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
@@ -89,7 +90,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
-          <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Edit ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Edit</button>
+          <button type="button" className="rm-details-btn" aria-expanded={open} aria-controls={panelId} aria-label={`Details for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>Details</button>
         </div>
       </div>
 
