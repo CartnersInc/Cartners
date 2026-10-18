@@ -28,15 +28,16 @@ function pricesFromCompare(result) {
 }
 
 // Shopping (#4): the shared cart, the one store-run action, and nearby basket comparison.
+// Everything renders from the shell's snapshot; writes return a fresh snapshot to the shell.
 // Bought stays in the list (green + price) instead of moving into a separate Bought section.
-export default function Shopping({ workspace, actorId, api, onWorkspaceChange, notify, connected }) {
+export default function Shopping({ workspace, actorId, api, onWorkspaceChange, notify, navigate, connected }) {
   const nameRef = useRef(null), startRef = useRef(null), finishRef = useRef(null);
   const serverNowMs = useServerNow(workspace.serverNow);
   const { possessive } = people(workspace, actorId);
   const trip = activeTrip(workspace);
   const items = liveItems(workspace);
   const isShopper = trip?.claimedBy === actorId;
-  const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify };
+  const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify, navigate };
   const [itemPrices, setItemPrices] = useState(() => pricesFromCompare(samplePricing));
 
   const onRun = useMemo(
