@@ -3,6 +3,20 @@ import { useWrite } from '../../shopping/lib/useWrite.js';
 import { formatCents, parseDollars, people, whenOf } from '../../shopping/lib/format.js';
 import { activeTrip, liveItems } from '../../shopping/lib/trip.js';
 
+function centsToText(cents) {
+  return (cents / 100).toFixed(2);
+}
+
+function personalFromExpense(allocations) {
+  const map = {};
+  for (const [id, cents] of Object.entries(allocations || {})) {
+    map[id] = Number.isInteger(cents)
+      ? { text: centsToText(cents), unknown: false }
+      : { text: '', unknown: true };
+  }
+  return map;
+}
+
 // Runs a receipt can belong to: finished runs in the snapshot, plus the current one.
 export function runsOf(workspace) {
   const completed = Array.isArray(workspace.trip?.completedTrips) ? workspace.trip.completedTrips.filter(run => run?.id) : [];
@@ -13,15 +27,19 @@ export function runsOf(workspace) {
 // Record purchase (#8). Only the actual total is required for a shared receipt. In split mode,
 // personal bought requests open a short exception section: each person's actual personal subtotal.
 // The server allocates the shared remainder; this form only validates input.
-export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode, onDone, initialRunId }) {
+export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode, onDone, initialRunId, expense = null }) {
   const runs = runsOf(workspace);
   const { name, members } = people(workspace, actorId);
-  const [runId, setRunId] = useState(runs.some(run => run.id === initialRunId) ? initialRunId : (runs[0]?.id || ''));
-  const [totalText, setTotalText] = useState('');
-  const [payerId, setPayerId] = useState(actorId);
-  const [sharedIds, setSharedIds] = useState(() => members.map(m => m.id));
-  const [personal, setPersonal] = useState({}); // memberId → { text, unknown }
-  const [extraIds, setExtraIds] = useState([]);
+  const editing = Boolean(expense?.id);
+  const [runId, setRunId] = useState(() => {
+    if (editing) return expense.runId || '';
+    return runs.some(run => run.id === initialRunId) ? initialRunId : (runs[0]?.id || '');
+  });
+  const [totalText, setTotalText] = useState(() => (editing && Number.isInteger(expense.totalCents) ? centsToText(expense.totalCents) : ''));
+  const [payerId, setPayerId] = useState(editing ? expense.payerId : actorId);
+  const [sharedIds, setSharedIds] = useState(() => (editing && Array.isArray(expense.sharedMemberIds) ? expense.sharedMemberIds : members.map(m => m.id)));
+  const [personal, setPersonal] = useState(() => (editing ? personalFromExpense(expense.personalAllocations) : {})); // memberId → { text, unknown }
+  const [extraIds, setExtraIds] = useState(() => (editing ? Object.keys(expense.personalAllocations || {}) : []));
   const [separate, setSeparate] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [aiNote, setAiNote] = useState('');
@@ -41,7 +59,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
     return map;
   }, [workspace, runId]);
   const personalIds = [...new Set([...Object.keys(personalBought), ...extraIds])];
-  const alreadyRecorded = runId && (workspace.expenses || []).some(expense => expense.runId === runId);
+  const alreadyRecorded = runId && (workspace.expenses || []).some(item => item.runId === runId && item.id !== expense?.id);
 
   const { body, errors, needsReview } = useMemo(() => {
     const errs = [];
@@ -79,7 +97,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   async function submit(event) {
     event.preventDefault();
     if (errors.length || !connected) { setShowErrors(true); return; }
-    const result = await write.send('/api/expenses', 'POST', body);
+    const result = await write.send(editing ? `/api/expenses/${expense.id}` : '/api/expenses', editing ? 'PATCH' : 'POST', body);
     if (!result) return;
     notify?.(result.changeSummary || (needsReview ? 'Saved as Needs review. Nobody owes anything for it yet.' : 'Receipt saved.'));
     onDone();
@@ -120,8 +138,8 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   const retrying = write.state.phase === 'error' && write.state.retryable;
 
   return (
-    <form className="rm-card rm-form" onSubmit={submit} noValidate aria-label="Record a purchase">
-      <h2 className="rm-h2">Record a purchase</h2>
+    <form className="rm-card rm-form" onSubmit={submit} noValidate aria-label={editing ? 'Resolve this receipt' : 'Record a purchase'}>
+      <h2 className="rm-h2">{editing ? 'Resolve this receipt' : 'Record a purchase'}</h2>
       <div className="receipt-ai">
         <label htmlFor={`${ids.total}-note`}>Describe the receipt</label>
         <p className="rm-help">For example: “I paid $42.18 at QFC. $8 was my snacks; the rest is shared.”</p>
@@ -186,7 +204,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
                   {addable.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               )}
-              {needsReview && <p className="rm-notice">This receipt will save as <strong>Needs review</strong>. It won't affect balances until the missing amount is filled in.</p>}
+              {needsReview && <p className="rm-notice">{editing ? 'This receipt stays' : 'This receipt will save as'} <strong>Needs review</strong>. It won't affect balances until the missing amount is filled in.</p>}
             </div>
           </>
         )}
@@ -204,7 +222,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
           </>
         ) : (
           <>
-            <button type="submit" className="rm-btn" disabled={write.saving || !connected}>{write.saving ? 'Saving…' : body.totalCents ? `Save ${formatCents(body.totalCents)} receipt` : 'Save receipt'}</button>
+            <button type="submit" className="rm-btn" disabled={write.saving || !connected}>{write.saving ? 'Saving…' : editing ? (needsReview ? 'Save, still needs review' : (body.totalCents ? `Confirm ${formatCents(body.totalCents)} receipt` : 'Confirm receipt')) : (body.totalCents ? `Save ${formatCents(body.totalCents)} receipt` : 'Save receipt')}</button>
             <button type="button" className="rm-btn rm-secondary" disabled={write.saving} onClick={onDone}>Cancel</button>
           </>
         )}
