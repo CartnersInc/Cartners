@@ -13,10 +13,10 @@ export function runsOf(workspace) {
 // Record purchase (#8). Only the actual total is required for a shared receipt. In split mode,
 // personal bought requests open a short exception section: each person's actual personal subtotal.
 // The server allocates the shared remainder; this form only validates input.
-export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode, onDone }) {
+export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode, onDone, initialRunId }) {
   const runs = runsOf(workspace);
   const { name, members } = people(workspace, actorId);
-  const [runId, setRunId] = useState(runs[0]?.id || '');
+  const [runId, setRunId] = useState(runs.some(run => run.id === initialRunId) ? initialRunId : (runs[0]?.id || ''));
   const [totalText, setTotalText] = useState('');
   const [payerId, setPayerId] = useState(actorId);
   const [sharedIds, setSharedIds] = useState(() => members.map(m => m.id));

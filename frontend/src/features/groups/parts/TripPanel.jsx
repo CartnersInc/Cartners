@@ -5,7 +5,22 @@ import { acceptingRequests, activeTrip, lastStore, liveItems } from '../../shopp
 
 // The one store-run action for the group. With no run it starts one; during a run it shows
 // the shopper and countdown, and the shopper can Release or Finish. An active shopper is never replaced.
-export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, startRef, finishRef }) {
+export const RECORD_PURCHASE_KEY = 'roomie:recordPurchase';
+let pendingPurchaseRunId = null;
+export function queuePurchasePrompt(runId) {
+  pendingPurchaseRunId = runId;
+  try { sessionStorage.setItem(RECORD_PURCHASE_KEY, runId); } catch { /* The in-memory prompt still opens the receipt form. */ }
+}
+export function pendingPurchasePrompt() {
+  if (pendingPurchaseRunId) return pendingPurchaseRunId;
+  try { return sessionStorage.getItem(RECORD_PURCHASE_KEY); } catch { return null; }
+}
+export function clearPurchasePrompt() {
+  pendingPurchaseRunId = null;
+  try { sessionStorage.removeItem(RECORD_PURCHASE_KEY); } catch { /* Leaving the key only reopens the form once. */ }
+}
+
+export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, navigate, startRef, finishRef }) {
   const [notice, setNotice] = useState(null);
   const trip = activeTrip(workspace);
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice };
@@ -17,7 +32,7 @@ export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, 
           <button type="button" className="rm-link" onClick={() => setNotice(null)}>Dismiss</button>
         </div>
       )}
-      {trip ? <ActiveTrip {...shared} trip={trip} finishRef={finishRef} /> : <StartTrip {...shared} startRef={startRef} />}
+      {trip ? <ActiveTrip {...shared} trip={trip} finishRef={finishRef} navigate={navigate} /> : <StartTrip {...shared} startRef={startRef} />}
     </section>
   );
 }
@@ -80,7 +95,7 @@ function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, noti
   );
 }
 
-function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice, trip, finishRef }) {
+function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, serverNowMs, notify, setNotice, trip, finishRef, navigate }) {
   const [confirming, setConfirming] = useState(null); // 'finish' | 'release'
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });
   const { name } = people(workspace, actorId);
@@ -99,6 +114,10 @@ function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, ser
         : 'Run released. Unbought requests stay on the list for whoever goes next.');
       setNotice({ kind: 'ok', text });
       notify?.(text);
+      if (action === 'finish') {
+        queuePurchasePrompt(trip.id);
+        navigate?.('spending');
+      }
     }
   }
 
@@ -125,7 +144,7 @@ function ActiveTrip({ workspace, actorId, api, onWorkspaceChange, connected, ser
         <div className="rm-confirm" role="group" aria-label={confirming === 'finish' ? 'Confirm finishing the run' : 'Confirm releasing the run'}>
           <p>
             {confirming === 'finish'
-              ? <>Finish this run? {unchecked ? `${unchecked} unchecked request${unchecked === 1 ? '' : 's'} will stay on the list for the next run.` : 'Everything is checked off.'} No prices needed.</>
+              ? <>Finish this run? {unchecked ? `${unchecked} unchecked request${unchecked === 1 ? '' : 's'} will stay on the list for the next run.` : 'Everything is checked off.'} You'll record the receipt next. No prices are needed to finish.</>
               : <>Release this run? You stop being the shopper and nothing is marked bought. Others can start a new run.</>}
           </p>
           {write.state.phase === 'error' && <p className="rm-error" role="alert">{write.state.error}</p>}
