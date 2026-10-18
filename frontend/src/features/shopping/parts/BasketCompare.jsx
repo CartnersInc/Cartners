@@ -8,7 +8,7 @@ const SOURCE_LABEL = { live_api: 'Live prices', sample: 'Sample prices', unavail
 
 // Nearby basket comparison (#4). The server/provider ranks baskets and calculates package
 // costs; this only displays them. Offline, it shows the checked-in sample under a Sample label.
-export default function BasketCompare({ workspace, api, connected, items }) {
+export default function BasketCompare({ workspace, actorId, api, connected, items }) {
   const [zip, setZip] = useState(readZip);
   const [selected, setSelected] = useState(() => new Set(items.map(item => item.id)));
   const [result, setResult] = useState(null);
@@ -29,7 +29,7 @@ export default function BasketCompare({ workspace, api, connected, items }) {
     if (!connected) { setResult(samplePricing); setState({ phase: 'idle', error: '' }); return; }
     setState({ phase: 'loading', error: '' });
     try {
-      const response = await api.request('/api/baskets/compare', { method: 'POST', body: { workspaceId: workspace.workspaceId, itemIds: [...selected], postalCode } });
+      const response = await api.request('/api/baskets/compare', { method: 'POST', body: { workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), itemIds: [...selected], postalCode } });
       setResult(response); setState({ phase: 'idle', error: '' });
     } catch (err) {
       setState({ phase: 'error', error: err.message || 'Price comparison failed.' });

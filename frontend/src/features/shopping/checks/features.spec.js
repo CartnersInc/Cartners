@@ -106,3 +106,22 @@ test('split receipt sends personal subtotals; retry reuses the requestId', async
   expect(posts[1].body.requestId).toBe(posts[0].body.requestId);
   expect(posts[0].body).toMatchObject({ totalCents: 2000, payerId: 'leila', mode: 'split', sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: 600 }, status: 'confirmed' });
 });
+
+test('price comparison includes the selected actor and request ID', async ({ page }) => {
+  const pricing = await fixture('pricing');
+  const calls = await serve(page, ({ path }) => path === '/api/baskets/compare'
+    ? { json: pricing }
+    : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } });
+
+  await page.goto('/#shopping');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  await page.locator('details.rm-compare > summary').click();
+  await page.getByLabel('ZIP or postal code').fill('98105');
+  await page.getByRole('button', { name: 'Compare prices' }).click();
+  await expect(page.getByText('Sample prices')).toBeVisible();
+
+  const compare = calls.find(call => call.path === '/api/baskets/compare');
+  expect(compare.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', postalCode: '98105' });
+  expect(compare.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(compare.body.itemIds).toEqual(['item-tortillas', 'item-milk']);
+});

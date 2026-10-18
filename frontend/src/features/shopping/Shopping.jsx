@@ -77,7 +77,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
 
         <div className="rm-side">
           <TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} finishRef={finishRef} />
-          <BasketCompare workspace={workspace} api={api} connected={connected} items={items.filter(item => !item.bought)} />
+          <BasketCompare workspace={workspace} actorId={actorId} api={api} connected={connected} items={items.filter(item => !item.bought)} />
           {PUNT_PROPOSAL && <p className="rm-help rm-proposal">Proposal build: "Not here" sends a <code>punted</code> field that API v2 doesn't define yet (see #4).</p>}
         </div>
       </div>
