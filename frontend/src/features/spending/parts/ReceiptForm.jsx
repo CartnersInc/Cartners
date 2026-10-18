@@ -24,6 +24,10 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   const [extraIds, setExtraIds] = useState([]);
   const [separate, setSeparate] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [aiNote, setAiNote] = useState('');
+  const [aiPending, setAiPending] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiFilled, setAiFilled] = useState(false);
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });
   const ids = { run: useId(), total: useId(), payer: useId(), who: useId() };
 
@@ -81,6 +85,35 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
     onDone();
   }
 
+  async function fillFromNote() {
+    if (!connected || !aiNote.trim() || aiPending) return;
+    setAiPending(true); setAiError(''); setAiFilled(false);
+    try {
+      const result = await api.request('/api/ai/expense-draft', { method: 'POST', body: {
+        workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), message: aiNote.trim(), mode,
+      } });
+      if (Number.isInteger(result.totalCents) && result.totalCents > 0) setTotalText((result.totalCents / 100).toFixed(2));
+      if (workspace.actors.some(actor => actor.id === result.payerId)) setPayerId(result.payerId);
+      if (Array.isArray(result.sharedMemberIds) && result.sharedMemberIds.length) setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
+      const parsed = result.personalAllocations && typeof result.personalAllocations === 'object' ? result.personalAllocations : {};
+      const validIds = Object.keys(parsed).filter(id => members.some(member => member.id === id));
+      if (validIds.length) {
+        setExtraIds(ids => [...new Set([...ids, ...validIds.filter(id => !personalBought[id])])]);
+        setPersonal(map => {
+          const next = { ...map };
+          for (const id of validIds) next[id] = parsed[id] == null
+            ? { text: '', unknown: true }
+            : { text: (parsed[id] / 100).toFixed(2), unknown: false };
+          return next;
+        });
+      }
+      const missing = Array.isArray(result.missing) ? result.missing : [];
+      setAiFilled(true);
+      if (missing.length || result.clarification) setAiError(result.clarification || `Please fill in ${missing.join(' and ')} below. AI only uses details you included.`);
+    } catch (error) { setAiError(error.message || 'Could not read that purchase. Try again or fill the receipt in below.'); }
+    finally { setAiPending(false); }
+  }
+
   const toggleShared = id => setSharedIds(list => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]));
   const setEntry = (id, patch) => setPersonal(map => ({ ...map, [id]: { text: '', unknown: false, ...map[id], ...patch } }));
   const addable = members.filter(m => !personalIds.includes(m.id));
@@ -89,6 +122,14 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   return (
     <form className="rm-card rm-form" onSubmit={submit} noValidate aria-label="Record a purchase">
       <h2 className="rm-h2">Record a purchase</h2>
+      <div className="receipt-ai">
+        <label htmlFor={`${ids.total}-note`}>Describe the receipt</label>
+        <p className="rm-help">For example: “I paid $42.18 at QFC. $8 was my snacks; the rest is shared.”</p>
+        <textarea id={`${ids.total}-note`} rows="2" maxLength="500" value={aiNote} onChange={event => setAiNote(event.target.value)} placeholder="Say who paid and the exact total…" disabled={!connected || aiPending || write.locked} />
+        <div className="rm-actions"><button type="button" className="rm-btn rm-secondary" disabled={!connected || !aiNote.trim() || aiPending || write.locked} onClick={fillFromNote}>{aiPending ? 'Reading…' : 'Fill receipt with AI'}</button></div>
+        {aiFilled && <p className="rm-notice" role="status">AI filled a draft. Check the fields below, then save when they’re right. Nothing is recorded yet.</p>}
+        {aiError && <p className="rm-help" role="status">{aiError}</p>}
+      </div>
       <fieldset disabled={write.locked || !connected} className="rm-fieldset">
         <div className="rm-field">
           <label htmlFor={ids.run}>Store run</label>

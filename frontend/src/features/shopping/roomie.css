@@ -64,6 +64,7 @@
 .rm-badge { display: inline-block; border-radius: 6px; padding: 2px 8px; font-size: .7rem; font-weight: 800; background: var(--pale); }
 .rm-badge-new { background: #dff0c8; color: #2d5a1a; }
 .rm-badge-next { background: #f1ece0; color: #6a5a3a; }
+.rm-badge-punted { background: #fbefd9; color: #7a4a12; }
 
 /* Store run */
 .rm-sentence { font-size: 1rem; line-height: 2.4; margin: 8px 0 0; }
@@ -93,7 +94,35 @@
 .rm-item-meta { font-size: .75rem; color: var(--muted); }
 .rm-scope { font-weight: 750; color: var(--dark); }
 .rm-scope-personal { color: #6a4f10; }
-.rm-item-bought .rm-item-name { text-decoration: line-through; color: var(--muted); }
+.rm-item-bought {
+  background: #e7f3ea;
+  border-color: #9ec5a8;
+  box-shadow: inset 3px 0 0 var(--green);
+}
+.rm-item-bought .rm-item-name { color: var(--dark); }
+.rm-bought-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.rm-item-price {
+  flex-shrink: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: .9rem;
+  color: var(--dark);
+  white-space: nowrap;
+}
+.rm-item-bought .rm-item-price { color: var(--green); }
 .rm-item-btns { display: flex; gap: 6px; flex-shrink: 0; }
 .rm-details-btn { min-height: 40px; padding: 6px 10px; border: 1px solid #c6d2bd; border-radius: 8px; background: transparent; font-size: .76rem; font-weight: 700; }
 .rm-details-btn:hover:not(:disabled) { background: var(--pale); }
@@ -127,6 +156,10 @@
 
 /* Spending */
 .rm-form { display: grid; gap: 4px; }
+.receipt-ai { display: grid; gap: 8px; margin-bottom: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--pale); }
+.receipt-ai > label { font-size: .8rem; font-weight: 750; }
+.receipt-ai textarea { width: 100%; min-height: 68px; resize: vertical; border: 1px solid #b9c7ae; border-radius: 8px; background: var(--white); padding: 10px 12px; font-size: .85rem; }
+.receipt-ai .rm-actions { justify-content: flex-start; margin: 0; }
 .rm-form .rm-field { margin-top: 12px; }
 .rm-exception { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .rm-exception-who { flex: 1 1 100%; font-size: .85rem; }

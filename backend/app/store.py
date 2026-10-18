@@ -377,6 +377,7 @@ class Store:
             "removed": bool(row["removed"]),
             "runId": row["run_id"],
             "reservedPlanId": row["reserved_plan_id"],
+            "punted": loads(row["punted_json"]),
         }
 
     def _trip_dict(self, row, server_now: str) -> dict[str, Any]:
@@ -410,8 +411,8 @@ class Store:
             """
             INSERT INTO items(
               id, workspace_id, name, quantity, unit, note, request_for, added_by,
-              bought, version, created_at, removed, run_id, reserved_plan_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              bought, version, created_at, removed, run_id, reserved_plan_id, punted_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               name=excluded.name,
               quantity=excluded.quantity,
@@ -424,7 +425,8 @@ class Store:
               created_at=excluded.created_at,
               removed=excluded.removed,
               run_id=excluded.run_id,
-              reserved_plan_id=excluded.reserved_plan_id
+              reserved_plan_id=excluded.reserved_plan_id,
+              punted_json=excluded.punted_json
             """,
             (
                 item["id"],
@@ -441,6 +443,7 @@ class Store:
                 1 if item["removed"] else 0,
                 item.get("runId"),
                 item.get("reservedPlanId"),
+                dumps(item["punted"]) if item.get("punted") else None,
             ),
         )
 
@@ -750,10 +753,14 @@ class Store:
                 item["bought"] = bool(body["bought"])
             if "removed" in body and body["removed"] is not None:
                 item["removed"] = bool(body["removed"])
+            if item["bought"]:
+                item["punted"] = None
+            summary = f"Updated {item['name']}."
+            if body.get("punted") is not None:
+                summary = self._apply_punt(workspace_id, actor_id, item, before, bool(body["punted"]))
             item["version"] = int(item["version"]) + 1
             self._save_item(workspace_id, item)
             self._bump_revision(workspace_id)
-            summary = f"Updated {item['name']}."
             action_id = self._record_action(
                 request_id=request_id,
                 workspace_id=workspace_id,
@@ -763,6 +770,30 @@ class Store:
                 undo={"kind": "patch_item", "before": before, "after": item},
             )
             return {"workspace": self.snapshot(workspace_id), "actionId": action_id, "changeSummary": summary}
+
+    def _apply_punt(
+        self, workspace_id: str, actor_id: str, item: dict[str, Any], before: dict[str, Any], punted: bool
+    ) -> str:
+        """PROPOSAL (#4): the shopper moves a request the store doesn't have off the current run
+        ("Not here"), or puts it back while the same run is still going. The next run claims it."""
+        trip = self.conn.execute("SELECT * FROM trips WHERE workspace_id = ?", (workspace_id,)).fetchone()
+        if not trip or not trip["claimed_by"]:
+            raise ApiError(422, "NO_ACTIVE_RUN", "There's no store run in progress.")
+        if trip["claimed_by"] != actor_id:
+            raise ApiError(403, "NOT_SHOPPER", "Only the current shopper can move requests off the run.")
+        if before["bought"] or before["removed"]:
+            raise ApiError(422, "ITEM_NOT_OPEN", "Only unbought requests can be moved.")
+        if punted:
+            if before.get("runId") != trip["id"]:
+                raise ApiError(422, "NOT_ON_RUN", "That request isn't on this run.")
+            item["runId"] = None
+            item["punted"] = {"by": actor_id, "at": iso(utc_now()), "storeName": trip["store_name"], "runId": trip["id"]}
+            return f"Moved {item['name']} to the next run (not at {trip['store_name']})."
+        if (before.get("punted") or {}).get("runId") != trip["id"]:
+            raise ApiError(422, "NOT_PUNTED_HERE", "Only requests moved off this run can be put back.")
+        item["runId"] = trip["id"]
+        item["punted"] = None
+        return f"Put {item['name']} back on the run."
 
     def save_draft(self, draft: dict[str, Any]) -> None:
         with transaction(self.conn):

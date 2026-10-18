@@ -214,6 +214,23 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertIn("Nothing is saved", body["sampleNotice"])
         self.assertTrue(body["options"][0]["ingredients"][0]["id"].startswith("ingredient-"))
 
+    def test_expense_ai_drafts_reviewable_fields_without_saving(self):
+        with patch("app.main.draft_expense_from_note", return_value={
+            "totalCents": 4218, "payerName": "Leila", "sharedNames": ["Sam"],
+            "personalAmounts": [{"personName": "Sam", "amountCents": 800}], "clarification": None,
+        }):
+            with TestClient(app) as client:
+                response = client.post("/api/ai/expense-draft", json={
+                    "workspaceId": "demo-roommates", "actorId": "leila", "requestId": "receipt-draft-1",
+                    "message": "I paid $42.18 at QFC; $8 was Sam's snacks, rest shared.", "mode": "split",
+                })
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()
+        self.assertEqual(draft["totalCents"], 4218)
+        self.assertEqual(draft["payerId"], "leila")
+        self.assertEqual(draft["personalAllocations"], {"sam": 800})
+        self.assertFalse(draft["saved"])
+
 
 if __name__ == "__main__":
     unittest.main()

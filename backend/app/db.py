@@ -150,6 +150,10 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    # PROPOSAL (#4): "Not here" punt record, added to databases created before it existed.
+    item_columns = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
+    if "punted_json" not in item_columns:
+        conn.execute("ALTER TABLE items ADD COLUMN punted_json TEXT")
     conn.commit()
 
 

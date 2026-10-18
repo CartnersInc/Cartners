@@ -6,6 +6,7 @@ test('sample meal, refinement, grocery, clarification, and draft restoration are
   await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ status: 503, json: { error: { message: 'Backend not started' } } }));
   await page.goto('/');
   await expect(page.getByText('Sample preview', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Something new to try' })).toBeVisible();
   await page.getByRole('button', { name: 'Surprise me', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Build-your-own black bean tacos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add to cart', exact: true })).toBeDisabled();

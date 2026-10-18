@@ -30,7 +30,7 @@ from app.schemas import (
     TripPatchRequest,
     UndoRequest,
 )
-from app.services.gemini_suggestions import EventOption, Preferences, generate_suggestion, suggest_for_event
+from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, suggest_for_event
 from app.store import Store
 from app.suggestions import build_suggestion, require_message
 
@@ -97,6 +97,14 @@ class SuggestionRequest(BaseModel):
     listRevision: int = Field(ge=0)
     preferences: Preferences
     previousDraft: dict | None = None
+
+
+class ExpenseDraftRequest(BaseModel):
+    workspaceId: str = Field(min_length=1, max_length=80)
+    actorId: str = Field(min_length=1, max_length=80)
+    requestId: str | None = Field(default=None, max_length=80)
+    message: str = Field(min_length=1, max_length=500)
+    mode: str = Field(pattern="^(pooled|split)$")
 
 
 def make_preview_draft(result: dict, request: SuggestionRequest) -> dict:
@@ -366,6 +374,49 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     @application.post("/api/expenses")
     def create_expense(body: ExpenseRequest, request: Request) -> dict[str, Any]:
         return store_of(request).create_expense(body.model_dump())
+
+    @application.post("/api/ai/expense-draft")
+    async def ai_expense_draft(body: ExpenseDraftRequest, request: Request) -> dict[str, Any]:
+        store = store_of(request)
+        store.require_actor(body.workspaceId, body.actorId)
+        snapshot = store.snapshot(body.workspaceId)
+        roster = [person for person in snapshot.get("actors", [])]
+        mode = snapshot.get("preferences", {}).get("spendingMode") or body.mode
+        try:
+            parsed = await run_in_threadpool(
+                draft_expense_from_note,
+                body.message,
+                members=[person["name"] for person in roster],
+                mode=mode,
+            )
+            by_name = {person["name"].strip().casefold(): person["id"] for person in roster}
+            payer_id = by_name.get((parsed.get("payerName") or "").strip().casefold())
+            allocations = {}
+            for item in parsed.get("personalAmounts", []):
+                member_id = by_name.get((item.get("personName") or "").strip().casefold())
+                if member_id:
+                    allocations[member_id] = item.get("amountCents")
+            shared_ids = [by_name[name.strip().casefold()] for name in parsed.get("sharedNames", []) if name.strip().casefold() in by_name]
+            unresolved = []
+            if parsed.get("totalCents") is None: unresolved.append("receipt total")
+            if not payer_id: unresolved.append("who paid")
+            return {
+                "totalCents": parsed.get("totalCents"),
+                "payerId": payer_id,
+                "sharedMemberIds": shared_ids,
+                "personalAllocations": allocations,
+                "clarification": parsed.get("clarification"),
+                "missing": unresolved,
+                "sourceMode": "live_ai",
+                "saved": False,
+            }
+        except RuntimeError as exc:
+            message = str(exc)
+            if "Set GEMINI_API_KEY" in message:
+                message = "Set GEMINI_API_KEY in backend/.env, then restart the backend."
+            return JSONResponse(status_code=503, content={"error": {"code": "AI_UNAVAILABLE", "message": message, "retryable": True, "requestId": body.requestId}})
+        except ValueError as exc:
+            return JSONResponse(status_code=422, content={"error": {"code": "INVALID_EXPENSE_NOTE", "message": str(exc), "retryable": False, "requestId": body.requestId}})
 
     @application.post("/api/baskets/compare")
     def compare_baskets(body: BasketCompareRequest, request: Request) -> dict[str, Any]:
