@@ -27,6 +27,10 @@ The feature/API interface is published in [issue #3](https://github.com/XavierGo
 - Home accepts direct v2 draft responses; confirmation/Undo use the response envelope. It retains input, drafts, exclusions, pending confirmation IDs, and saved Undo metadata in sessionStorage by group. These fictional examples are not private production storage.
 - Plans receives `onPlanDateChange(date)` so an empty date returns to Home without an event form.
 
+## Featured recipe feed
+
+Home requests `GET /api/discovery/featured?workspaceId=...` when the Home area is visible and the backend is connected. It expects `{items:[{id,title,cuisine,thumbnailUrl,sourceUrl,sourceName,sourceType,prompt}]}`. Return up to eight items; `sourceType` is `video` or `article`. The frontend checks that media URLs use HTTPS, shows the source link, and sends `prompt` through the existing suggestion route when someone chooses **Make this tonight**. The carousel advances every seven seconds, stops while hovered/focused, and starts paused for reduced-motion preference. It does not autoplay media. Cache provider lookups in the API so opening Home does not repeatedly search YouTube or other sources.
+
 ## Checks
 
 ```sh

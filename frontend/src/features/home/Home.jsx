@@ -1,9 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
 import { sampleDrafts, starterPrompts } from '../../samples.js';
 
-export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
+function featuredItem(value) {
+  if (!value || typeof value.id !== 'string' || typeof value.title !== 'string' || !value.title.trim()
+    || typeof value.thumbnailUrl !== 'string' || typeof value.sourceUrl !== 'string') return false;
+  try { return new URL(value.thumbnailUrl).protocol === 'https:' && new URL(value.sourceUrl).protocol === 'https:'; }
+  catch { return false; }
+}
+
+export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
   const setMessage = value => onEntryChange({ ...entry, message: value });
   const [pending, setPending] = useState('');
@@ -14,13 +21,52 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
   const busy = useRef(false);
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [featuredStatus, setFeaturedStatus] = useState('offline');
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [featuredPaused, setFeaturedPaused] = useState(() => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+  const [featuredInteracting, setFeaturedInteracting] = useState(false);
+  const [featuredImageFailed, setFeaturedImageFailed] = useState(false);
+  const [featuredRetry, setFeaturedRetry] = useState(0);
   const draft = entry?.draft;
   const meal = draft?.recommendation;
+  const featured = featuredItems[featuredIndex];
   const rows = meal?.ingredients || draft?.items || [];
   const previews = meal?.listPreview || draft?.listPreview || [];
   const recoveringSave = !!attempt.current;
   const locked = !!pending || recoveringSave;
   const staleDraft = draft && !entry.localOnly && !recoveringSave && draft.listRevision !== workspace.listRevision;
+
+  useEffect(() => {
+    if (!active || draft) return;
+    if (!connected) { setFeaturedStatus('offline'); return; }
+    const controller = new AbortController();
+    setFeaturedStatus('loading');
+    api.request('/api/discovery/featured?workspaceId=' + encodeURIComponent(workspace.workspaceId), { signal: controller.signal })
+      .then(result => {
+        const items = Array.isArray(result?.items) ? result.items.filter(featuredItem).slice(0, 8) : [];
+        setFeaturedItems(items);
+        setFeaturedIndex(0);
+        setFeaturedImageFailed(false);
+        setFeaturedStatus(items.length ? 'ready' : 'empty');
+      })
+      .catch(() => { if (!controller.signal.aborted) setFeaturedStatus('error'); });
+    return () => controller.abort();
+  }, [active, api, connected, draft, featuredRetry, workspace.workspaceId]);
+
+  useEffect(() => {
+    if (!active || !featured || featuredPaused || featuredInteracting || featuredItems.length < 2) return;
+    const timer = setInterval(() => {
+      setFeaturedIndex(index => (index + 1) % featuredItems.length);
+      setFeaturedImageFailed(false);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [active, featured, featuredIndex, featuredInteracting, featuredItems.length, featuredPaused]);
+
+  function moveFeatured(direction) {
+    setFeaturedIndex(index => (index + direction + featuredItems.length) % featuredItems.length);
+    setFeaturedImageFailed(false);
+  }
 
   function showDraft(nextDraft, localOnly) {
     onEntryChange({ draft: nextDraft, localOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
@@ -140,7 +186,29 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <p className="intro">Tell us what sounds good. We’ll help with the meal and the grocery list.</p>
         {composer}{starters}{options}
       </div>
-      <figure className="table-photo"><img src={`${import.meta.env.BASE_URL}assets/tacos.jpg`} alt="Tacos and toppings on a shared table" /><figcaption>A little inspiration for tonight.<span>Illustrative photo</span></figcaption></figure>
+      <section className="featured-recipes" aria-label="Featured recipes" aria-roledescription="carousel"
+        onMouseEnter={() => setFeaturedInteracting(true)} onMouseLeave={() => setFeaturedInteracting(false)}
+        onFocusCapture={() => setFeaturedInteracting(true)}
+        onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFeaturedInteracting(false); }}>
+        <div className="featured-heading"><h2>Something new to try</h2>{featuredItems.length > 1 && <span>{featuredIndex + 1} of {featuredItems.length}</span>}</div>
+        {featured ? <article className="featured-slide" aria-roledescription="slide" aria-label={(featuredIndex + 1) + ' of ' + featuredItems.length + ': ' + featured.title}>
+          <div className="featured-media">{!featuredImageFailed ? <img src={featured.thumbnailUrl} alt={'Recipe for ' + featured.title} loading="lazy" referrerPolicy="no-referrer" onError={() => setFeaturedImageFailed(true)} /> : <div className="featured-image-fallback">{featured.cuisine || 'A new favorite'}</div>}</div>
+          <div className="featured-copy"><p className="featured-source">{[featured.cuisine, featured.sourceName].filter(Boolean).join(' · ') || 'A recipe to discover'}</p><h3>{featured.title}</h3>
+            <div className="featured-actions"><button className="button primary" disabled={!connected || !!pending} onClick={() => requestSuggestion(featured.prompt || ('Show me how to make ' + featured.title + (featured.cuisine ? ', a ' + featured.cuisine + ' dish' : '') + ' for our group.'))}>Make this tonight<Icon name="arrow" /></button>
+              <a className="featured-link" href={featured.sourceUrl} target="_blank" rel="noopener noreferrer">{featured.sourceType === 'article' ? 'Read recipe' : 'Watch recipe'}<Icon name="arrow" /></a>
+            </div>
+          </div>
+        </article> : <div className="featured-empty" aria-live="polite" aria-busy={featuredStatus === 'loading'}>
+          <h3>{featuredStatus === 'loading' ? 'Finding a fresh idea…' : 'A fresh dish from somewhere new'}</h3>
+          <p>{featuredStatus === 'offline' ? 'Featured recipes will appear when discovery is connected.' : featuredStatus === 'error' ? 'Couldn’t load the recipe picks just now.' : featuredStatus === 'empty' ? 'No recipe picks are available yet.' : 'A rotating mix of recipes and cooking videos, picked for your group.'}</p>
+          {(featuredStatus === 'error' || featuredStatus === 'empty') && <button className="text-button" onClick={() => setFeaturedRetry(value => value + 1)}>Try again<Icon name="arrow" /></button>}
+        </div>}
+        {featuredItems.length > 1 && <div className="featured-controls">
+          <button className="text-button" onClick={() => moveFeatured(-1)} aria-label="Previous recipe">Previous</button>
+          <button className="text-button" onClick={() => setFeaturedPaused(value => !value)} aria-pressed={featuredPaused}>{featuredPaused ? 'Play slideshow' : 'Pause slideshow'}</button>
+          <button className="text-button" onClick={() => moveFeatured(1)} aria-label="Next recipe">Next</button>
+        </div>}
+      </section>
     </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}</div>}
 
     {error && <div className="notice error" role="alert"><p>{error}</p>{!recoveringSave && !saved && !undoAttempt.current && <button className="text-button" onClick={() => showSample('meal')}>Explore a sample meal<Icon name="arrow" /></button>}</div>}

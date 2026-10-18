@@ -87,15 +87,15 @@
   ],
   "narrative": {
     "northStar": "Cartners' established warm green world",
-    "overview": "Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.",
+    "overview": "Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and a featured recipe carousel using thumbnails supplied by discovery sources. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.",
     "keyCharacteristics": [
       "Warm tonal surfaces and fine dividing lines.",
-      "Rounded controls, restrained photography, and compact supporting text.",
+      "Rounded controls, recipe-source thumbnails, and compact supporting text.",
       "A five-area shell that changes from a side rail to bottom navigation."
     ],
     "rules": [],
     "dos": [
-      "Do retain Manrope, the established palette, and original food photography.",
+      "Do retain Manrope, the established palette, and source-attributed recipe thumbnails.",
       "Do use visible keyboard focus, labeled controls, and the implemented 44px minimum control height.",
       "Do distinguish sample, pending, error, stale, and saved states with explicit text."
     ],

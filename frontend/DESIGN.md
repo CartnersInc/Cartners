@@ -73,11 +73,11 @@ components:
 
 **Creative North Star: "Cartners' established warm green world"**
 
-Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and the original food photography. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.
+Cartners retains its established warm green visual system: Manrope, dark green text, a pale green navigation rail, a warm ground, and a featured recipe carousel using thumbnails supplied by discovery sources. This record describes the shared shell, Home, and Plans as implemented; it does not establish styles for teammate-owned feature screens.
 
 **Key Characteristics:**
 - Warm tonal surfaces and fine dividing lines.
-- Rounded controls, restrained photography, and compact supporting text.
+- Rounded controls, recipe-source thumbnails, and compact supporting text.
 - A five-area shell that changes from a side rail to bottom navigation.
 
 ## Colors
@@ -92,15 +92,15 @@ Manrope is used throughout, with Arial and sans-serif fallbacks. Headings use co
 
 The desktop shell has a fixed 210px rail and a flexible content column. Main content is centered with a 1320px maximum width. At 1100px, page gutters reduce to 28px; Home's columns and Plans' weekly list/preferences sidebar collapse at 900px. At 700px, the rail becomes a fixed five-item bottom navigation, gutters become 20px, group selection wraps below the wordmark, and content reserves bottom space including the safe-area inset. At 1600px, the main top padding increases to 40px.
 
-Home begins with the request composer, three immediate starters, and an illustrative photograph. Dates and preferences expand from one context summary. Once a draft is returned, the idea and cart-change summary lead the page; the follow-up composer sits below. Detailed ingredient checkboxes and recipe steps expand on request. Empty activity does not appear. Plans uses dated rows and a separate preferences surface. These describe the scoped pages, not a required composition for every screen.
+Home begins with the request composer, three immediate starters, and an optional rotating recipe carousel. Each slide identifies its source and links to its recipe or video; it does not autoplay media. Dates and preferences expand from one context summary. Once a draft is returned, the idea and cart-change summary lead the page; the follow-up composer sits below. Detailed ingredient checkboxes and recipe steps expand on request. Empty activity does not appear. Plans uses dated rows and a separate preferences surface. These describe the scoped pages, not a required composition for every screen.
 
 ## Elevation & Depth
 
-The scoped implementation is flat: no box shadows. Warm ground, white editable surfaces, pale preference/notice surfaces, borders, and open spacing distinguish layers. The photograph is clipped into a rounded surface with a white caption. A dark fixed toast communicates a completed update.
+The scoped implementation is flat: no box shadows. Warm ground, white editable surfaces, pale preference/notice surfaces, borders, and open spacing distinguish layers. Recipe thumbnails are clipped into a rounded card, with source, title, and actions below. A dark fixed toast communicates a completed update.
 
 ## Shapes
 
-Controls and active navigation share softly rounded corners; composer, photograph, and preferences panel use the larger surface radius. Starter chips are pill shaped. Row separators are thin and quiet. Avatars are circular. Checkbox accents use green.
+Controls and active navigation share softly rounded corners; composer, recipe card, and preferences panel use the larger surface radius. Starter chips are pill shaped. Row separators are thin and quiet. Avatars are circular. Checkbox accents use green.
 
 ## Components
 
@@ -115,7 +115,7 @@ Controls and active navigation share softly rounded corners; composer, photograp
 ## Do's and Don'ts
 
 ### Do:
-- Do retain Manrope, the established palette, and original food photography.
+- Do retain Manrope, the established palette, and source-attributed recipe thumbnails.
 - Do use visible keyboard focus, labeled controls, and the implemented 44px minimum control height.
 - Do distinguish sample, pending, error, stale, and saved states with explicit text.
 

@@ -75,10 +75,25 @@ p { line-height: 1.65; max-width: 70ch; }
 .chip { min-height: 44px; border-radius: 24px; padding: 9px 12px; font-size: .75rem; border: 1px solid #c6d2bd; background: transparent; font-weight: 650; }
 .chip:hover:not(:disabled) { background: var(--pale); }
 .mode-switch { font-size: .75rem; margin-top: 5px; }
-.table-photo { position: relative; overflow: hidden; border-radius: 14px; height: 350px; align-self: start; margin-top: 6px; background: var(--rail); }
-.table-photo img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
-.table-photo figcaption { position: absolute; inset: auto 12px 12px; background: var(--white); padding: 14px 17px; border-radius: 8px; font-size: 1rem; font-weight: 750; }
-.table-photo figcaption span { display: block; font-size: .65rem; color: var(--muted); font-weight: 500; margin-top: 5px; }
+.featured-recipes { min-width: 0; overflow: hidden; border-radius: 14px; background: var(--pale); align-self: start; }
+.featured-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 15px 16px 12px; }
+.featured-heading h2 { font-size: .95rem; letter-spacing: -.015em; }
+.featured-heading > span, .featured-source { color: var(--muted); font-size: .7rem; }
+.featured-media { height: 190px; background: var(--rail); }
+.featured-media img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.featured-image-fallback { display: grid; place-items: center; height: 100%; padding: 20px; color: var(--dark); font-size: 1.1rem; font-weight: 750; text-align: center; }
+.featured-copy { padding: 14px 16px 16px; }
+.featured-copy h3 { margin-top: 6px; line-height: 1.4; }
+.featured-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; }
+.featured-actions .button { min-height: 40px; padding: 9px 12px; }
+.featured-link { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--green); font-size: .75rem; font-weight: 700; }
+.featured-link .icon { width: 14px; }
+.featured-empty { min-height: 190px; display: flex; flex-direction: column; justify-content: end; gap: 9px; padding: 17px; background: var(--rail); }
+.featured-empty h3 { max-width: 22ch; font-size: 1.05rem; line-height: 1.35; }
+.featured-empty p { max-width: 32ch; color: var(--muted); font-size: .78rem; }
+.featured-empty .text-button { font-size: .78rem; }
+.featured-controls { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 0 16px 10px; }
+.featured-controls .text-button { min-height: 40px; font-size: .72rem; }
 .draft { padding-top: 25px; border-top: 1px solid var(--line); }
 .draft-heading { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 22px; }
 .source-label { padding: 6px 10px; border-radius: 5px; background: var(--pale); color: var(--dark); font-size: .75rem; font-weight: 750; }
@@ -129,12 +144,18 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
   .discovery { gap: 28px; grid-template-columns: minmax(0,1fr) 240px; }
   .main-content { padding-inline: 28px; }
   .topbar, .app-footer { margin-inline: 28px; }
-  .table-photo { height: 300px; }
+  .featured-media, .featured-empty { height: 180px; min-height: 180px; }
   .draft-layout { gap: 30px; }
 }
 @media (max-width: 900px) {
   .discovery { grid-template-columns: 1fr; }
-  .table-photo { height: 200px; width: 100%; }
+  .featured-recipes { display: grid; grid-template-columns: minmax(150px,.8fr) minmax(0,1fr); }
+  .featured-heading { grid-column: 1 / -1; }
+  .featured-media, .featured-empty { height: 100%; min-height: 220px; }
+  .featured-empty { grid-column: 1; grid-row: 2; }
+  .featured-slide { display: contents; }
+  .featured-copy { align-self: center; padding: 18px; }
+  .featured-controls { grid-column: 1 / -1; }
   .draft-layout { grid-template-columns: 1fr; gap: 25px; }
   .connection-label { max-width: 150px; text-align: right; }
 }
@@ -166,8 +187,8 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
   .composer textarea { font-size: .88rem; }
   .composer-bottom { align-items: stretch; flex-wrap: wrap; }
   .composer-bottom .button, .date-control { flex: 1; }
-  .table-photo { height: 190px; }
-  .table-photo figcaption { padding: 10px 13px; }
+  .featured-recipes { display: block; }
+  .featured-media, .featured-empty { height: 190px; min-height: 190px; }
   .draft-layout { gap: 24px; }
   .draft-heading .text-button { margin-left: 0; }
   .draft-actions { align-items: stretch; flex-direction: column; }
