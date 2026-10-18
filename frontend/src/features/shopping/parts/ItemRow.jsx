@@ -2,13 +2,14 @@ import { useEffect, useId, useState } from 'react';
 import { useWrite } from '../lib/useWrite.js';
 import { formatCents, people, quantityLabel, scopeLabel, UNITS } from '../lib/format.js';
 import { PUNT_PROPOSAL } from '../lib/proposal.js';
+import { recipeLabel } from '../lib/recipes.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
 // One request stays readable in the cart: item, amount, estimated price, and instructions.
 // Bought stays in place (green highlight) instead of moving to a separate Bought list.
 // Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
-export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price }) {
+export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
@@ -76,6 +77,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <label htmlFor={checkId} className="rm-item-text">
           <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
           {item.note && <span className="rm-item-note">{item.note}</span>}
+          {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
           {shownBought && <span className="rm-bought-label">Bought</span>}
@@ -84,8 +86,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <span className="rm-item-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
-            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
-              aria-label={canPunt ? `Proposal: ${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
+            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}
+              aria-label={canPunt ? `${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
               onClick={() => setPunted(canPunt)}>
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>

@@ -813,7 +813,7 @@ class Store:
                 ),
             )
 
-    def get_draft(self, draft_id: str, workspace_id: str) -> dict[str, Any]:
+    def get_draft(self, draft_id: str, workspace_id: str, request_for: str | None = None) -> dict[str, Any]:
         row = self.conn.execute(
             "SELECT * FROM drafts WHERE id = ? AND workspace_id = ?",
             (draft_id, workspace_id),
@@ -823,16 +823,24 @@ class Store:
         draft = loads(row["payload_json"], {})
         items = self._load_items(workspace_id)
         ws = self.require_workspace(workspace_id)
-        return self.refresh_draft_preview(draft, items, ws["list_revision"])
+        if request_for and request_for != "household":
+            self.require_actor(workspace_id, request_for)
+        return self.refresh_draft_preview(draft, items, ws["list_revision"], request_for)
 
     def refresh_draft_preview(
-        self, draft: dict[str, Any], items: list[dict[str, Any]], list_revision: int
+        self, draft: dict[str, Any], items: list[dict[str, Any]], list_revision: int,
+        request_for: str | None = None,
     ) -> dict[str, Any]:
         draft = copy.deepcopy(draft)
         draft["listRevision"] = list_revision
         if draft.get("kind") == "recommendation":
             ingredients = draft["recommendation"]["ingredients"]
-            draft["recommendation"]["listPreview"] = build_list_preview(ingredients, items)
+            if request_for:
+                ingredients = [{**ingredient, "requestFor": request_for} for ingredient in ingredients]
+            open_run_id = self._assign_run_if_open(draft["workspaceId"], iso(utc_now()))
+            draft["recommendation"]["listPreview"] = build_list_preview(
+                ingredients, items, combine_reserved=True, open_run_id=open_run_id
+            )
         elif draft.get("kind") == "grocery_list":
             draft["listPreview"] = build_list_preview(draft.get("items") or [], items)
         return draft
@@ -883,9 +891,20 @@ class Store:
             if kind == "recommendation" and body.get("target", "cart") == "cart":
                 recipe = draft["recommendation"]
                 plan_id = new_id("plan")
-                preview = build_list_preview(recipe["ingredients"], items)
+                ingredients = recipe["ingredients"]
+                request_for = body.get("requestFor") or "household"
+                if request_for:
+                    if request_for != "household":
+                        self.require_actor(workspace_id, request_for)
+                    ingredients = [{**ingredient, "requestFor": request_for} for ingredient in ingredients]
+                preview = build_list_preview(
+                    ingredients,
+                    items,
+                    combine_reserved=True,
+                    open_run_id=self._assign_run_if_open(workspace_id, now),
+                )
                 updated, deltas = apply_preview_to_cart(
-                    recipe["ingredients"],
+                    ingredients,
                     preview,
                     items,
                     excluded_ids=excluded,
@@ -920,7 +939,7 @@ class Store:
                         recipe["title"],
                         plan_date,
                         recipe.get("servings"),
-                        dumps(recipe),
+                        dumps({**recipe, "requestFor": request_for}),
                         now,
                     ),
                 )

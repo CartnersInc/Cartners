@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { localDate, weekDates, shiftWeek } from './dates.js';
-import EventPlan from './EventPlan.jsx';
 
 const list = text => [...new Set(text.split(',').map(value => value.trim()).filter(Boolean))];
-export default function Plans({ workspace, actorId, api, onWorkspaceChange, notify, connected, onPlanDateChange, onUseDraft }) {
+export default function Plans({ workspace, actorId, api, onWorkspaceChange, notify, connected, navigate, onPlanDateChange }) {
   const [anchor, setAnchor] = useState(localDate);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -12,12 +11,11 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, noti
   const [values, setValues] = useState({ servings: workspace.preferences.servings, restrictions: workspace.preferences.restrictions.join(', '), likes: workspace.preferences.likes?.join(', ') || '', maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 });
   const attempt = useRef(null);
   const busy = useRef(false);
-  const [eventDraft, setEventDraft] = useState(null);
   const dates = weekDates(anchor);
   const format = (date, options) => new Intl.DateTimeFormat(undefined, options).format(new Date(`${date}T12:00:00`));
   function planFor(date) {
     onPlanDateChange(date);
-    setEventDraft({ name: '', planDate: date, time: '18:30', theme: 'Weeknight dinner', notes: '' });
+    navigate('home');
   }
   function editPreferences() {
     setValues({ servings: workspace.preferences.servings, restrictions: workspace.preferences.restrictions.join(', '), likes: workspace.preferences.likes?.join(', ') || '', maxPrepMinutes: workspace.preferences.maxPrepMinutes || 30 });
@@ -39,9 +37,8 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, noti
     } catch (err) { setError(err.message); }
     finally { setPending(false); busy.current = false; }
   }
-  if (eventDraft) return <EventPlan workspace={workspace} actorId={actorId} api={api} connected={connected} initial={eventDraft} onBack={() => setEventDraft(null)} onUseDraft={onUseDraft} />;
   return <div className="plans-page">
-    <div className="page-heading"><div><h1>A place for dinner plans.</h1><p className="intro">Keep what’s decided. Leave room for the rest.</p></div><button className="button primary" onClick={() => planFor(localDate())}>Plan a meal<Icon name="arrow" /></button></div>
+    <div className="page-heading"><div><h1>A place for dinner plans.</h1><p className="intro">Keep what’s decided. Leave room for the rest.</p></div><button className="button primary" onClick={() => planFor(localDate())}>Find dinner<Icon name="arrow" /></button></div>
     <div className="plans-layout"><section aria-labelledby="week-heading"><div className="week-toolbar"><h2 id="week-heading">{format(dates[0], { month: 'short', day: 'numeric' })} – {format(dates[6], { month: 'short', day: 'numeric', year: 'numeric' })}</h2><div><button className="text-button" aria-label="Previous week" onClick={() => setAnchor(shiftWeek(anchor, -1))}>Earlier</button><button className="text-button" onClick={() => setAnchor(localDate())}>This week</button><button className="text-button" aria-label="Next week" onClick={() => setAnchor(shiftWeek(anchor, 1))}>Later</button></div></div><ul className="week-list">{dates.map(date => {
       const meals = workspace.plans.filter(plan => (plan.date || plan.planDate) === date);
       return <li key={date} className={date === localDate() ? 'today' : ''}><div className="plan-day"><span>{format(date, { weekday: 'short' })}</span><strong>{format(date, { day: 'numeric' })}</strong>{date === localDate() && <small>Today</small>}</div><div className="plan-content">{meals.length ? meals.map((plan, index) => <div key={plan.id || index} className="saved-plan"><h3>{plan.title || plan.recommendation?.title || 'Saved meal'}</h3><p className="small muted">Saved dinner plan{plan.servings ? ` · ${plan.servings} servings` : ''}</p>{(plan.recommendation?.steps || plan.steps) && <details><summary>Recipe steps</summary><ol className="recipe-steps">{(plan.recommendation?.steps || plan.steps).map((step, i) => <li key={i}>{step}</li>)}</ol></details>}</div>) : <button className="empty-day" onClick={() => planFor(date)} aria-label={`Plan a meal for ${date}`}><span>No meal planned</span><span>Find an idea<Icon name="arrow" /></span></button>}</div></li>;
