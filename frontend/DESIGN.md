@@ -1,141 +1,143 @@
 ---
 name: Cartners
-description: A vibrant illustrated cookbook for the shared kitchen.
+description: A warm, playful shared kitchen with clear motion and practical AI assistance.
 colors:
-  cobalt: "#3549cb"
-  cobalt-hover: "#25349f"
-  ink: "#292342"
-  muted: "#675e76"
-  ground: "#fff8ed"
-  white: "#fffdf8"
-  line: "#ddd5cc"
-  pale: "#eee8fb"
-  tomato: "#c13927"
-  tomato-pale: "#ffe1d5"
-  sun: "#ffe27a"
-  sun-pale: "#fff0b6"
-  lilac: "#e6dcfa"
+  warm-blue: '#2e6a7e'
+  warm-blue-hover: '#214f60'
+  ink: '#4b2d26'
+  muted: '#786052'
+  ground: '#fff4e1'
+  white: '#fffdf6'
+  line: '#e2d2ba'
+  pale: '#f5e8cf'
+  paprika: '#b54128'
+  paprika-pale: '#f9dfc8'
+  gold: '#efb74e'
+  parchment: '#faeac8'
+  apron: '#f2e4cd'
 typography:
   display:
-    fontFamily: "Bricolage Grotesque, sans-serif"
-    fontSize: "clamp(2.7rem, 4.8vw, 4.6rem)"
+    fontFamily: Bricolage Grotesque, sans-serif
+    fontSize: clamp(2.7rem, 4.8vw, 4.6rem)
     fontWeight: 750
     lineHeight: 0.99
-    letterSpacing: "-0.035em"
+    letterSpacing: -0.035em
   headline:
-    fontFamily: "Bricolage Grotesque, sans-serif"
-    fontSize: "clamp(2.3rem, 4vw, 3.5rem)"
+    fontFamily: Bricolage Grotesque, sans-serif
+    fontSize: clamp(2.3rem, 4vw, 3.5rem)
     fontWeight: 750
     lineHeight: 1.05
-    letterSpacing: "-0.035em"
+    letterSpacing: -0.035em
   title:
-    fontFamily: "Bricolage Grotesque, sans-serif"
-    fontSize: "1.5rem"
+    fontFamily: Bricolage Grotesque, sans-serif
+    fontSize: 1.5rem
     fontWeight: 700
     lineHeight: 1.3
-    letterSpacing: "-0.025em"
+    letterSpacing: -0.025em
   body:
-    fontFamily: "DM Sans, sans-serif"
-    fontSize: "1rem"
+    fontFamily: DM Sans, sans-serif
+    fontSize: 1rem
     lineHeight: 1.65
   label:
-    fontFamily: "DM Sans, sans-serif"
-    fontSize: "0.84rem"
+    fontFamily: DM Sans, sans-serif
+    fontSize: 0.84rem
     fontWeight: 700
 rounded:
-  field: "9px"
-  control: "10px"
-  list: "12px"
-  card: "14px"
-  feature: "16px"
-  pill: "24px"
+  field: 9px
+  control: 10px
+  list: 12px
+  card: 14px
+  feature: 16px
+  pill: 24px
 spacing:
-  tight: "8px"
-  control: "16px"
-  card: "24px"
-  section: "28px"
-  desktop-gutter: "40px"
+  tight: 8px
+  control: 16px
+  card: 24px
+  section: 28px
+  desktop-gutter: 40px
 components:
   button-primary:
-    backgroundColor: "{colors.cobalt}"
-    textColor: "#fff"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "11px 16px"
-    height: "46px"
+    backgroundColor: '{colors.warm-blue}'
+    textColor: '#fff'
+    typography: '{typography.label}'
+    rounded: '{rounded.control}'
+    padding: 11px 16px
+    height: 46px
   button-primary-hover:
-    backgroundColor: "{colors.cobalt-hover}"
+    backgroundColor: '{colors.warm-blue-hover}'
   button-secondary:
-    backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "11px 16px"
+    backgroundColor: '{colors.white}'
+    textColor: '{colors.ink}'
+    typography: '{typography.label}'
+    rounded: '{rounded.control}'
+    padding: 11px 16px
   input:
-    backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.field}"
-    padding: "8px 11px"
+    backgroundColor: '{colors.white}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.field}'
+    padding: 8px 11px
   chip:
-    textColor: "{colors.ink}"
-    rounded: "{rounded.pill}"
-    padding: "9px 12px"
+    textColor: '{colors.ink}'
+    rounded: '{rounded.pill}'
+    padding: 9px 12px
   navigation-active:
-    backgroundColor: "{colors.tomato-pale}"
-    textColor: "#9d291c"
-    rounded: "{rounded.control}"
-    padding: "13px 14px"
+    backgroundColor: '{colors.paprika-pale}'
+    textColor: '#8e3f25'
+    rounded: '{rounded.control}'
+    padding: 13px 14px
   card:
-    backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.card}"
-    padding: "24px"
+    backgroundColor: '{colors.white}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.card}'
+    padding: 24px
   shared-list:
-    backgroundColor: "{colors.sun}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.feature}"
-    padding: "24px"
+    backgroundColor: '{colors.parchment}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.feature}'
+    padding: 24px
 ---
+
 
 # Design System: Cartners
 
 ## Overview
 
-**Creative North Star: "The Shared Kitchen Cookbook"**
+**Creative North Star: "The Playful Shared Kitchen"**
 
-A contemporary illustrated cookbook translated into a working household app. Warm paper, expressive headings, original ingredient sketches and saturated color fields carry the collaborative cooking energy requested for DubHacks 2026 and the Cook Smarter track. The lowercase cartners wordmark remains the product identity; no sponsor marks or affiliation are implied.
+Cartners brings the warmth and playful kitchen-object language of the user-pinned [DubHacks 2026 reference](https://dh26.dubhacks.co/) into a practical household app. Cream paper, cocoa text, warm blue actions and flat original cooking illustrations establish the replacement world. The user rejected the earlier purple/yellow palette and engraved ingredient treatment; those are not the visual authority for future work. Cartners retains its lowercase wordmark and does not imply event sponsorship or affiliation.
 
-The task area stays readable and direct. Color distinguishes actions and supporting surfaces, while dense shopping and ingredient content remains in rows. Decorative motion is brief; frequently used controls respond immediately.
+The Cook Smarter direction centers on less coordination work: AI helps turn a request into a reviewed list, while spatial feedback makes changes understandable. Motion follows the user’s work through navigation, setup, drafting, list updates and disclosures. Dense task information stays in readable rows.
 
 **Key Characteristics:**
-- Warm paper and aubergine ink.
-- Cobalt actions, tomato display accents, butter and lilac fields.
-- Expressive cookbook headings with clear everyday controls.
-- Ingredient illustration alongside real recipe photography.
+- Warm cream and cocoa with restrained warm blue actions.
+- Parchment and apron fields with paprika display accents.
+- Flat, playful original kitchen objects alongside real recipe photography.
+- State-preserving surfaces, visible progress and immediate control feedback.
 
 ## Colors
 
-The palette is warm, saturated and food-led. Frontmatter values are normative; CSS in `src/kitchen.css`, loaded after the functional styles by `src/main.jsx`, is the implementation source.
+The palette follows the warm cream, cocoa and muted blue character of the selected reference. Frontmatter values are normative; `src/kitchen.css`, loaded after functional styles by `src/main.jsx`, supplies the implementation values.
 
 ### Primary
-- **Cobalt:** primary buttons, links, selection controls and keyboard focus; the darker cobalt is the primary hover state.
+- **Warm Blue:** main actions, links, focus outlines, progress and selection controls; the deeper blue is the hover state.
 
 ### Secondary
-- **Tomato:** wordmark and expressive headline emphasis. Tomato pale supports active navigation.
-- **Butter:** shared shopping summary and welcome illustration field; pale butter supports quiet summaries and empty states.
+- **Paprika:** wordmark and expressive headline emphasis; pale paprika marks active navigation.
+- **Gold:** shopping counts, selected text and compact cart summaries.
 
 ### Tertiary
-- **Lilac:** recipe discovery, secondary task panels and selected setup choices. Pale lilac supports notices and quiet hover states.
+- **Parchment:** the Home shared list, welcome story and quiet supporting summaries.
+- **Apron:** discovery panels, selected setup choices and secondary task fields.
 
 ### Neutral
-- **Warm Paper:** application canvas.
-- **Cream White:** navigation, fields, lists and cards.
-- **Aubergine Ink:** primary copy; muted aubergine supplies secondary information.
-- **Paper Line:** dividers and navigation boundaries.
+- **Cream Paper:** the application canvas.
+- **Cream White:** navigation, cards and fields.
+- **Cocoa Ink:** primary content; muted cocoa supports secondary copy.
+- **Paper Line:** subtle borders and dividers; pale paper supports notices.
 
-**The Cobalt Action Rule.** Cobalt identifies primary actions and focus; tomato supplies display emphasis rather than coloring every button.
+**The Blue Action Rule.** Warm blue identifies primary actions and focus; paprika adds display emphasis without coloring every button.
 
-The legacy CSS variable `--green` now aliases cobalt; `--dark` aliases ink, and `--rail` aliases cream white. These names do not prescribe a green palette. Warning, error and purchase-status colors remain semantic and are accompanied by text.
+Legacy implementation names `--green` and `--cobalt` both resolve to warm blue; `--dark` resolves to cocoa and `--rail` to cream white. Their names do not prescribe the earlier colors. Warning, error and purchase states retain semantic colors and explicit text.
 
 ## Typography
 
@@ -156,13 +158,13 @@ The display face adds cookbook character through broad, tight-set forms. DM Sans
 
 Desktop uses a fixed sidebar (224px) and a flexible task area. The main content has a maximum width (1440px), horizontal gutters (40px), and an independently visible household header. All five destinations remain visible on desktop.
 
-Home pairs the request area with a butter shared-list panel. Recipe discovery pairs photography and copy. Shopping pairs its list with a supporting next-step panel. These are page patterns rather than a requirement for every new screen.
+Home pairs the request area with a parchment shared-list panel. Recipe discovery pairs photography and copy. Shopping pairs its list with a supporting next-step panel. These are page patterns rather than a requirement for every new screen.
 
-At 1200px, the shopping flow becomes one column. Between 701px and 1020px, the sidebar narrows (190px), gutters reduce (26px), and Home becomes one column. At 760px, setup becomes one column and the illustration field recedes after the welcome step. At 700px, navigation becomes a fixed bottom bar with Home, Shopping and More; More exposes the remaining destinations. Main gutters reduce (22px), recipe photography stacks above its copy, and sticky confirmation controls clear the bottom navigation and safe area.
+At 1200px, the shopping flow becomes one column. Between 701px and 1020px, the sidebar narrows (190px), gutters reduce (26px), and Home becomes one column. At 760px, setup becomes one column and the illustration field recedes after the welcome step. At 700px, navigation becomes a fixed five-column bottom bar. Home, Shopping, This week, Spending and Household all remain directly visible; no More menu is used. Main gutters reduce (22px), recipe photography stacks above its copy, and sticky confirmation controls clear the bottom navigation and safe area.
 
 ## Elevation & Depth
 
-Broad butter, lilac, cream and paper surfaces establish depth. Primary cards, the request composer, shopping rows and the recipe feature do not use resting shadows. Fine dividers retain structure inside dense lists. Overlays keep functional shadows: the toast uses `0 12px 28px #29234225`; the mobile More menu uses `0 12px 35px #2923421c`.
+Parchment, apron, cream and paper fields establish most depth. Cards, the request composer, shopping rows and the recipe feature remain flat. Buttons have a soft resting shadow (`0 3px 7px #4b2d2610`), deepen on fine-pointer hover (`0 6px 12px #4b2d2618`) and lose their shadow on press. Toasts use `0 12px 28px #4b2d2625`. Fine dividers structure dense lists.
 
 **The Shared Table Rule.** Use broad tonal fields to organize work; preserve compact rows for dense task content.
 
@@ -174,40 +176,48 @@ Controls have gently curved corners, fields are slightly tighter, and feature fi
 
 ### Buttons
 
-Confident, immediate actions. Primary buttons pair cobalt with white text and darken on hover. Secondary controls use cream with an aubergine outline; feature secondary buttons gain lilac on hover. Main controls have a minimum height (46px), with setup controls at least 48px. The token height denotes this minimum. Disabled controls have reduced opacity (0.55). Fine-pointer hover lifts buttons (1px); press moves them down (1px). Background, text and transform feedback lasts 160ms.
+Confident, immediate actions. Primary buttons pair warm blue with white text and darken on hover. Secondary controls use cream with a cocoa outline; feature secondary buttons gain apron on hover. Main controls have a minimum height (46px), with setup controls at least 48px. The token height denotes this minimum. Disabled controls have reduced opacity (0.55). Fine-pointer hover lifts buttons (1px); press moves them down (1px) and scales them to 0.98. Background, text and transform feedback lasts 160ms.
 
 ### Chips
 
-Rounded suggestion starters alternate pale butter and lilac on Home. Desktop chips have a minimum height (44px); mobile chips use 40px. Preserve actual labels and native control behavior.
+Rounded suggestion starters alternate parchment and apron on Home. Desktop chips have a minimum height (44px); mobile chips use 40px. Preserve actual labels and native control behavior.
 
 ### Cards / Containers
 
-Cream task cards use generous padding, no border and no resting shadow. Butter shared-list and lilac discovery fields have broader corners. Mobile card padding reduces to 20px. Retain row dividers inside list containers.
+Cream task cards use generous padding, no border and no resting shadow. Parchment shared-list and apron discovery fields have broader corners. Mobile card padding reduces to 20px. Retain row dividers inside list containers.
 
 ### Inputs / Fields
 
-Cream fields use a restrained aubergine outline. Standard feature fields have a minimum height (44px); setup fields use 48px. The request composer has a stronger outline, larger corners and a transparent textarea. Focus changes its border to cobalt with a pale cobalt outer outline. Global keyboard focus is a cobalt outline (3px) offset by 4px. Error text and invalid-field states remain explicit.
+Cream fields use a restrained cocoa outline. Standard feature fields have a minimum height (44px); setup fields use 48px. The request composer has a stronger outline, larger corners and a transparent textarea. Focus changes its border to warm blue with a pale warm blue outer outline. Global keyboard focus is a warm blue outline (3px) offset by 4px. Error text and invalid-field states remain explicit.
 
 ### Navigation
 
-The desktop rail uses medium-weight labels, simple line icons and pale tomato active rows with deep tomato text. Shopping has a butter count marker. On mobile the bottom bar keeps Home and Shopping visible; an explicit More disclosure provides the other destinations, with lilac for its open state. Active links retain `aria-current` and the main content has a skip link.
+All five destinations appear in the desktop rail and the mobile bottom bar: Home, Shopping, This week, Spending and Household. Medium-weight labels accompany simple line icons. Pale paprika active rows use deep paprika text; shopping has a gold count marker. The mobile bar uses five equal columns, compact labels (0.64rem), and minimum-height links (54px). Active links retain `aria-current`, and main content has a skip link. Route changes focus the main region, reset scroll and provide a brief surface transition.
+
+### Composer and state continuity
+
+Typed content strengthens the composer border; pending work changes its field color and adds a progress strip inside the same field. The textarea grows with content where supported. Progress is indeterminate rather than an invented completion percentage. A returned draft receives heading focus and scrolls into view; reduced motion uses immediate scrolling. Route, draft and setup changes use a small upward reveal (8px over 220ms). Home remains mounted to preserve work. Shopping insertions and reorder changes animate from previous row positions over 240ms.
 
 ### Ingredient artwork and recipe discovery
 
-The original transparent ingredient composition contains tomatoes, lemon, basil, garlic and pasta in a blue bowl. It is optimized as WebP and rendered decoratively with empty alt text and `aria-hidden`. Welcome art arrives once over 700ms using the kitchen easing curve. Home art has a slight rotation on desktop; it becomes still and unrotated for reduced motion. Recipe discovery retains real food photography and the existing slow, pausable carousel. Reduced-motion preferences disable decorative transitions and animation and initialize autoplay paused.
+The original transparent flat illustration groups a cream grocery tote, tomato, pepper, leek and onion with a light-blue saucepan, wooden spoon and recipe card. It uses simple silhouettes and clean flat colors, with no engraving or hatching. The optimized WebP is decorative with empty alt text and `aria-hidden`. Welcome art arrives once over 700ms; Home art has a slight desktop rotation and straightens on fine-pointer hover over 500ms.
+
+Recipe discovery retains real photography. Horizontal dragging or swiping the image changes the recipe while `touch-action: pan-y` preserves vertical page scrolling. Previous, Next and Pause remain visible. Slides enter from the chosen direction (24px over 650ms); autoplay waits 12 seconds and pauses during hover or keyboard interaction. Disclosures reveal their content using native size interpolation where supported; unsupported browsers retain native disclosure behavior.
+
+Reduced-motion preferences disable the welcome and recipe animations, surface and list movement, progress traversal, and interactive transform feedback. The progress strip becomes a static full-width indicator. Short color and opacity feedback remains; carousel autoplay initializes paused.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** use cobalt for the primary action and visible keyboard focus.
-- **Do** retain ingredient sketches as decorative art with empty alternative text.
+- **Do** use warm blue for the primary action and visible keyboard focus.
+- **Do** retain flat kitchen-object artwork as decorative art with empty alternative text.
 - **Do** keep shopping and ingredient information readable as rows.
 - **Do** preserve reduced-motion behavior and the recipe carousel’s pause control.
 - **Do** keep navigation, review, confirmation and recovery controls available at every viewport.
 
 ### Don't:
-- **Don't** return to the muted green identity.
-- **Don't** replace recipe photography with decorative ingredient art.
+- **Don't** return to the rejected purple/yellow palette or engraved ingredient treatment.
+- **Don't** replace recipe photography with decorative kitchen art.
 - **Don't** imply official DubHacks sponsorship or affiliation.
 - **Don't** introduce gradients as the new surface language.
 - **Don't** hide essential actions behind decorative motion.

@@ -5,6 +5,7 @@ import { starterPrompts } from '../../samples.js';
 import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
 import KitchenArt from '../../components/KitchenArt.jsx';
+import { useSurfaceMotion } from '../../components/useMotion.js';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
@@ -21,12 +22,20 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const suggestionAttempt = useRef(null);
   const busy = useRef(false);
   const draft = entry?.draft;
+  const draftMotion = useSurfaceMotion(draft?.draftId);
   const meal = draft?.recommendation;
   const rows = meal?.ingredients || draft?.items || [];
   const previews = meal?.listPreview || draft?.listPreview || [];
   const recoveringSave = !!attempt.current;
   const locked = !!pending || recoveringSave;
   const staleDraft = draft && !entry.localOnly && !recoveringSave && draft.listRevision !== workspace.listRevision;
+
+  useEffect(() => {
+    if (!active || !draft?.draftId) return;
+    const section = draftMotion.current;
+    section?.querySelector('h2')?.focus({ preventScroll: true });
+    section?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+  }, [draft?.draftId, active]);
 
   function showDraft(nextDraft, localOnly, aiPreviewOnly = false) {
     onEntryChange({ draft: nextDraft, localOnly, aiPreviewOnly, message: '', previous: entry?.draft ? { ...entry, previous: null } : null });
@@ -135,18 +144,19 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
       <button className="text-button" onClick={() => navigate('groups')}>Edit preferences</button>
     </div>
   </details>;
-  const composer = <form className={`composer ${draft ? 'followup-composer' : ''}`} onSubmit={event => { event.preventDefault(); requestSuggestion(message); }} aria-busy={pending === 'suggestion'}>
+  const composer = <form className={`composer ${draft ? 'followup-composer' : ''}`} data-pending={pending === 'suggestion'} data-has-input={Boolean(message.trim())} onSubmit={event => { event.preventDefault(); requestSuggestion(message); }} aria-busy={pending === 'suggestion'}>
     <label className="sr-only" htmlFor="meal-request">{draft ? 'Change this idea' : 'What do you want to cook or buy?'}</label>
     <textarea id="meal-request" value={message} maxLength={500} rows={2}
       onChange={e => setMessage(e.target.value)} disabled={locked}
       onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); requestSuggestion(message); } }}
       placeholder={draft ? 'Make it quicker or swap an ingredient…' : 'A craving, ingredient, or grocery request…'} />
     <div className="composer-bottom">
-      <span className="small muted">{draft ? 'Tell us what to change.' : 'We’ll check the shared list before anything is added.'}</span>
+      <span className="small muted composer-hint">{pending === 'suggestion' ? 'Putting your idea together…' : draft ? 'Tell us what to change.' : message.trim() ? 'Enter to ask · Shift + Enter for a new line' : 'A meal, a few groceries, or “surprise me.”'}</span>
       <button className="button primary" disabled={!message.trim() || locked}>
         {pending === 'suggestion' ? 'Finding an idea…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
       </button>
     </div>
+    {pending === 'suggestion' && <div className="composer-progress" role="progressbar" aria-label="Waiting for your meal or grocery idea"><span /></div>}
   </form>;
   const starters = <div className="suggestion-starters" aria-label={connected ? 'Ideas to get started' : 'Sample ideas'}>
     {starterPrompts.map(prompt => <button key={prompt.key} className="chip" disabled={locked}
@@ -173,15 +183,15 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
 
     {error && <div className="notice error" role="alert"><p>{error}</p></div>}
     {entry?.undoMessage && <p className="notice" role="status">{entry.undoMessage}</p>}
-    {pending === 'suggestion' && <p className="notice" role="status">Finding something that fits your group…</p>}
+    {pending === 'suggestion' && <p className="sr-only" role="status">Finding something that fits your group…</p>}
 
-    {draft && <section className="draft" aria-labelledby="draft-title" aria-busy={!!pending}>
+    {draft && <section ref={draftMotion} className="draft" aria-labelledby="draft-title" aria-busy={!!pending}>
       <div className="draft-heading"><span className="source-label">{entry.aiPreviewOnly ? 'AI idea · preview only' : draft.sourceMode === 'sample' ? 'Sample idea' : 'AI suggestion'}</span>
         {entry.previous && !saved && <button className="text-button" disabled={locked} onClick={() => { onEntryChange({ ...entry.previous, previous: null }); setExcluded(entry.previous.excluded || []); setError(''); attempt.current = null; undoAttempt.current = null; }}>Previous idea</button>}
       </div>
       {meal && draft.planDate && draft.planDate !== planDate && <p className="notice">This idea is for {draft.planDate}. A new request will use {planDate}; adding this idea keeps its original date.</p>}
-      {draft.kind === 'clarification' ? <><h2 id="draft-title">{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : <>
-        <div className="recipe-copy"><h2 id="draft-title">{meal?.title || 'Here’s what you asked for'}</h2>
+      {draft.kind === 'clarification' ? <><h2 id="draft-title" tabIndex={-1}>{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : <>
+        <div className="recipe-copy"><h2 id="draft-title" tabIndex={-1}>{meal?.title || 'Here’s what you asked for'}</h2>
           {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span className="recipe-servings"><Icon name="salad" />{meal.servings} servings</span><span className="recipe-date"><Icon name="plans" /><span className="sr-only">For </span>{draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
             {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}
             <div className="refinement-actions"><button className="chip" disabled={locked} onClick={() => requestSuggestion('Make it quicker')}>Make it quicker</button></div>

@@ -8,6 +8,7 @@ import { useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
 import { recipeLookup } from './lib/recipes.js';
 import './roomie.css';
+import { useListMotion } from '../../components/useMotion.js';
 
 export default function Shopping({ workspace, actorId, api, onWorkspaceChange, notify, navigate, connected }) {
   const nameRef = useRef(null), startRef = useRef(null);
@@ -19,6 +20,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const serverNowMs = useServerNow(workspace.serverNow);
   const trip = activeTrip(workspace);
   const items = liveItems(workspace), needed = items.filter(item => !item.bought), bought = items.filter(item => item.bought);
+  const listMotion = useListMotion(needed);
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify, navigate };
   const recipesFor = useMemo(() => recipeLookup(workspace), [workspace]);
   // Quotes only describe the exact revision checked; edits invalidate their displayed prices.
@@ -48,7 +50,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
     <RunBanner workspace={workspace} actorId={actorId} serverNowMs={serverNowMs} onAdd={() => nameRef.current?.focus()} />
     <div className="shopping-flow"><section className="shopping-list" aria-label="Shared shopping list">
       <AddItemForm {...shared} serverNowMs={serverNowMs} nameRef={nameRef} />
-      {needed.length ? <><h2 className="rm-h2">To pick up</h2><ul className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h2>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h2><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
+      {needed.length ? <><h2 className="rm-h2">To pick up</h2><ul ref={listMotion} className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h2>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h2><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
       {bought.length > 0 && <details className="purchased-list"><summary>Purchased · {bought.length}</summary><p className="rm-help">Uncheck an item to put it back on the list.</p><ul className="rm-items">{bought.map(row)}</ul></details>}
     </section>
     {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Use the list as it is, or check products and prices at nearby Kroger stores.</p>{needed.length > 0 && <button className="rm-btn rm-secondary" onClick={() => setShowStores(value => !value)} aria-expanded={showStores}>{showStores ? 'Hide store comparison' : 'Find groceries at Kroger'}</button>}{!trip && <button className="rm-btn" onClick={() => setShowRun(value => !value)} aria-expanded={showRun}>{showRun ? 'Hide trip details' : 'I’m going shopping'}</button>}{(showRun || trip) && <TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} />}</aside>}

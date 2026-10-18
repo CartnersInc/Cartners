@@ -20,7 +20,9 @@ React/Vite frontend, FastAPI backend, SQLite storage. Preserve onboarding, house
 
 ## Brand Commitments
 
-Name and lowercase wordmark: cartners. The user requests a complete replacement of the muted green appearance, with vibrant colors, animations and ingredient sketches inspired by DubHacks 2026's cooking theme. This is a functional product rather than a sponsor-branded site. Preserve every existing feature and the recipe carousel.
+Name and lowercase wordmark: cartners. The user explicitly selected [DubHacks 2026](https://dh26.dubhacks.co/) as the visual and UX reference after rejecting the earlier purple/yellow palette and engraved ingredient illustration. The replacement uses cream, cocoa, warm blue, parchment and flat playful kitchen-object art. Preserve every existing feature and real recipe photography. All five navigation destinations must remain visible on desktop and mobile. Cartners is a functional product rather than a sponsor-branded site; no affiliation is implied.
+
+The Cook Smarter track guides utility: reduce friction and household coordination through practical AI automation, visible progress, continuous interaction states and efficient review. Movement should explain changes without discarding entered work or blocking controls.
 
 ## Product Principles
 
@@ -31,7 +33,7 @@ Name and lowercase wordmark: cartners. The user requests a complete replacement 
 
 ## Evidence on Hand
 
-Current frontend and backend, ../docs/PRD.md, ../docs/API_CONTRACT.md and fictional ../docs/fixtures. The user supplied Cook Smarter and kitchen-themed track language. No official DubHacks art or permission to imply an affiliation is supplied.
+Current frontend and backend, ../docs/PRD.md, ../docs/API_CONTRACT.md and fictional ../docs/fixtures. The user supplied Cook Smarter and kitchen-themed track language and pinned the live DubHacks 2026 site as the replacement reference. Original flat illustration assets and motion implementations are present in the frontend. No official DubHacks art or permission to imply an affiliation is supplied.
 
 ## Accessibility
 
