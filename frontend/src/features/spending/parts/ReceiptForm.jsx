@@ -154,8 +154,8 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
         <legend>How should we record this?</legend>
         <div className="rm-checks"><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'pooled'} onChange={() => setMode('pooled')} />Just track who paid</label><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'split'} onChange={() => setMode('split')} />Split with people</label></div>
       </fieldset>
-      <details className="receipt-review" open={aiFilled || editing || showErrors || undefined}>
-        <summary>{aiFilled || editing ? 'Review purchase details' : 'Or enter the receipt yourself'}</summary>
+      <details className="receipt-review" open={aiFilled || editing || showErrors || Boolean(initialRunId) || undefined}>
+        <summary>{aiFilled || editing || initialRunId ? 'Review purchase details' : 'Or enter the receipt yourself'}</summary>
       <fieldset disabled={write.locked || !connected} className="rm-fieldset">
         <div className="rm-field">
           <label htmlFor={ids.run}>Shopping trip (optional)</label>
