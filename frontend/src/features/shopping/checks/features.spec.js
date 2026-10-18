@@ -6,7 +6,6 @@ import { readFile } from 'node:fs/promises';
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
 async function serve(page, handlers) {
-  await page.addInitScript(() => localStorage.setItem('cartners:first-use-complete', 'yes'));
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
   const calls = [];
@@ -195,7 +194,9 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   await page.goto('/#shopping');
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Find your groceries at Kroger' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Kroger' }).first()).toBeVisible();
+  const logo = page.getByRole('img', { name: 'Kroger' }).first();
+  await expect(logo).toBeVisible();
+  await expect.poll(() => logo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   await page.getByRole('textbox', { name: 'ZIP or postal code' }).fill('98105');
   await page.getByRole('button', { name: 'Compare my list' }).click();
   await expect(page.getByText('Kroger Flour Tortillas')).toBeVisible();
@@ -227,7 +228,7 @@ test('live Kroger matches show the product and prefill the store run', async ({ 
   await expect(page.getByRole('textbox', { name: 'Store' })).toHaveValue('QFC University Village');
 });
 
-test('clear list removes all needed requests after one clear confirmation', async ({ page }) => {
+test('clear list removes all cart requests after one clear confirmation', async ({ page }) => {
   const calls = await serve(page, ({ path, body, workspace, set }) => {
     if (path.startsWith('/api/items/') && body.removed) {
       const id = decodeURIComponent(path.split('/').pop());
@@ -239,49 +240,39 @@ test('clear list removes all needed requests after one clear confirmation', asyn
   });
   await page.goto('/#shopping');
   await page.getByRole('button', { name: 'Empty cart' }).click();
-  await expect(page.getByText('Remove all 2 items that still need buying?')).toBeVisible();
+  await expect(page.getByText('Remove all 2 items from the cart?')).toBeVisible();
   await page.getByRole('button', { name: 'Remove all 2' }).click();
   await expect(page.getByText('Your cart is empty.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
-  await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
+  await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the cart.');
 });
 
-test('cart rows name the saved recipes each request is for', async ({ page }) => {
+test('cart items start checked with price and buy opens spending checkout', async ({ page }) => {
   const base = await fixture('workspace');
-  const item = (id, name, extra = {}) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor: 'household', addedBy: 'leila', bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null, ...extra });
   const workspace = {
-    ...base, serverNow: new Date().toISOString(), trip: null,
-    plans: [
-      { id: 'plan-tacos', date: '2026-10-18', title: 'Black bean tacos', recommendation: { ingredients: [{ name: 'Lime' }, { name: 'Black beans' }] } },
-      { id: 'plan-pad-thai', date: '2026-10-19', title: 'Pad Thai', recommendation: { ingredients: [{ name: 'lime' }, { name: 'Rice noodles' }] } },
-    ],
-    items: [
-      item('i-beans', 'Black beans', { reservedPlanId: 'plan-tacos' }),
-      item('i-lime', 'Lime'),
-      item('i-milk', 'Oat milk'),
-    ],
+    ...base,
+    serverNow: new Date().toISOString(),
+    trip: null,
+    items: base.items.map(item => ({ ...item, bought: true, runId: null })),
   };
-  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
-  await page.goto('/#shopping');
-  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-  const recipesOf = name => page.locator('.rm-item').filter({ hasText: name }).locator('.rm-item-recipes');
-  await expect(recipesOf('Black beans')).toHaveText('Black bean tacos');
-  await expect(recipesOf('Lime')).toHaveText('Black bean tacos, Pad Thai');
-  await expect(recipesOf('Oat milk')).toHaveCount(0);
-});
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(
+    new URL(route.request().url()).pathname === '/api/workspace'
+      ? { json: workspace }
+      : { status: 404, json: { error: { message: 'Not in this check' } } },
+  ));
 
-test('cart rows say whether each request is shared or personal', async ({ page }) => {
-  const base = await fixture('workspace');
-  const item = (id, name, requestFor, addedBy) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor, addedBy, bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null });
-  const workspace = { ...base, serverNow: new Date().toISOString(), trip: null, items: [item('i-1', 'Paper plates', 'household', 'sam'), item('i-2', 'Hot sauce', 'leila', 'leila'), item('i-3', 'Oat milk', 'sam', 'sam')] };
-  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
   await page.goto('/#shopping');
-  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-  const metaOf = name => page.locator('.rm-item').filter({ hasText: name }).locator('.rm-item-meta');
-  await expect(metaOf('Paper plates')).toHaveText('Shared · added by Sam');
-  await expect(metaOf('Hot sauce')).toHaveText('Just you · added by you');
-  await expect(metaOf('Oat milk')).toHaveText('Just Sam · added by Sam');
+  const cart = page.locator('section[aria-labelledby="rm-cart"]');
+  await expect(cart.locator('.rm-h2')).toContainText('Your cart');
+  await expect(cart.getByText('Tortillas')).toBeVisible();
+  await expect(cart.getByText('Oat milk')).toBeVisible();
+  await expect(cart.locator('.rm-bought-label').first()).toHaveText('In cart');
+  await expect(cart.locator('.rm-item-price').first()).toBeVisible();
+  await page.getByRole('button', { name: /^Buy/ }).first().click();
+  await expect(page).toHaveURL(/#spending/);
+  await expect(page.getByRole('heading', { name: 'Buy this cart' })).toBeVisible();
+  await expect(page.getByText('Tortillas')).toBeVisible();
 });
 
 test('phone shopping makes the store-run action easy to find without covering the cart', async ({ page }) => {
@@ -292,4 +283,28 @@ test('phone shopping makes the store-run action easy to find without covering th
   await expect(startShortcut).toBeVisible();
   await startShortcut.click();
   await expect(page.getByRole('textbox', { name: 'Store' })).toBeFocused();
+});
+
+test('cart rows name the saved recipes each request is for', async ({ page }) => {
+  const base = await fixture('workspace');
+  const item = (id, name, extra = {}) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor: 'household', addedBy: 'leila', bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null, ...extra });
+  const workspace = {
+    ...base, serverNow: new Date().toISOString(), trip: null,
+    plans: [
+      { id: 'plan-tacos', date: '2026-10-18', title: 'Black bean tacos', recommendation: { requestFor: 'household', ingredients: [{ name: 'Lime', unit: 'count' }, { name: 'Black beans', unit: 'can' }] } },
+      { id: 'plan-pad-thai', date: '2026-10-19', title: 'Pad Thai', recommendation: { requestFor: 'household', ingredients: [{ name: 'lime', unit: 'count' }, { name: 'Rice noodles', unit: 'pack' }] } },
+    ],
+    items: [
+      item('i-beans', 'Black beans', { reservedPlanId: 'plan-tacos' }),
+      item('i-lime', 'Lime', { reservedPlanId: 'plan-tacos' }),
+      item('i-milk', 'Oat milk'),
+    ],
+  };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
+  await page.goto('/#shopping');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  const recipesOf = name => page.locator('.rm-item').filter({ hasText: name }).locator('.rm-item-recipes');
+  await expect(recipesOf('Black beans')).toHaveText('Black bean tacos');
+  await expect(recipesOf('Lime')).toHaveText('Black bean tacos, Pad Thai');
+  await expect(recipesOf('Oat milk')).toHaveCount(0);
 });

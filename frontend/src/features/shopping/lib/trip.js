@@ -16,7 +16,7 @@ export const liveItems = workspace => (workspace.items || []).filter(item => !it
 
 // Where a request stands relative to the current run, for its label.
 export function itemBadge(item, trip, actorId) {
-  // "Not here" (#4): a request the shopper couldn't find stays labeled until someone buys it.
+  // Proposal (#4): a request the shopper couldn't find stays labeled until someone buys it.
   if (item.punted && !item.bought) {
     return item.punted.runId === trip?.id
       ? { kind: 'punted', text: `Not at ${item.punted.storeName}, moved to the next run` }

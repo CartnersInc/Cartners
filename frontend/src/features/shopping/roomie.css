@@ -21,6 +21,8 @@
 /* Buttons and fields, matching the shell's .button */
 .rm-btn { min-height: 44px; padding: 10px 16px; border: 1px solid var(--green); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--green); color: white; font-size: .82rem; font-weight: 750; text-decoration: none; }
 .rm-btn:hover:not(:disabled) { background: var(--dark); }
+.rm-plan-with-ai { margin-left: auto; background: var(--tomato); border-color: var(--tomato); }
+.rm-plan-with-ai:hover:not(:disabled) { background: #963e2b; }
 .rm-secondary { background: var(--white); color: var(--ink); border-color: #bdcbb2; }
 .rm-secondary:hover:not(:disabled) { background: var(--pale); }
 .rm-small { min-height: 40px; padding: 7px 12px; font-size: .78rem; }
@@ -88,6 +90,16 @@
 .rm-banner .rm-btn { background: var(--white); color: var(--dark); border-color: var(--white); }
 .rm-banner-quiet .rm-btn { background: var(--green); color: white; border-color: var(--green); }
 .rm-dock { display: none; }
+.rm-dock-buy { display: flex; gap: 8px; margin: 12px 0 18px; flex-wrap: wrap; }
+.rm-dock-buy .rm-btn { flex: 1 1 160px; }
+.rm-checkout { margin-bottom: 18px; }
+.rm-checkout-lines { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.rm-checkout-line { display: flex; justify-content: space-between; gap: 12px; align-items: start; font-size: .9rem; }
+.rm-checkout-line .rm-help { display: block; }
+.rm-checkout-total { display: flex; justify-content: space-between; align-items: center; margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 750; }
+.rm-checkout-pay { flex-wrap: wrap; }
+.rm-cart-total { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--green); }
+.rm-item-removing { opacity: .7; }
 
 /* Items */
 .rm-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -153,6 +165,9 @@
 .rm-empty-cart:hover:not(:disabled) { background: #f5e7dd; color: #682c21; border-color: #803c2d; }
 .rm-empty-state { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 0 4px; }
 .rm-empty-state p { color: var(--muted); margin: 0; }
+.rm-bought-group { margin-top: 18px; }
+.rm-bought-group > summary { cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 700; }
+.rm-bought-group .rm-items { margin-top: 10px; }
 .rm-clear-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 14px; color: var(--muted); font-size: .82rem; }
 .rm-clear-confirm p { margin: 0; }
 
@@ -245,7 +260,6 @@
 .rm-copy-amount, .rm-paylink { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: .82rem; margin-top: 8px; }
 .rm-mono { font-family: ui-monospace, monospace; font-size: .75rem; overflow-wrap: anywhere; min-width: 0; }
 .rm-sample { border: 1px dashed #d8c89a; border-radius: 12px; padding: 14px; display: grid; gap: 10px; margin-top: 10px; }
-.rm-proposal { border-left: 3px solid #d8c89a; padding-left: 10px; }
 
 /* Spending tabs and the Payments / Your profile proposal (#8) */
 .rm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 6px 0 4px; overflow-x: auto; }
@@ -278,6 +292,9 @@
   .rm-side { order: 1; }
 }
 @media (max-width: 700px) {
+  .rm-title-row { gap: 9px; }
+  .rm-title-row .rm-cart-summary { order: 3; width: 100%; }
+  .rm-plan-with-ai { margin-left: auto; }
   .rm-h1 { font-size: 1.7rem; }
   .rm-card { padding: 14px; }
   .rm-sentence { line-height: 2.2; }

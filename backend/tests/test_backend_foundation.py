@@ -157,7 +157,7 @@ def test_second_meal_cannot_reuse_reserved_quantities(client: TestClient):
     tortillas_after_first = sum(
         i["quantity"]
         for i in after_first["items"]
-        if i["name"] == "Tortillas" and not i["removed"] and not i["bought"]
+        if i["name"] == "Tortillas" and not i["removed"]
     )
     assert tortillas_after_first == 8
 
@@ -198,7 +198,7 @@ def test_second_meal_cannot_reuse_reserved_quantities(client: TestClient):
     ).json()
     items = confirmed_second["workspace"]["items"]
     tortillas_total = sum(
-        i["quantity"] for i in items if i["name"] == "Tortillas" and not i["removed"] and not i["bought"]
+        i["quantity"] for i in items if i["name"] == "Tortillas" and not i["removed"]
     )
     assert tortillas_total == 16
     reserved_plans = {
