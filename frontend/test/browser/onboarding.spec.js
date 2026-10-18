@@ -4,6 +4,8 @@ const fixture = async name => JSON.parse(await readFile(new URL(`../../../docs/f
 
 test('welcome → own household → return → purchase and invite; no fictional identity or checkout', async ({ page }) => {
   let workspace = { ...await fixture('workspace'), workspaceId: 'household-test', groups: [{ workspaceId:'household-test', name:'Our apartment',memberIds:['member-me'],spendingMode:'pooled' }], actors:[{id:'member-me',name:'Avery'}], items:[],plans:[],activity:[],expenses:[],balances:[],trip:null,listRevision:0,preferences:{servings:2,restrictions:[],likes:[],maxPrepMinutes:30,spendingMode:'pooled'} };
+  // Only the active shopper sees checkboxes, so this household's member is out shopping.
+  workspace.trip = { ...workspace.trip, id: 'run-test', claimedBy: 'member-me', storeName: 'QFC', state: 'accepting_requests', claimedAt: new Date().toISOString(), requestDeadlineAt: new Date(Date.now() + 10 * 60e3).toISOString() };
   let setup;
   const writes = [];
   await page.route(url => url.hostname === '127.0.0.1' && url.pathname.startsWith('/api/'), async route => {
@@ -59,7 +61,7 @@ test('welcome → own household → return → purchase and invite; no fictional
   expect(writes[0].removed).toBeUndefined();
   await page.getByRole('checkbox',{name:'Mark needed: Rice'}).uncheck();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).toBeVisible();
-  await page.getByRole('button',{name:'Empty list',exact:true}).click();
+  await page.getByRole('button',{name:'Clear my items',exact:true}).click();
   await page.getByRole('button',{name:'Confirm remove 1',exact:true}).click();
   await page.getByRole('button',{name:'Undo',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).toBeVisible();
@@ -68,7 +70,8 @@ test('welcome → own household → return → purchase and invite; no fictional
   await expect(page.getByRole('textbox',{name:'Invitation code'})).toHaveValue(setup.inviteCode);
   await page.getByRole('link',{name:'Spending',exact:true}).click();
   await expect(page.getByRole('tab',{name:'Payments'})).toHaveCount(0);
-  await page.getByRole('button',{name:'Record a purchase',exact:true}).click();
+  // The member's store run is still open, so the button may offer "a different" purchase.
+  await page.getByRole('button',{name:/^Record a (different )?purchase$/}).click();
   await expect(page.getByLabel('Describe the receipt')).toBeVisible();
   await expect(page.getByRole('textbox',{name:'Actual total',exact:true})).not.toBeVisible();
 });
