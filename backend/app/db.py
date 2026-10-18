@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   spending_mode TEXT NOT NULL,
+  household_kind TEXT NOT NULL DEFAULT 'other',
   servings INTEGER NOT NULL,
   restrictions_json TEXT NOT NULL,
   likes_json TEXT NOT NULL,
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS member_sessions (
 
 CREATE TABLE IF NOT EXISTS actors (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  pay_links_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS workspace_actors (
@@ -164,6 +166,12 @@ def init_db(conn: sqlite3.Connection) -> None:
     item_columns = {row[1] for row in conn.execute("PRAGMA table_info(items)")}
     if "punted_json" not in item_columns:
         conn.execute("ALTER TABLE items ADD COLUMN punted_json TEXT")
+    workspace_columns = {row[1] for row in conn.execute("PRAGMA table_info(workspaces)")}
+    if "household_kind" not in workspace_columns:
+        conn.execute("ALTER TABLE workspaces ADD COLUMN household_kind TEXT NOT NULL DEFAULT 'other'")
+    actor_columns = {row[1] for row in conn.execute("PRAGMA table_info(actors)")}
+    if "pay_links_json" not in actor_columns:
+        conn.execute("ALTER TABLE actors ADD COLUMN pay_links_json TEXT")
     conn.commit()
 
 

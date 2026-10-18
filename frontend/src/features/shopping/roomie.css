@@ -178,6 +178,11 @@
 .rm-compare-controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 .rm-compare-controls .rm-field { flex: 1 1 210px; max-width: 320px; }
 .rm-compare-result { margin-top: 16px; display: grid; gap: 12px; }
+.rm-trip-heading { display: grid; gap: 4px; }
+.rm-trip-toggle { display: flex; justify-content: space-between; align-items: start; gap: 12px; width: 100%; min-height: 52px; padding: 0; border: 0; background: transparent; text-align: left; color: inherit; cursor: pointer; }
+.rm-trip-toggle small { display: block; margin-top: 4px; color: var(--muted); font-weight: 500; }
+.rm-split-trip { border-color: #9ec5a8; }
+.rm-was { display: block; text-decoration: line-through; color: var(--muted); font-weight: 500; }
 .rm-store-result { border: 1px solid var(--line); border-radius: 10px; background: var(--white); padding: 12px 14px; }
 .rm-store-best { border-color: #9ec5a8; }
 .rm-basket-head strong { display: inline-flex; align-items: center; gap: 8px; }

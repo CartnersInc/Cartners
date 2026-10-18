@@ -10,9 +10,9 @@ export class ApiError extends Error {
 
 export function createApi({ baseUrl = '', fetchImpl = globalThis.fetch, getToken = () => null } = {}) {
   return {
-    async request(path, { method = 'GET', body, formData, signal } = {}) {
+    async request(path, { method = 'GET', body, formData, signal, timeoutMs = 25000 } = {}) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       const abort = () => controller.abort();
       if (signal?.aborted) controller.abort();
       signal?.addEventListener('abort', abort, { once: true });
@@ -58,6 +58,16 @@ export function isDraft(value, workspaceId) {
   if (!value || !value.draftId || value.workspaceId !== workspaceId || !['sample', 'live_ai'].includes(value.sourceMode)) return false;
   if (value.kind === 'clarification') return typeof value.question === 'string';
   if (!Number.isInteger(value.listRevision)) return false;
+  if (value.kind === 'weekly_plan') {
+    const days = value.days;
+    return Array.isArray(days) && days.length === 7 && days.every(day =>
+      typeof day.planDate === 'string'
+      && typeof day.recommendation?.title === 'string'
+      && Number.isInteger(day.recommendation.servings)
+      && Array.isArray(day.recommendation.ingredients)
+      && day.recommendation.ingredients.every(item => typeof item.id === 'string' && typeof item.name === 'string' && typeof item.unit === 'string' && Number.isFinite(item.quantity) && item.quantity > 0)
+    );
+  }
   const items = value.kind === 'recommendation' ? value.recommendation?.ingredients : value.kind === 'grocery_list' ? value.items : null;
   const preview = value.kind === 'recommendation' ? value.recommendation?.listPreview : value.listPreview;
   if (!Array.isArray(items) || items.length > 30 || !items.every(item => typeof item.id === 'string' && typeof item.name === 'string' && typeof item.unit === 'string' && Number.isFinite(item.quantity) && item.quantity > 0) || !Array.isArray(preview)) return false;

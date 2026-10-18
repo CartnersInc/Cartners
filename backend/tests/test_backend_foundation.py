@@ -565,5 +565,8 @@ def test_basket_compare_sample(client: TestClient):
     assert result["sourceMode"] in {"sample", "live_api"}
     complete = [b for b in result["baskets"] if b["complete"]]
     assert complete
-    totals = [b["knownSubtotalCents"] for b in complete]
-    assert totals == sorted(totals)
+    assert result["nearestBasketId"] == result["baskets"][0]["id"]
+    miles = [b.get("distanceMiles") for b in result["baskets"] if isinstance(b.get("distanceMiles"), (int, float))]
+    assert miles == sorted(miles)
+    cheapest = min(complete, key=lambda basket: basket["knownSubtotalCents"])
+    assert result["cheapestCompleteBasketId"] == cheapest["id"]

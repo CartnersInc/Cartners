@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { copyText, formatCents, PAY_NAMES, safePayLink } from '../../shopping/lib/format.js';
+import { copyText, formatCents } from '../../shopping/lib/format.js';
+import { PAY_APPS, payLink } from '../proposal/payLinks.js';
 
 // Who owes whom, straight from the server's balances. Pay links are optional and member-provided;
 // opening one never marks anything paid, and there is no in-app payment.
@@ -24,7 +25,7 @@ export default function Balances({ balances, workspace, actorId, name }) {
 function Settle({ balance, recipient, name }) {
   const [copied, setCopied] = useState('');
   const amount = (balance.cents / 100).toFixed(2);
-  const links = Object.entries(recipient?.payLinks || {}).map(([kind, url]) => ({ kind, url: safePayLink(kind, url) })).filter(link => link.url);
+  const links = PAY_APPS.map(app => ({ app, link: payLink(app.key, recipient?.payLinks?.[app.key], balance.cents) })).filter(entry => entry.link);
   async function copy(label, text) {
     setCopied((await copyText(text)) ? `${label} copied` : "Couldn't copy. Select it and copy it by hand.");
     setTimeout(() => setCopied(''), 2500);
@@ -36,13 +37,14 @@ function Settle({ balance, recipient, name }) {
         <span>Send <strong>${amount}</strong> to {name(balance.to)}</span>
         <button type="button" className="rm-btn rm-secondary rm-small" onClick={() => copy('Amount', amount)}>Copy amount</button>
       </div>
-      {links.length ? links.map(link => (
-        <div className="rm-paylink" key={link.kind}>
-          <span className="rm-mono">{link.url}</span>
-          <a className="rm-btn rm-small" href={link.url} target="_blank" rel="noopener noreferrer">Open {name(balance.to)}'s {PAY_NAMES[link.kind]}</a>
+      {links.length ? links.map(({ app, link }) => (
+        <div className="rm-paylink" key={app.key}>
+          {link.href
+            ? <a className="rm-btn rm-small" href={link.href} target="_blank" rel="noopener noreferrer">{link.label}{app.key !== 'venmo' ? ` · $${amount}` : ''}</a>
+            : <button type="button" className="rm-btn rm-small" onClick={() => copy('Zelle contact', link.copy)}>Copy {link.label}</button>}
         </div>
-      )) : <p className="rm-help">{name(balance.to)} hasn't added a Venmo or PayPal link. Pay them another way.</p>}
-      <p className="rm-help">Opening a link doesn't send money or mark this paid.</p>
+      )) : <p className="rm-help">{name(balance.to)} hasn’t added Venmo, Zelle, Cash App, or PayPal yet. Pay them another way, or ask them to add handles in Household.</p>}
+      <p className="rm-help">Opening a link doesn’t send money or mark this paid.</p>
       <p className="rm-ok" aria-live="polite">{copied}</p>
     </div>
   );

@@ -13,6 +13,14 @@ def create(client, name='Avery'):
     return body, response.json()
 
 
+def test_family_household_stays_pooled(tmp_path):
+    with TestClient(create_app(tmp_path / 'family.db')) as client:
+        body = dict(name='Pat', householdName='Our family', kind='family', sessionToken=token_hex(32), inviteCode=token_hex(32), servings=4)
+        data = client.post('/api/households', json=body).json()
+        assert data['workspace']['preferences']['spendingMode'] == 'pooled'
+        assert data['workspace']['preferences']['householdKind'] == 'family'
+
+
 def test_membership_isolation_join_and_retry(tmp_path):
     with TestClient(create_app(tmp_path / 'households.db')) as client:
         body, data = create(client)
@@ -22,6 +30,8 @@ def test_membership_isolation_join_and_retry(tmp_path):
         assert data['workspace']['activity'] == []
         assert data['workspace']['preferences']['restrictions'] == ['vegetarian']
         assert data['workspace']['actors'] == [{'id': actor, 'name': 'Avery'}]
+        assert data['workspace']['preferences']['spendingMode'] == 'split'
+        assert data['workspace']['preferences']['householdKind'] == 'roommates'
         assert [g['workspaceId'] for g in data['workspace']['groups']] == [wid]
         assert client.post('/api/households', json=body).json()['actorId'] == actor
         assert client.get('/api/workspace', params={'workspaceId':wid}).status_code == 401
@@ -126,3 +136,16 @@ def test_private_household_idea_reaches_joined_members(tmp_path, monkeypatch):
         assert review['expenses']
         assert review['expenses'][-1]['totalCents'] == 1299
         assert review['expenses'][-1]['status'] == 'confirmed'
+
+
+def test_roommate_can_save_payment_handles(tmp_path):
+    with TestClient(create_app(tmp_path / 'pay.db')) as client:
+        body, data = create(client)
+        headers = {'Authorization': f"Bearer {body['sessionToken']}"}
+        common = {'workspaceId': data['workspace']['workspaceId'], 'actorId': data['actorId'], 'requestId': str(uuid4())}
+        saved = client.patch('/api/members/pay-links', headers=headers, json={**common, 'payLinks': {'venmo': 'avery-k', 'cashapp': 'averyk', 'zelle': 'avery@example.com'}})
+        assert saved.status_code == 200, saved.text
+        me = next(actor for actor in saved.json()['workspace']['actors'] if actor['id'] == data['actorId'])
+        assert me['payLinks'] == {'venmo': 'avery-k', 'cashapp': 'averyk', 'zelle': 'avery@example.com'}
+        bad = client.patch('/api/members/pay-links', headers=headers, json={**common, 'requestId': str(uuid4()), 'payLinks': {'venmo': 'ab'}})
+        assert bad.status_code == 422

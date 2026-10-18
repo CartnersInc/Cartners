@@ -355,7 +355,7 @@ input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--green); 
 .shopping-list > .rm-h2 { margin: 28px 0 14px; }
 .shopping-next { background: #e7eddc; border-radius: 14px; padding: 22px; display: grid; gap: 14px; }
 .shopping-next .rm-card { background: transparent; border: 0; padding: 0; }
-.shopping-flow + .rm-compare { margin-top: 32px; }
+.rm-compare + .shopping-flow { margin-top: 8px; }
 .purchased-list { margin: 28px 0; }
 .purchased-list > summary, .household-spending > summary, .receipt-review > summary { padding: 16px 0; cursor: pointer; font-weight: 600; }
 .plan-another { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 26px 0; }

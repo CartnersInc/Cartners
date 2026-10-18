@@ -213,6 +213,10 @@ button:disabled { opacity: .55; }
 .app-shell .household-spending { background: var(--sun-pale); padding: 0 24px; border-radius: 12px; }
 .page-heading { gap: 24px; }
 .page-heading .intro { font-size: .95rem; max-width: 58ch; }
+.week-plan-days { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
+.week-plan-days li { background: var(--white); border-radius: 12px; padding: 14px 16px; }
+.week-plan-days h3 { margin: 4px 0 6px; font-size: 1.15rem; }
+.week-draft { margin: 8px 0 28px; }
 .plan-another { background: var(--apron); border-radius: 14px; padding: 22px 26px; margin-block: 28px 36px; }
 .plan-another label { font-size: .85rem; font-weight: 600; }
 .plan-another input { background: var(--white); border-color: #baa78d; border-radius: 9px; }

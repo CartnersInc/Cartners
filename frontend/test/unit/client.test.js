@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
+import { householdKind, isFamilyTable, splitsCosts } from '../../src/household.js';
 import { readFile } from 'node:fs/promises';
 
 test('writes preserve the caller action ID and structured conflicts', async () => {
@@ -35,4 +36,23 @@ test('draft boundary accepts contract variants and rejects malformed recipes', a
     assert.ok(!isDraft(draft, 'another-group'));
   }
   assert.ok(!isDraft({ kind: 'recommendation', draftId: 'broken', workspaceId: 'demo-family', sourceMode: 'live_ai', listRevision: 1 }, 'demo-family'));
+  const week = {
+    kind: 'weekly_plan', draftId: 'draft-week', workspaceId: 'demo-family', sourceMode: 'sample', listRevision: 1,
+    days: Array.from({ length: 7 }, (_, index) => ({
+      planDate: `2026-10-${12 + index}`,
+      recommendation: { title: `Meal ${index}`, servings: 4, ingredients: [{ id: `ing-${index}`, name: 'Beans', quantity: 1, unit: 'can' }] },
+    })),
+  };
+  assert.ok(isDraft(week, 'demo-family'));
+  assert.ok(!isDraft({ ...week, days: week.days.slice(0, 6) }, 'demo-family'));
+});
+
+test('family tables stay pooled; roommate tables split costs', () => {
+  assert.equal(householdKind({ workspaceId: 'demo-family', preferences: { spendingMode: 'pooled' } }), 'family');
+  assert.equal(householdKind({ workspaceId: 'demo-roommates', preferences: { spendingMode: 'split' } }), 'roommates');
+  assert.ok(isFamilyTable({ preferences: { householdKind: 'family', spendingMode: 'pooled' } }));
+  assert.equal(householdKind({ workspaceId: 'household-1', preferences: { householdKind: 'other', spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }), 'roommates');
+  assert.ok(!isFamilyTable({ workspaceId: 'household-1', preferences: { spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }));
+  assert.ok(splitsCosts({ preferences: { spendingMode: 'split' } }));
+  assert.ok(!splitsCosts({ preferences: { spendingMode: 'pooled' } }));
 });

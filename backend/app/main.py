@@ -30,10 +30,10 @@ from app.schemas import (
     TripPatchRequest,
     UndoRequest,
 )
-from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, suggest_for_event
+from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, generate_weekly_plan, suggest_for_event
 from app.store import Store
 from app.households import authorize_household, register_household_routes
-from app.suggestions import build_suggestion, require_message
+from app.suggestions import build_suggestion, require_message, wants_weekly_plan, week_dates
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -42,6 +42,7 @@ DEFAULT_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:4173",
     "http://localhost:4173",
+    "https://cartnersinc.github.io",
 ]
 
 
@@ -131,6 +132,17 @@ def make_preview_draft(result: dict, request: SuggestionRequest) -> dict:
             }
             for item in ingredients
         ]
+    elif draft.get("kind") == "weekly_plan":
+        dates = week_dates(request.planDate)
+        dated = []
+        for index, entry in enumerate(draft.get("days") or []):
+            recipe = entry.get("recommendation") or {}
+            for ingredient in recipe.get("ingredients") or []:
+                ingredient["id"] = f"ingredient-{uuid4()}"
+            dated.append({"planDate": dates[index].isoformat(), "recommendation": recipe})
+        draft["days"] = dated
+        draft["planDate"] = dates[0].isoformat()
+        draft["changesSummary"] = "Preview only. Saving this week does not add groceries."
     return draft
 
 
@@ -512,14 +524,21 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         payload = None
         try:
             payload, image_bytes, image_mime_type = await read_suggestion(request)
-            result = await run_in_threadpool(
-                generate_suggestion,
-                payload.message,
-                preferences=payload.preferences,
-                previous_draft=payload.previousDraft,
-                image_bytes=image_bytes,
-                image_mime_type=image_mime_type,
-            )
+            if wants_weekly_plan(payload.message):
+                result = await run_in_threadpool(
+                    generate_weekly_plan,
+                    payload.message,
+                    preferences=payload.preferences,
+                )
+            else:
+                result = await run_in_threadpool(
+                    generate_suggestion,
+                    payload.message,
+                    preferences=payload.preferences,
+                    previous_draft=payload.previousDraft,
+                    image_bytes=image_bytes,
+                    image_mime_type=image_mime_type,
+                )
             return make_preview_draft(result, payload)
         except RuntimeError as exc:
             message = str(exc)

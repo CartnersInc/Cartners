@@ -78,14 +78,24 @@ class Store:
 
     def _seed(self) -> None:
         actors = [("leila", "Leila"), ("sam", "Sam"), ("jordan", "Jordan"), ("maya", "Maya")]
+        pay_links = {
+            "leila": {"venmo": "leila-p", "zelle": "leila@example.com"},
+            "sam": {"venmo": "sam-k", "cashapp": "samk"},
+            "jordan": {"paypal": "jordanm"},
+            "maya": {"venmo": "maya-r"},
+        }
         for actor_id, name in actors:
-            self.conn.execute("INSERT INTO actors(id, name) VALUES (?, ?)", (actor_id, name))
+            self.conn.execute(
+                "INSERT INTO actors(id, name, pay_links_json) VALUES (?, ?, ?)",
+                (actor_id, name, dumps(pay_links.get(actor_id, {}))),
+            )
 
         groups = [
             {
                 "id": "demo-family",
                 "name": "Family dinner",
                 "mode": "pooled",
+                "kind": "family",
                 "servings": 4,
                 "restrictions": ["vegetarian"],
                 "likes": ["Mexican food"],
@@ -96,6 +106,7 @@ class Store:
                 "id": "demo-roommates",
                 "name": "Roommate kitchen",
                 "mode": "split",
+                "kind": "roommates",
                 "servings": 2,
                 "restrictions": [],
                 "likes": ["pasta", "tacos"],
@@ -107,14 +118,15 @@ class Store:
             self.conn.execute(
                 """
                 INSERT INTO workspaces(
-                  id, name, spending_mode, servings, restrictions_json, likes_json,
+                  id, name, spending_mode, household_kind, servings, restrictions_json, likes_json,
                   max_prep_minutes, list_revision, last_store_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 """,
                 (
                     group["id"],
                     group["name"],
                     group["mode"],
+                    group["kind"],
                     group["servings"],
                     dumps(group["restrictions"]),
                     dumps(group["likes"]),
@@ -261,6 +273,7 @@ class Store:
                     "name": row["name"],
                     "memberIds": members,
                     "spendingMode": row["spending_mode"],
+                    "kind": row["household_kind"] if "household_kind" in row.keys() else "other",
                 }
             )
 
@@ -274,7 +287,10 @@ class Store:
         actors = []
         for actor_id in member_ids:
             actor = self.conn.execute("SELECT * FROM actors WHERE id = ?", (actor_id,)).fetchone()
-            actors.append({"id": actor["id"], "name": actor["name"]})
+            person = {"id": actor["id"], "name": actor["name"]}
+            if "pay_links_json" in actor.keys() and actor["pay_links_json"]:
+                person["payLinks"] = loads(actor["pay_links_json"], {})
+            actors.append(person)
 
         items = [self._item_dict(row) for row in self.conn.execute(
             "SELECT * FROM items WHERE workspace_id = ? ORDER BY created_at, id",
@@ -355,6 +371,7 @@ class Store:
                 "likes": loads(ws["likes_json"], []),
                 "maxPrepMinutes": ws["max_prep_minutes"],
                 "spendingMode": ws["spending_mode"],
+                "householdKind": ws["household_kind"] if "household_kind" in ws.keys() else "other",
             },
             "groups": groups,
             "actors": actors,
@@ -1519,7 +1536,13 @@ class Store:
         try:
             from app.services.kroger_prices import KrogerError, lookup_store_prices
 
-            live = lookup_store_prices([item["name"] for item in items], body["postalCode"], store_limit=3)
+            live = lookup_store_prices(
+                [item["name"] for item in items],
+                body["postalCode"],
+                store_limit=3,
+                latitude=body.get("latitude"),
+                longitude=body.get("longitude"),
+            )
         except Exception:
             live = None
 
@@ -1534,13 +1557,16 @@ class Store:
             sample_notice = "Synthetic Kroger-shaped prices for UI development, not live retailer quotes."
             checked_at = iso(utc_now())
 
-        # Rank complete baskets by known subtotal
-        complete = sorted(
-            [b for b in baskets if b["complete"]],
-            key=lambda b: b["knownSubtotalCents"],
-        )
-        incomplete = [b for b in baskets if not b["complete"]]
-        ranked = complete + incomplete
+        def miles(basket: dict[str, Any]) -> float:
+            if isinstance(basket.get("distanceMiles"), (int, float)):
+                return float(basket["distanceMiles"])
+            if isinstance(basket.get("distanceKm"), (int, float)):
+                return float(basket["distanceKm"]) / 1.60934
+            return 10_000.0
+
+        ranked = sorted(baskets, key=miles)
+        complete = [basket for basket in ranked if basket["complete"]]
+        cheapest = sorted(complete, key=lambda basket: basket["knownSubtotalCents"])
 
         ws = self.require_workspace(workspace_id)
         return {
@@ -1554,6 +1580,8 @@ class Store:
             "requestQuantities": request_quantities,
             "feeStatus": "Tax, delivery, discounts, and travel costs not included; final totals unverified.",
             "baskets": ranked,
+            "nearestBasketId": ranked[0]["id"] if ranked else None,
+            "cheapestCompleteBasketId": cheapest[0]["id"] if cheapest else None,
             "ingredients": [
                 {
                     "id": row["id"],
@@ -1574,11 +1602,11 @@ class Store:
     ) -> list[dict[str, Any]]:
         # Two sample stores: Sample Kroger and a slightly different alt store
         stores = [
-            ("basket-a", "Sample Kroger", 1.0),
-            ("basket-b", "Sample Market B", 1.08),
+            ("basket-a", "Sample Kroger", 1.0, 0.7),
+            ("basket-b", "Sample Market B", 1.08, 3.1),
         ]
         baskets = []
-        for store_id, store_name, price_factor in stores:
+        for store_id, store_name, price_factor, distance_miles in stores:
             lines = []
             missing = []
             subtotal = 0
@@ -1612,7 +1640,8 @@ class Store:
                     "id": store_id,
                     "storeId": store_id,
                     "storeName": store_name,
-                    "distanceKm": None,
+                    "distanceMiles": distance_miles,
+                    "distanceKm": round(distance_miles * 1.60934, 2),
                     "items": lines,
                     "missingItemIds": missing,
                     "complete": len(missing) == 0,
@@ -1661,6 +1690,8 @@ class Store:
                 continue
             subtotal += line
             image_url = option.get("imageUrl")
+            promo = _positive_dollars(option.get("promoPrice"))
+            regular = _positive_dollars(option.get("regularPrice"))
             lines.append(
                 {
                     "itemId": item["id"],
@@ -1676,6 +1707,9 @@ class Store:
                     "packagesNeeded": packages,
                     "pricePerPackageCents": price_per,
                     "lineTotalCents": line,
+                    "regularPriceCents": int(round(regular * 100)) if regular is not None else None,
+                    "promoPriceCents": int(round(promo * 100)) if promo is not None else None,
+                    "onSale": bool(promo is not None and regular is not None and promo < regular),
                 }
             )
         return [
@@ -1683,6 +1717,8 @@ class Store:
                 "id": f"basket-{store_id}",
                 "storeId": store_id,
                 "storeName": store_name,
+                "storeChain": store.get("chain") or "",
+                "distanceMiles": distance_miles,
                 "distanceKm": distance_km,
                 "items": lines,
                 "missingItemIds": missing,

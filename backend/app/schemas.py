@@ -81,6 +81,8 @@ class ExpenseRequest(WriteBase):
 class BasketCompareRequest(WriteBase):
     itemIds: list[str] = Field(min_length=1)
     postalCode: str = Field(min_length=5, max_length=12)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
 
 
 # --- Domain shapes documented for teammates ---
