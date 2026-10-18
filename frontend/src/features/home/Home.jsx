@@ -14,6 +14,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
   const [excluded, setExcluded] = useState(entry?.confirmAttempt?.excludedIngredientIds || entry?.excluded || []);
+  // Shared or Just me for every ingredient of a recipe, like a single request in Shopping.
+  const scope = (entry?.confirmAttempt?.requestFor || entry?.scope || 'household') === 'household' ? 'household' : actorId;
+  const setScope = next => onEntryChange({ ...entry, scope: next });
   const saved = entry?.saved || null;
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
@@ -88,6 +91,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     if (!attempt.current) attempt.current = {
       workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), draftId: draft.draftId,
       expectedListRevision: draft.listRevision, excludedIngredientIds: excluded, target: 'cart',
+      ...(meal ? { requestFor: scope } : {}),
     };
     onEntryChange({ ...entry, confirmAttempt: attempt.current });
     try {
@@ -131,16 +135,9 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     finally { busy.current = false; setPending(''); }
   }
 
-  const cartChanges = rows.filter(item => !excluded.includes(item.id) && previews.find(row => row.ingredientId === item.id)?.action !== 'keep');
   const neededItems = liveItems(workspace).filter(item => !item.bought);
   const trip = activeTrip(workspace);
   const shopper = trip && workspace.actors.find(person => person.id === trip.claimedBy);
-  const cartSummary = cartChanges.map(item => {
-    const preview = previews.find(row => row.ingredientId === item.id);
-    const amount = preview?.deltaQuantity ?? item.quantity;
-    const unit = item.unit === 'count' ? '' : ` ${item.unit}${['can', 'pack'].includes(item.unit) && amount !== 1 ? 's' : ''}`;
-    return `${item.name}${preview?.action === 'review' ? ' (check variant)' : ` (${preview?.action === 'increase' ? '+' : ''}${amount}${unit})`}${item.note ? ` · ${item.note}` : ''}`;
-  }).join(', ');
   const selectedDate = new Date(`${planDate}T12:00:00`);
   const dateLabel = Number.isNaN(selectedDate.getTime()) ? 'Choose a date' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(selectedDate);
   const options = <details className="request-options">
@@ -231,16 +228,20 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
             {meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}
           </> : <p>{draft.inputSummary?.summary || 'These requests are ready to review.'}</p>}
         </div>
-        <div className="cart-preview compact-cart"><h3>{entry.aiPreviewOnly ? 'Ingredient preview' : 'Ready for the cart'}</h3>{entry.aiPreviewOnly && <p className="small muted">AI generated this idea; cart matching and saving need the shared backend.</p>}<p className="cart-summary">{cartSummary || (excluded.length === rows.length ? 'No new items selected.' : 'These items are already on your list.')}</p>
-          <details><summary>Review {rows.length} ingredients and requests</summary><p className="small muted">Uncheck anything you already have.</p><ul className="ingredient-list">{rows.map(item => {
+        <div className="cart-preview compact-cart"><div className="cart-heading"><h3>{entry.aiPreviewOnly ? 'Ingredient preview' : 'Ready for the cart'}</h3>
+            {meal && <div className="scope-switch" role="radiogroup" aria-label="Who these ingredients are for">
+              {[['household', 'Shared'], ['mine', 'Just me']].map(([id, label]) => <label key={id}><input type="radio" name="recipe-scope" checked={(scope === 'household') === (id === 'household')} disabled={!!pending || !!saved || recoveringSave} onChange={() => setScope(id === 'household' ? 'household' : 'mine')} /><span>{label}</span></label>)}
+            </div>}</div>
+          <ul className="ingredient-list">{rows.map(item => {
             const preview = previews.find(row => row.ingredientId === item.id);
-            const owner = item.requestFor && item.requestFor !== 'household' ? workspace.actors.find(actor => actor.id === item.requestFor)?.name || item.requestFor : 'Shared';
+            const itemScope = meal ? scope : item.requestFor;
+            const owner = itemScope && itemScope !== 'household' ? (itemScope === actorId ? 'Just you' : workspace.actors.find(actor => actor.id === itemScope)?.name || itemScope) : 'Shared';
             return <li key={item.id}><label><input type="checkbox" checked={!excluded.includes(item.id)} disabled={!!pending || !!saved || !!attempt.current}
               onChange={e => { const next = e.target.checked ? excluded.filter(id => id !== item.id) : [...excluded, item.id]; setExcluded(next); onEntryChange({ ...entry, excluded: next }); }} />
               <span><strong>{item.name}</strong><small>{item.quantity} {item.unit} · {owner}{item.note ? ` · ${item.note}` : ''}</small>
                 <small>{preview?.action === 'keep' ? 'Already on the list' : preview?.action === 'increase' ? `Add ${preview.deltaQuantity}; ${preview.existingQuantity} already requested` : preview?.action === 'review' ? 'Check this variant' : `Add ${preview?.deltaQuantity ?? item.quantity}`}</small>
               </span></label></li>;
-          })}</ul></details>
+          })}</ul>
         </div>
         {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">{meal ? 'Your meal plan was saved too.' : 'Your shared cart is up to date.'}</p></div>
           <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('shopping')}>View cart<Icon name="arrow" /></button>
