@@ -51,6 +51,8 @@ test('family tables stay pooled; roommate tables split costs', () => {
   assert.equal(householdKind({ workspaceId: 'demo-family', preferences: { spendingMode: 'pooled' } }), 'family');
   assert.equal(householdKind({ workspaceId: 'demo-roommates', preferences: { spendingMode: 'split' } }), 'roommates');
   assert.ok(isFamilyTable({ preferences: { householdKind: 'family', spendingMode: 'pooled' } }));
+  assert.equal(householdKind({ workspaceId: 'household-1', preferences: { householdKind: 'other', spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }), 'roommates');
+  assert.ok(!isFamilyTable({ workspaceId: 'household-1', preferences: { spendingMode: 'pooled' } }, { kind: 'roommates', workspaceId: 'household-1' }));
   assert.ok(splitsCosts({ preferences: { spendingMode: 'split' } }));
   assert.ok(!splitsCosts({ preferences: { spendingMode: 'pooled' } }));
 });

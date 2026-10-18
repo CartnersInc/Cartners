@@ -30,7 +30,7 @@ export default function Onboarding({ api, onComplete }) {
       const body = { name: name.trim(), sessionToken: keys.sessionToken, inviteCode,
         ...(mode === 'create' ? { householdName: householdName.trim() || names[kind], kind, servings: Number(servings), restrictions: split(restrictions), likes: split(likes), maxPrepMinutes: Number(minutes) } : {}) };
       const result = await api.request(mode === 'join' ? '/api/households/join' : '/api/households', { method: 'POST', body });
-      const membership = { workspaceId: result.workspace.workspaceId, actorId: result.actorId, name: name.trim(), householdName: result.workspace.groups[0].name, sessionToken: keys.sessionToken, inviteCode, kind: mode === 'create' ? kind : 'other' };
+      const membership = { workspaceId: result.workspace.workspaceId, actorId: result.actorId, name: name.trim(), householdName: result.workspace.groups[0].name, sessionToken: keys.sessionToken, inviteCode, kind: mode === 'create' ? kind : (result.workspace.preferences?.householdKind || result.workspace.groups?.[0]?.kind || 'other') };
       saveMembership(membership); onComplete(membership, result.workspace);
     } catch (err) {
       setError(err.status === 404 && err.code === 'REQUEST_FAILED'

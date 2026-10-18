@@ -1,9 +1,14 @@
 export function householdKind(workspace, membership) {
-  if (workspace?.preferences?.householdKind) return workspace.preferences.householdKind;
-  if (workspace?.workspaceId === 'demo-family') return 'family';
+  const saved = membership?.kind;
+  if (saved && saved !== 'other' && (!membership.workspaceId || membership.workspaceId === workspace?.workspaceId)) return saved;
+  const fromPrefs = workspace?.preferences?.householdKind;
+  if (fromPrefs && fromPrefs !== 'other') return fromPrefs;
+  const fromGroup = workspace?.groups?.find(group => group.workspaceId === workspace?.workspaceId)?.kind;
+  if (fromGroup && fromGroup !== 'other') return fromGroup;
   if (workspace?.workspaceId === 'demo-roommates') return 'roommates';
-  if (membership?.kind && membership.workspaceId === workspace?.workspaceId) return membership.kind;
-  return workspace?.preferences?.spendingMode === 'split' ? 'roommates' : 'family';
+  if (workspace?.workspaceId === 'demo-family') return 'family';
+  if (workspace?.preferences?.spendingMode === 'split') return 'roommates';
+  return 'family';
 }
 
 export function isFamilyTable(workspace, membership) {
