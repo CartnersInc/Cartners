@@ -1,16 +1,10 @@
 # One shared live demo
 
-`main` is the source of truth. Teammates build on their own branches and open pull requests; after a change is merged to `main`, GitHub Actions tests and deploys the React app to one stable URL:
+`main` is the source of truth. Teammates build on their own branches and open pull requests; every push to `main` runs frontend checks and deploys the app to one stable public URL:
 
 **https://xaviergorriti.github.io/Groceries_fun_time_with_friends/**
 
-Branch previews are not published. Each successful deployment replaces the previous live app at that URL, so the team always shares the current `main` build.
-
-## One-time setup
-
-GitHub Pages is not enabled yet. A repository admin must open [Settings → Pages](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/settings/pages), set **Build and deployment → Source** to **GitHub Actions**, and save. Then open **Actions → Publish Cartners demo → Run workflow**, choose `main`, and run it once. Later pushes to `main` deploy automatically.
-
-Ibrahiim has Write access, which cannot change the Pages setting. The existing `chatgpt.site` preview is a separate snapshot and can become stale; use the GitHub Pages URL as the team's shared demo once the first deployment succeeds.
+Branch previews are not published. Each successful deployment replaces the previous live app at that URL, so the team shares the current `main` build. The first deployment is live; no additional setup is needed.
 
 ## What the hosted demo needs
 
