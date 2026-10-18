@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
+import { fallbackRecipes, loadRandomRecipes } from '../../api/discovery.js';
 import { sampleDrafts, starterPrompts } from '../../samples.js';
 
 function featuredItem(value) {
@@ -21,8 +22,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const undoAttempt = useRef(entry?.undoAttempt || null);
   const suggestionAttempt = useRef(null);
   const busy = useRef(false);
-  const [featuredItems, setFeaturedItems] = useState([]);
-  const [featuredStatus, setFeaturedStatus] = useState('offline');
+  const [featuredItems, setFeaturedItems] = useState(fallbackRecipes);
+  const [featuredStatus, setFeaturedStatus] = useState('loading');
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [featuredPaused, setFeaturedPaused] = useState(() => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   const [featuredInteracting, setFeaturedInteracting] = useState(false);
@@ -39,20 +40,20 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
 
   useEffect(() => {
     if (!active || draft) return;
-    if (!connected) { setFeaturedStatus('offline'); return; }
     const controller = new AbortController();
     setFeaturedStatus('loading');
-    api.request('/api/discovery/featured?workspaceId=' + encodeURIComponent(workspace.workspaceId), { signal: controller.signal })
-      .then(result => {
-        const items = Array.isArray(result?.items) ? result.items.filter(featuredItem).slice(0, 8) : [];
-        setFeaturedItems(items);
+    loadRandomRecipes({ signal: controller.signal })
+      .then(items => {
+        const validItems = items.filter(featuredItem).slice(0, 8);
+        if (!validItems.length) throw new Error('No recipe picks came back.');
+        setFeaturedItems(validItems);
         setFeaturedIndex(0);
         setFeaturedImageFailed(false);
-        setFeaturedStatus(items.length ? 'ready' : 'empty');
+        setFeaturedStatus('ready');
       })
-      .catch(() => { if (!controller.signal.aborted) setFeaturedStatus('error'); });
+      .catch(() => { if (!controller.signal.aborted) setFeaturedStatus('fallback'); });
     return () => controller.abort();
-  }, [active, api, connected, draft, featuredRetry, workspace.workspaceId]);
+  }, [active, draft, featuredRetry]);
 
   useEffect(() => {
     if (!active || !featured || featuredPaused || featuredInteracting || featuredItems.length < 2) return;
@@ -66,6 +67,13 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   function moveFeatured(direction) {
     setFeaturedIndex(index => (index + direction + featuredItems.length) % featuredItems.length);
     setFeaturedImageFailed(false);
+  }
+
+  function planFeatured() {
+    const prompt = featured?.prompt || `Help us make ${featured?.title || 'this recipe'} for our group, using our saved preferences.`;
+    setMessage(prompt);
+    if (connected) requestSuggestion(prompt);
+    else setError('This recipe is ready in your request. Connect AI to turn it into a meal plan and shared grocery list.');
   }
 
   function showDraft(nextDraft, localOnly) {
@@ -190,24 +198,23 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         onMouseEnter={() => setFeaturedInteracting(true)} onMouseLeave={() => setFeaturedInteracting(false)}
         onFocusCapture={() => setFeaturedInteracting(true)}
         onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFeaturedInteracting(false); }}>
-        <div className="featured-heading"><h2>Something new to try</h2>{featuredItems.length > 1 && <span>{featuredIndex + 1} of {featuredItems.length}</span>}</div>
+        <div className="featured-heading"><div><span className="eyebrow">A little inspiration</span><h2>Something new to try</h2></div><span>{featuredIndex + 1} of {featuredItems.length}</span></div>
         {featured ? <article className="featured-slide" aria-roledescription="slide" aria-label={(featuredIndex + 1) + ' of ' + featuredItems.length + ': ' + featured.title}>
-          <div className="featured-media">{!featuredImageFailed ? <img src={featured.thumbnailUrl} alt={'Recipe for ' + featured.title} loading="lazy" referrerPolicy="no-referrer" onError={() => setFeaturedImageFailed(true)} /> : <div className="featured-image-fallback">{featured.cuisine || 'A new favorite'}</div>}</div>
+          <div className="featured-media">{!featuredImageFailed ? <img src={featured.thumbnailUrl} alt={'Recipe for ' + featured.title} loading="eager" referrerPolicy="no-referrer" onError={() => setFeaturedImageFailed(true)} /> : <div className="featured-image-fallback"><Icon name="leaf" /><span>{featured.title}</span></div>}<span className="featured-badge">{featured.sourceType === 'article' ? 'Recipe find' : 'Video find'}</span></div>
           <div className="featured-copy"><p className="featured-source">{[featured.cuisine, featured.sourceName].filter(Boolean).join(' · ') || 'A recipe to discover'}</p><h3>{featured.title}</h3>
-            <div className="featured-actions"><button className="button primary" disabled={!connected || !!pending} onClick={() => requestSuggestion(featured.prompt || ('Show me how to make ' + featured.title + (featured.cuisine ? ', a ' + featured.cuisine + ' dish' : '') + ' for our group.'))}>Make this tonight<Icon name="arrow" /></button>
-              <a className="featured-link" href={featured.sourceUrl} target="_blank" rel="noopener noreferrer">{featured.sourceType === 'article' ? 'Read recipe' : 'Watch recipe'}<Icon name="arrow" /></a>
+            <div className="featured-actions"><button className="button primary" disabled={!!pending} onClick={planFeatured}>Make this tonight<Icon name="arrow" /></button>
+              <a className="featured-link" href={featured.sourceUrl} target="_blank" rel="noopener noreferrer">{featured.sourceType === 'article' ? 'Open recipe' : 'Watch video'}<Icon name="arrow" /></a>
             </div>
           </div>
         </article> : <div className="featured-empty" aria-live="polite" aria-busy={featuredStatus === 'loading'}>
-          <h3>{featuredStatus === 'loading' ? 'Finding a fresh idea…' : 'A fresh dish from somewhere new'}</h3>
-          <p>{featuredStatus === 'offline' ? 'Featured recipes will appear when discovery is connected.' : featuredStatus === 'error' ? 'Couldn’t load the recipe picks just now.' : featuredStatus === 'empty' ? 'No recipe picks are available yet.' : 'A rotating mix of recipes and cooking videos, picked for your group.'}</p>
-          {(featuredStatus === 'error' || featuredStatus === 'empty') && <button className="text-button" onClick={() => setFeaturedRetry(value => value + 1)}>Try again<Icon name="arrow" /></button>}
+          <h3>Finding a fresh idea…</h3><p>Recipes and cooking videos from around the table.</p>
         </div>}
         {featuredItems.length > 1 && <div className="featured-controls">
           <button className="text-button" onClick={() => moveFeatured(-1)} aria-label="Previous recipe">Previous</button>
           <button className="text-button" onClick={() => setFeaturedPaused(value => !value)} aria-pressed={featuredPaused}>{featuredPaused ? 'Play slideshow' : 'Pause slideshow'}</button>
           <button className="text-button" onClick={() => moveFeatured(1)} aria-label="Next recipe">Next</button>
         </div>}
+        <div className="featured-refresh"><span>{featuredStatus === 'loading' ? 'Finding fresh picks…' : featuredStatus === 'fallback' ? 'Showing saved picks while discovery reconnects.' : 'Recipe data by TheMealDB'}</span><button className="text-button" disabled={featuredStatus === 'loading'} onClick={() => setFeaturedRetry(value => value + 1)}>Surprise us<Icon name="arrow" /></button></div>
       </section>
     </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}</div>}
 

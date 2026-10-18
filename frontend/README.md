@@ -27,9 +27,11 @@ The feature/API interface is published in [issue #3](https://github.com/XavierGo
 - Home accepts direct v2 draft responses; confirmation/Undo use the response envelope. It retains input, drafts, exclusions, pending confirmation IDs, and saved Undo metadata in sessionStorage by group. These fictional examples are not private production storage.
 - Plans receives `onPlanDateChange(date)` so an empty date returns to Home without an event form.
 
-## Featured recipe feed
+## Recipe discovery
 
-Home requests `GET /api/discovery/featured?workspaceId=...` when the Home area is visible and the backend is connected. It expects `{items:[{id,title,cuisine,thumbnailUrl,sourceUrl,sourceName,sourceType,prompt}]}`. Return up to eight items; `sourceType` is `video` or `article`. The frontend checks that media URLs use HTTPS, shows the source link, and sends `prompt` through the existing suggestion route when someone chooses **Make this tonight**. The carousel advances every seven seconds, stops while hovered/focused, and starts paused for reduced-motion preference. It does not autoplay media. Cache provider lookups in the API so opening Home does not repeatedly search YouTube or other sources.
+Home loads five random, source-linked recipes directly from [TheMealDB's public random recipe API](https://www.themealdb.com/api.php), so the carousel works before Ethan's discovery endpoint exists. It rotates every seven seconds, supports previous/next, pause, and **Surprise us**, and never autoplays video. If the feed is unreachable, two source-linked picks remain available. Recipe image and source links are provided by the recipe publishers through TheMealDB.
+
+Choosing **Make this tonight** sends the selected dish and its ingredients to the existing `POST /api/suggestions` AI route when the backend is connected. Offline, it places that recipe request in the composer and says AI planning is unavailable. This keeps discovery useful without implying that the random recipe catalog itself is AI-generated or that the AI backend is already live.
 
 ## Checks
 
@@ -42,7 +44,7 @@ npm run test:browser
 
 With Chrome installed, `PLAYWRIGHT_CHANNEL=chrome npm run test:browser` uses it instead. Browser checks use intercepted test API responses; they do not prove Xavier's backend or Ethan's live provider is connected. Real integration still needs two browsers pointed at one backend.
 
-Photo: unchanged copy of the original illustrative Unsplash taco asset; provenance is adjacent in `public/assets/tacos.jpg.json`.
+The discovery carousel uses recipe-specific images and source links from TheMealDB; the original taco image remains only as an unused legacy asset.
 
 ## Shared demo and deployment
 
