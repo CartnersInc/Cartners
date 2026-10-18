@@ -6,6 +6,7 @@ from app.services.gemini_suggestions import (
     GeminiMealOutput,
     Preferences,
     _normalize_message,
+    stated_expense_from_note,
 )
 from app.main import app, SuggestionRequest, make_preview_draft
 from pydantic import ValidationError
@@ -218,7 +219,7 @@ class SuggestionValidationTests(unittest.TestCase):
         with patch("app.main.draft_expense_from_note", return_value={
             "totalCents": 4218, "payerName": "Leila", "sharedNames": ["Sam"],
             "personalAmounts": [{"personName": "Sam", "amountCents": 800}], "clarification": None,
-        }):
+        }) as mocked:
             with TestClient(app) as client:
                 response = client.post("/api/ai/expense-draft", json={
                     "workspaceId": "demo-roommates", "actorId": "leila", "requestId": "receipt-draft-1",
@@ -230,6 +231,7 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(draft["payerId"], "leila")
         self.assertEqual(draft["personalAllocations"], {"sam": 800})
         self.assertFalse(draft["saved"])
+        self.assertEqual(mocked.call_args.kwargs["context"]["currentActorName"], "Leila")
 
     def test_expense_ai_reuses_last_split_when_the_note_omits_sharers(self):
         with patch("app.main.draft_expense_from_note", return_value={
@@ -245,6 +247,27 @@ class SuggestionValidationTests(unittest.TestCase):
         draft = response.json()
         self.assertEqual(draft["totalCents"], 4000)
         self.assertEqual(set(draft["sharedMemberIds"]), {"leila", "sam", "jordan", "maya"})
+        self.assertFalse(draft["saved"])
+
+    def test_stated_expense_reads_only_a_written_total(self):
+        parsed = stated_expense_from_note("I paid $42.18 at QFC", members=["Leila", "Sam"], actor_name="Leila")
+        self.assertEqual(parsed["totalCents"], 4218)
+        self.assertEqual(parsed["payerName"], "Leila")
+        empty = stated_expense_from_note("groceries at QFC", members=["Leila"], actor_name="Leila")
+        self.assertIsNone(empty["totalCents"])
+
+    def test_expense_ai_uses_the_written_total_when_gemini_is_not_configured(self):
+        with patch("app.main.draft_expense_from_note", side_effect=RuntimeError("Set GEMINI_API_KEY in the environment")):
+            with TestClient(app) as client:
+                response = client.post("/api/ai/expense-draft", json={
+                    "workspaceId": "demo-roommates", "actorId": "leila", "requestId": "receipt-fallback-1",
+                    "message": "I paid $12.99 at QFC", "mode": "pooled",
+                })
+        self.assertEqual(response.status_code, 200)
+        draft = response.json()
+        self.assertEqual(draft["totalCents"], 1299)
+        self.assertEqual(draft["payerId"], "leila")
+        self.assertEqual(draft["sourceMode"], "sample")
         self.assertFalse(draft["saved"])
 
 

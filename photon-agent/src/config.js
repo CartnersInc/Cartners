@@ -1,3 +1,5 @@
+import { expandPhoneMap, expandPhoneSet, matchPhoneMap } from './phone.js';
+
 function required(env, key) {
   const value = env[key]?.trim();
   if (!value) throw new Error(`Set ${key} in photon-agent/.env.`);
@@ -5,8 +7,8 @@ function required(env, key) {
 }
 
 export function loadConfig(env = process.env) {
-  const allowedSenders = new Set(required(env, 'PHOTON_ALLOWED_SENDERS')
-    .split(',').map((value) => value.trim().toLowerCase()).filter(Boolean));
+  const allowedSenders = expandPhoneSet(required(env, 'PHOTON_ALLOWED_SENDERS')
+    .split(',').map((value) => value.trim()).filter(Boolean));
   let actorIds;
   try { actorIds = JSON.parse(required(env, 'CARTNERS_ACTOR_BY_SENDER')); } catch {
     throw new Error('CARTNERS_ACTOR_BY_SENDER must be a JSON object mapping each allowed sender to a Cartners actor ID.');
@@ -14,9 +16,9 @@ export function loadConfig(env = process.env) {
   if (!actorIds || typeof actorIds !== 'object' || Array.isArray(actorIds)) {
     throw new Error('CARTNERS_ACTOR_BY_SENDER must be a JSON object.');
   }
-  const actorBySender = new Map(Object.entries(actorIds).map(([sender, id]) => [sender.toLowerCase(), id]));
-  for (const sender of allowedSenders) {
-    if (!actorBySender.get(sender)) throw new Error(`Add a Cartners actor ID for each allowed sender in CARTNERS_ACTOR_BY_SENDER.`);
+  const actorBySender = expandPhoneMap(Object.entries(actorIds));
+  for (const sender of required(env, 'PHOTON_ALLOWED_SENDERS').split(',').map((value) => value.trim()).filter(Boolean)) {
+    if (!matchPhoneMap(actorBySender, sender)) throw new Error(`Add a Cartners actor ID for each allowed sender in CARTNERS_ACTOR_BY_SENDER.`);
   }
   return {
     projectId: required(env, 'PHOTON_PROJECT_ID'),

@@ -216,3 +216,33 @@ test('Spectrum starts a store run for dad and adds a roommate request to the sam
   assert.match(replies[1], /Added milk, eggs/);
   assert.equal(items.length, 2);
 });
+
+test('Spectrum matches a 10-digit US number to the household actor', async () => {
+  const replies = [];
+  const items = [];
+  const handled = await handleSpectrumMessage({
+    space: { id: 'family-thread' },
+    message: {
+      direction: 'inbound',
+      id: 'need-digits',
+      sender: { phoneNumber: '4255006832' },
+      content: { type: 'text', text: 'milk' },
+      async reply(body) { replies.push(body); },
+    },
+    config: {
+      allowedSenders: new Set(['+14255006832']),
+      actorBySender: new Map([['+14255006832', 'leila']]),
+      workspaceId: 'demo-family',
+    },
+    api: {
+      async addItem(body) {
+        items.push(body.name);
+        return { workspace: { items: [{ name: body.name, quantity: 1, unit: 'count', bought: false, removed: false }], trip: { claimedBy: null } } };
+      },
+    },
+    state: { pendingBySpace: {}, async save() {} },
+  });
+  assert.equal(handled, true);
+  assert.deepEqual(items, ['milk']);
+  assert.match(replies[0], /Added milk/);
+});

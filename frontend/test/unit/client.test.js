@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
 import { householdKind, isFamilyTable, splitsCosts, withMemberPayLinks } from '../../src/household.js';
+import { amountInNote } from '../../src/features/shopping/lib/format.js';
 import { allocateSplit, rememberedSharers, unrecordedRuns } from '../../src/features/spending/lib/remember.js';
 import { memberPayApps, payLink } from '../../src/features/spending/proposal/payLinks.js';
 import { readFile } from 'node:fs/promises';
@@ -85,6 +86,12 @@ test('pay logos only include saved valid handles and opening a link is not a pay
   const venmo = payLink('venmo', 'sam-k', 1300);
   assert.equal(venmo.href, 'https://venmo.com/u/sam-k');
   assert.ok(!('paid' in venmo));
+});
+
+test('receipt notes expose the first stated total', () => {
+  assert.equal(amountInNote('I paid $42.18 at QFC'), 4218);
+  assert.equal(amountInNote('54.20 at QFC'), 5420);
+  assert.equal(amountInNote('need milk'), null);
 });
 
 test('roommate receipts reuse the last split and even-split leftover cents', () => {

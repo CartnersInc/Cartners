@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { Spectrum } from 'spectrum-ts';
+import { setLogLevel } from 'spectrum-ts/authoring';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { formatConfirmed, formatDraft, makeRequestId } from './agent.js';
 import { createCartnersApi } from './cartners-api.js';
@@ -17,6 +18,7 @@ import {
   helpReply,
   windowOpen,
 } from './scenario.js';
+import { expandPhoneMap, expandPhoneSet, matchPhoneMap, matchPhoneSet } from './phone.js';
 
 export { HELP_REPLY, helpReply };
 
@@ -30,12 +32,12 @@ export function loadSpectrumConfig(env = process.env) {
   if (!projectId) throw new Error('Set SPECTRUM_PROJECT_ID in photon-agent/.env.');
   if (!projectSecret) throw new Error('Set SPECTRUM_PROJECT_SECRET in photon-agent/.env.');
   const allowed = optional(env, 'PHOTON_ALLOWED_SENDERS');
-  const allowedSenders = new Set(allowed.split(',').map((value) => value.trim().toLowerCase()).filter(Boolean));
+  const allowedSenders = expandPhoneSet(allowed.split(',').map((value) => value.trim()).filter(Boolean));
   let actorBySender = new Map();
   const rawActors = optional(env, 'CARTNERS_ACTOR_BY_SENDER');
   if (rawActors) {
     const parsed = JSON.parse(rawActors);
-    actorBySender = new Map(Object.entries(parsed).map(([sender, id]) => [sender.toLowerCase(), id]));
+    actorBySender = expandPhoneMap(Object.entries(parsed));
   }
   return {
     projectId,
@@ -46,12 +48,21 @@ export function loadSpectrumConfig(env = process.env) {
     workspaceId: optional(env, 'CARTNERS_WORKSPACE_ID') || 'demo-family',
     sessionToken: optional(env, 'CARTNERS_SESSION_TOKEN'),
     householdKind: optional(env, 'CARTNERS_HOUSEHOLD_KIND'),
+    imessageLine: optional(env, 'CARTNERS_IMESSAGE_LINE') || optional(env, 'PHOTON_AGENT_HANDLE') || '+14156055508',
     stateFile: optional(env, 'PHOTON_STATE_FILE') || '.runtime/state.json',
   };
 }
 
 export function senderId(message) {
-  return String(message.sender?.id || message.sentBy?.handle || '').trim().toLowerCase();
+  const candidates = [
+    message.sender?.phoneNumber,
+    message.sender?.phone,
+    message.sender?.id,
+    message.sentBy?.handle,
+    message.sentBy?.id,
+    message.author?.phoneNumber,
+  ];
+  return String(candidates.find(Boolean) || '').trim().toLowerCase();
 }
 
 export function inboundText(message) {
@@ -65,18 +76,27 @@ function today() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+function onlyMappedActor(config) {
+  const actors = [...new Set(config.actorBySender.values())];
+  return actors.length === 1 ? actors[0] : '';
+}
+
 function actorFor(config, sender) {
-  return config.actorBySender.get(sender) || config.actorBySender.get(sender.replace(/^\+/, '')) || null;
+  return matchPhoneMap(config.actorBySender, sender) || onlyMappedActor(config);
 }
 
 export async function handleSpectrumMessage({ space, message, config, api, state, logger = console }) {
-  if (message.direction === 'outbound') return false;
-  const text = inboundText(message);
-  if (!text) return false;
   const sender = senderId(message);
-  if (config.allowedSenders.size && sender && !config.allowedSenders.has(sender)) {
-    logger.info(`Ignored a message from an unregistered sender.`);
-    return false;
+  const text = inboundText(message);
+  logger.info(`inbound ${message.direction || 'unknown'} from ${sender || 'unknown'}: ${text.slice(0, 80) || message.content?.type || '(empty)'}`);
+  if (message.direction === 'outbound') return false;
+  if (!text) return false;
+  if (sender && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
+    if (!onlyMappedActor(config)) {
+      logger.info(`Ignored a message from an unregistered sender (${sender}).`);
+      return false;
+    }
+    logger.info(`Unlisted sender ${sender}; using the household’s only mapped member.`);
   }
   const pending = state.pendingBySpace[space.id];
   const intent = classifyHousehold(text, { hasPendingDraft: Boolean(pending) });
@@ -87,13 +107,16 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   };
   const actorId = actorFor(config, sender);
 
-  if (intent.type === 'ignore') return false;
+  if (intent.type === 'ignore') {
+    await reply('I can add groceries from here. Text “need milk”, or “going to QFC” when someone is shopping.');
+    return true;
+  }
   if (intent.type === 'help' || !api) {
     if (state.pendingBySpace[space.id]) {
       delete state.pendingBySpace[space.id];
       await state.save();
     }
-    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family')));
+    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family'), config.imessageLine));
     return true;
   }
   if (!actorId) {
@@ -268,21 +291,53 @@ export async function handleSpectrumMessage({ space, message, config, api, state
 }
 
 export async function runSpectrumAgent({ config = loadSpectrumConfig(), logger = console } = {}) {
+  setLogLevel('debug');
   const api = createCartnersApi({ baseUrl: config.cartnersApiUrl, token: config.sessionToken });
   const state = await createStateStore(config.stateFile);
+  try {
+    const auth = Buffer.from(`${config.projectId}:${config.projectSecret}`).toString('base64');
+    const info = await fetch(`https://spectrum.photon.codes/projects/${config.projectId}/imessage/`, {
+      headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+    });
+    const payload = await info.json().catch(() => ({}));
+    logger.info(`Photon iMessage mode: ${payload?.data?.type || info.status}`);
+  } catch (error) {
+    logger.error(`Could not read Photon iMessage mode: ${error instanceof Error ? error.message : 'unknown error'}`);
+  }
   const app = await Spectrum({
     projectId: config.projectId,
     projectSecret: config.projectSecret,
     providers: [imessage.config()],
+    options: { logLevel: 'debug' },
   });
-  logger.info('Cartners Spectrum agent is listening for iMessage.');
-  for await (const [space, message] of app.messages) {
+  if (config.workspaceId === 'demo-family' || config.workspaceId === 'demo-roommates') {
+    logger.warn(`This agent is writing the ${config.workspaceId} sample cart, not a real household. Set CARTNERS_WORKSPACE_ID and CARTNERS_SESSION_TOKEN from a created household.`);
+  }
+  logger.info(`Cartners Spectrum agent is listening. Text ${config.imessageLine} as iMessage from a mapped phone.`);
+  const pingTo = [...config.actorBySender.keys()].find((value) => value.startsWith('+1')) || [...config.actorBySender.keys()][0];
+  const listening = (async () => {
+    for await (const [space, message] of app.messages) {
+      try {
+        await handleSpectrumMessage({ space, message, config, api, state, logger });
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : 'The agent could not process a message.');
+      }
+    }
+  })();
+  if (pingTo) {
     try {
-      await handleSpectrumMessage({ space, message, config, api, state, logger });
+      const cloud = imessage(app);
+      const user = await cloud.user(pingTo);
+      const dm = await cloud.space.create(user);
+      await dm.send('This is your real Cartners list, not the sample. Text “need milk”.');
+      logger.info(`startup ping sent to ${pingTo}`);
     } catch (error) {
-      logger.error(error instanceof Error ? error.message : 'The agent could not process a message.');
+      logger.error(`startup ping failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
   }
+  const heartbeat = setInterval(() => logger.info('still waiting for iMessage'), 30_000);
+  heartbeat.unref?.();
+  await listening;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
