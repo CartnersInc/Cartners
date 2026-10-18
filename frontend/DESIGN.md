@@ -92,7 +92,7 @@ Manrope is used throughout, with Arial and sans-serif fallbacks. Headings use co
 
 The desktop shell has a fixed 210px rail and a flexible content column. Main content is centered with a 1320px maximum width. At 1100px, page gutters reduce to 28px; Home's columns and Plans' weekly list/preferences sidebar collapse at 900px. At 700px, the rail becomes a fixed five-item bottom navigation, gutters become 20px, group selection wraps below the wordmark, and content reserves bottom space including the safe-area inset. At 1600px, the main top padding increases to 40px.
 
-Home begins with the request composer and an illustrative photograph, then switches to a full-width introduction above a two-column draft review. Plans uses dated rows and a separate preferences surface. These describe the scoped pages, not a required composition for every screen.
+Home begins with the request composer, three immediate starters, and an illustrative photograph. Dates and preferences expand from one context summary. Once a draft is returned, the idea and cart-change summary lead the page; the follow-up composer sits below. Detailed ingredient checkboxes and recipe steps expand on request. Empty activity does not appear. Plans uses dated rows and a separate preferences surface. These describe the scoped pages, not a required composition for every screen.
 
 ## Elevation & Depth
 
@@ -107,7 +107,7 @@ Controls and active navigation share softly rounded corners; composer, photograp
 - **Buttons:** primary actions use green and turn dark on hover; secondary actions use white with a fine border and pale hover. Text actions use green and underline on hover. Controls have a 44px minimum height. Background transitions last 180ms with ease-out; reduced-motion preference removes transitions and animations.
 - **Focus and disabled states:** keyboard focus has a 3px outline with a 4px offset. Disabled buttons use .55 opacity and a not-allowed cursor. Pending labels describe the operation underway.
 - **Composer and fields:** the composer has a white surface, fine green-gray border, larger radius, and a resizable textarea. Focus within changes its border to green. Preferences use labeled white fields with 7px corners and helper text.
-- **Starter chips:** outlined, transparent, bold compact labels; pale hover. Sample mode selects a fixed preview, while connected mode fills the request input.
+- **Starter chips:** outlined, transparent, bold compact labels; pale hover. Sample mode selects a labeled fixed preview, while connected mode submits a request immediately. Quick refinement also submits immediately; navigation never calls AI.
 - **Navigation:** five labeled icon links; the selected area has a dark fill and warm white content. Mobile links place the icon above the label. A skip link and focusable main region support keyboard navigation.
 - **Draft review:** source and status text distinguish samples, live suggestions, clarification, stale previews, failures, and saved results. Ingredient checkboxes edit the pending inclusion list. A successful save exposes its feedback, Undo, and View cart. Feedback remains explicit rather than relying on color alone.
 - **Plans and preferences:** date rows use fine separators and a dark today tile. Empty dates route to Home with that date; browsing weeks does not invoke AI or add groceries. Preferences switch between a definition list and an inline labeled form with Cancel and Save preferences.

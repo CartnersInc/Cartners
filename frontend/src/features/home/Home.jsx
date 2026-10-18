@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
-import { sampleDrafts, samplePrompts } from '../../samples.js';
+import { sampleDrafts, starterPrompts } from '../../samples.js';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
@@ -9,7 +9,6 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
   const [excluded, setExcluded] = useState(entry?.confirmAttempt?.excludedIngredientIds || entry?.excluded || []);
-  const [previewSamples, setPreviewSamples] = useState(false);
   const saved = entry?.saved || null;
   const attempt = useRef(entry?.confirmAttempt || null);
   const undoAttempt = useRef(entry?.undoAttempt || null);
@@ -17,7 +16,6 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   const busy = useRef(false);
   const draft = entry?.draft;
   const meal = draft?.recommendation;
-  const samples = previewSamples || !connected;
   const rows = meal?.ingredients || draft?.items || [];
   const previews = meal?.listPreview || draft?.listPreview || [];
   const recoveringSave = !!attempt.current;
@@ -34,15 +32,15 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     // shortcut: fixtures preview one fictional family; never reinterpret them as another group's preferences.
     showDraft(sample, true);
   }
-  async function suggest(event) {
-    event.preventDefault();
-    if (busy.current || !message.trim()) return;
-    if (samples) {
-      setError('This preview has fixed sample responses. Choose one below, or connect the backend to use your own request.');
+  async function requestSuggestion(text) {
+    if (busy.current || recoveringSave || !text.trim()) return;
+    setMessage(text);
+    if (!connected) {
+      setError('AI isn’t connected yet. Your request is saved. Try one of the sample ideas below.');
       return;
     }
     busy.current = true; setPending('suggestion'); setError('');
-    const input = { workspaceId: workspace.workspaceId, actorId, message: message.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}) };
+    const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}) };
     const key = JSON.stringify(input);
     if (suggestionAttempt.current?.key !== key) suggestionAttempt.current = { key, body: { ...input, requestId: crypto.randomUUID() } };
     try {
@@ -101,38 +99,88 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     finally { busy.current = false; setPending(''); }
   }
 
-  return <div className="home-page">
-    <div className={`discovery ${draft ? 'has-draft' : ''}`}>
-      <div className="discovery-main">
-        <h1><label htmlFor="meal-request">What do you want<br className="desktop-break" /> to eat today?</label></h1>
-        <p className="intro">A dinner idea, a craving, or just the groceries you need.</p>
-        <div className="context-line"><span>{workspace.preferences.servings} servings</span><span>{workspace.preferences.restrictions.join(', ') || 'No saved restrictions'}</span><button className="text-button" onClick={() => navigate('plans')}>Edit preferences</button></div>
-        <form className="composer" onSubmit={suggest} aria-busy={pending === 'suggestion'}>
-          <textarea id="meal-request" value={message} maxLength={500} rows={2} onChange={e => setMessage(e.target.value)} placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'Something fun for dinner, ready in 30 minutes…'} disabled={locked} />
-          <div className="composer-bottom"><label className="date-control">For <input aria-label="Meal date" type="date" value={planDate} onChange={e => onPlanDateChange(e.target.value)} disabled={locked} required /></label><button className="button primary" disabled={!message.trim() || locked}>{pending === 'suggestion' ? 'Finding an idea…' : 'Find an idea'}<Icon name="arrow" /></button></div>
-        </form>
-        <div className="suggestion-starters"><span>{samples ? 'Try a sample' : 'Start with an idea'}</span>{samplePrompts.map(prompt => <button key={prompt.key} className="chip" disabled={locked} onClick={() => samples ? showSample(prompt.key) : setMessage(sampleDrafts[prompt.key].inputSummary.message)}>{prompt.label}</button>)}</div>
-        {connected && <button className="text-button mode-switch" onClick={() => setPreviewSamples(!previewSamples)} disabled={locked}>{previewSamples ? 'Use connected AI' : 'Preview sample responses'}</button>}
-      </div>
-      {!draft && <figure className="table-photo"><img src="/assets/tacos.jpg" alt="Tacos and toppings on a shared table" /><figcaption>Taco night, anyone?<span>Sample inspiration · illustrative photo</span></figcaption></figure>}
+  const cartChanges = rows.filter(item => !excluded.includes(item.id) && previews.find(row => row.ingredientId === item.id)?.action !== 'keep');
+  const cartSummary = cartChanges.map(item => {
+    const preview = previews.find(row => row.ingredientId === item.id);
+    const amount = preview?.deltaQuantity ?? item.quantity;
+    const unit = item.unit === 'count' ? '' : ` ${item.unit}${['can', 'pack'].includes(item.unit) && amount !== 1 ? 's' : ''}`;
+    return `${item.name}${preview?.action === 'review' ? ' (check variant)' : ` (${preview?.action === 'increase' ? '+' : ''}${amount}${unit})`}${item.note ? ` · ${item.note}` : ''}`;
+  }).join(', ');
+  const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(`${planDate}T12:00:00`));
+  const options = <details className="request-options">
+    <summary>{dateLabel} · {workspace.preferences.servings} servings{workspace.preferences.restrictions.length ? ` · ${workspace.preferences.restrictions.join(', ')}` : ''}</summary>
+    <div className="request-options-body">
+      <label className="date-control">Meal date<input aria-label="Meal date" type="date" value={planDate} onChange={e => onPlanDateChange(e.target.value)} disabled={locked} required /></label>
+      <button className="text-button" onClick={() => navigate('plans')}>Edit preferences</button>
     </div>
-    {error && <p className="notice error" role="alert">{error}</p>}
+  </details>;
+  const composer = <form className={`composer ${draft ? 'followup-composer' : ''}`} onSubmit={event => { event.preventDefault(); requestSuggestion(message); }} aria-busy={pending === 'suggestion'}>
+    <label className="sr-only" htmlFor="meal-request">{draft ? 'Change this idea' : 'What do you want to eat today?'}</label>
+    <textarea id="meal-request" value={message} maxLength={500} rows={2}
+      onChange={e => setMessage(e.target.value)} disabled={locked}
+      onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); requestSuggestion(message); } }}
+      placeholder={draft ? 'Make it quicker, swap an ingredient…' : 'Pasta tonight? Something quick? Groceries for the weekend?'} />
+    <div className="composer-bottom"><span className="small muted">{draft ? 'Tell us what to change.' : 'Or pick an idea below.'}</span>
+      <button className="button primary" disabled={!message.trim() || locked}>
+        {pending === 'suggestion' ? 'Thinking…' : draft ? 'Update idea' : 'Find an idea'}<Icon name="arrow" />
+      </button>
+    </div>
+  </form>;
+  const starters = <div className="suggestion-starters" aria-label={connected ? 'Ideas to get started' : 'Sample ideas'}>
+    {starterPrompts.map(prompt => <button key={prompt.key} className="chip" disabled={locked}
+      onClick={() => connected ? requestSuggestion(prompt.message) : showSample(prompt.key)}>{prompt.label}</button>)}
+  </div>;
+
+  return <div className="home-page">
+    {!draft ? <div className="discovery">
+      <div className="discovery-main">
+        <h1>What do you want<br className="desktop-break" /> to eat today?</h1>
+        <p className="intro">Tell us what sounds good. We’ll help with the meal and the grocery list.</p>
+        {composer}{starters}{options}
+      </div>
+      <figure className="table-photo"><img src="/assets/tacos.jpg" alt="Tacos and toppings on a shared table" /><figcaption>A little inspiration for tonight.<span>Illustrative photo</span></figcaption></figure>
+    </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}</div>}
+
+    {error && <div className="notice error" role="alert"><p>{error}</p>{!recoveringSave && !saved && !undoAttempt.current && <button className="text-button" onClick={() => showSample('meal')}>Explore a sample meal<Icon name="arrow" /></button>}</div>}
     {entry?.undoMessage && <p className="notice" role="status">{entry.undoMessage}</p>}
-    {pending === 'suggestion' && <p className="notice" role="status">Preparing a draft. Your current idea stays here while you wait.</p>}
+    {pending === 'suggestion' && <p className="notice" role="status">Finding something that fits your group…</p>}
+
     {draft && <section className="draft" aria-labelledby="draft-title" aria-busy={!!pending}>
-      <div className="draft-heading"><span className="source-label">{draft.sourceMode === 'sample' ? 'Sample response' : 'AI suggestion · review before saving'}</span>{entry.localOnly && <span className="muted small">Fixed example: Family dinner · four vegetarian servings</span>}{entry.previous && !saved && <button className="text-button" disabled={locked} onClick={() => { onEntryChange({ ...entry.previous, previous: null }); setExcluded([]); setError(''); attempt.current = null; undoAttempt.current = null; }}>Previous idea</button>}</div>
+      <div className="draft-heading"><span className="source-label">{draft.sourceMode === 'sample' ? 'Sample idea' : 'AI suggestion'}</span>
+        {entry.previous && !saved && <button className="text-button" disabled={locked} onClick={() => { onEntryChange({ ...entry.previous, previous: null }); setExcluded(entry.previous.excluded || []); setError(''); attempt.current = null; undoAttempt.current = null; }}>Previous idea</button>}
+      </div>
       {meal && draft.planDate && draft.planDate !== planDate && <p className="notice">This idea is for {draft.planDate}. A new request will use {planDate}; adding this idea keeps its original date.</p>}
-      {draft.kind === 'clarification' ? <><h2 id="draft-title">One thing to check</h2><p className="clarification">{draft.question}</p><p className="muted">Reply in the same input above. No groceries have been added.</p></> : <>
-        <div className="draft-layout"><div className="recipe-copy"><h2 id="draft-title">{meal?.title || 'Your grocery requests'}</h2>{meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span>{meal.servings} servings</span><span>For {draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>{draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}<details><summary>How to make it</summary><ol className="recipe-steps">{meal.steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details>{meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}<button className="text-button" disabled={locked} onClick={() => entry.localOnly ? showSample('refinement') : setMessage('Make it quicker')}>Make it quicker<Icon name="arrow" /></button></> : <p>{draft.inputSummary?.summary || 'Review these before adding them to your shared cart.'}</p>}</div>
-        <div className="cart-preview"><h3>What goes in the cart</h3><p className="small muted">Already have something? Uncheck it here.</p><ul className="ingredient-list">{rows.map(item => {
-          const preview = previews.find(row => row.ingredientId === item.id);
-          const owner = item.requestFor && item.requestFor !== 'household' ? workspace.actors.find(actor => actor.id === item.requestFor)?.name || item.requestFor : 'Shared';
-          return <li key={item.id}><label><input type="checkbox" checked={!excluded.includes(item.id)} disabled={!!pending || !!saved || !!attempt.current} onChange={e => { const next = e.target.checked ? excluded.filter(id => id !== item.id) : [...excluded, item.id]; setExcluded(next); onEntryChange({ ...entry, excluded: next }); }} /><span><strong>{item.name}</strong><small>{item.quantity} {item.unit} · {owner}{item.note ? ` · ${item.note}` : ''}</small><small>{preview?.action === 'keep' ? 'Already requested — kept as is' : preview?.action === 'increase' ? `Add ${preview.deltaQuantity}; ${preview.existingQuantity} already requested` : preview?.action === 'review' ? 'Check this variant before saving' : `Add ${preview?.deltaQuantity ?? item.quantity}`}</small></span></label></li>;
-        })}</ul>
-        </div></div>
-        {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">{meal ? 'Your dated meal plan was saved too.' : 'Your shared cart is up to date.'}</p></div><button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('shopping')}>View cart<Icon name="arrow" /></button></div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Preview only. Connect the backend to save a real draft.</p> : staleDraft ? <><p className="small muted">The cart changed. Review an updated preview before adding.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh cart preview</button></> : <p className="small muted">{recoveringSave ? 'Retry the previous save to retrieve its result. The same action ID will be used.' : meal ? `Adds reviewed items and saves your ${draft.planDate || planDate} meal.` : 'Adds reviewed requests. No meal plan or payment.'}</p>}</div><button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Adding…' : recoveringSave ? 'Retry save' : 'Add to cart'}<Icon name="arrow" /></button></div>}
+      {draft.kind === 'clarification' ? <><h2 id="draft-title">{draft.question}</h2><p className="muted clarification-hint">Reply below. Nothing has been added yet.</p></> : <>
+        <div className="recipe-copy"><h2 id="draft-title">{meal?.title || 'Here’s what you asked for'}</h2>
+          {meal ? <><p className="recipe-meta"><Icon name="clock" />About {meal.prepMinutesApprox} min<span>{meal.servings} servings</span><span>For {draft.planDate || planDate}</span></p><p>{meal.fitReason}</p>
+            {draft.changesSummary && <p className="change-note">{draft.changesSummary}</p>}
+            <div className="refinement-actions"><button className="chip" disabled={locked} onClick={() => entry.localOnly ? showSample('refinement') : requestSuggestion('Make it quicker')}>Make it quicker</button></div>
+            <details><summary>How to make it</summary><ol className="recipe-steps">{meal.steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details>
+            {meal.uncertainties?.map((warning, i) => <p className="small muted" key={i}>{warning}</p>)}
+          </> : <p>{draft.inputSummary?.summary || 'These requests are ready to review.'}</p>}
+        </div>
+        <div className="cart-preview compact-cart"><h3>Ready for the cart</h3><p className="cart-summary">{cartSummary || (excluded.length === rows.length ? 'No new items selected.' : 'These items are already on your list.')}</p>
+          <details><summary>Review {rows.length} ingredients and requests</summary><p className="small muted">Uncheck anything you already have.</p><ul className="ingredient-list">{rows.map(item => {
+            const preview = previews.find(row => row.ingredientId === item.id);
+            const owner = item.requestFor && item.requestFor !== 'household' ? workspace.actors.find(actor => actor.id === item.requestFor)?.name || item.requestFor : 'Shared';
+            return <li key={item.id}><label><input type="checkbox" checked={!excluded.includes(item.id)} disabled={!!pending || !!saved || !!attempt.current}
+              onChange={e => { const next = e.target.checked ? excluded.filter(id => id !== item.id) : [...excluded, item.id]; setExcluded(next); onEntryChange({ ...entry, excluded: next }); }} />
+              <span><strong>{item.name}</strong><small>{item.quantity} {item.unit} · {owner}{item.note ? ` · ${item.note}` : ''}</small>
+                <small>{preview?.action === 'keep' ? 'Already on the list' : preview?.action === 'increase' ? `Add ${preview.deltaQuantity}; ${preview.existingQuantity} already requested` : preview?.action === 'review' ? 'Check this variant' : `Add ${preview?.deltaQuantity ?? item.quantity}`}</small>
+              </span></label></li>;
+          })}</ul></details>
+        </div>
+        {saved ? <div className="save-result" role="status"><div><strong>{saved.message}</strong><p className="small">{meal ? 'Your meal plan was saved too.' : 'Your shared cart is up to date.'}</p></div>
+          <button className="button" disabled={!!pending || !connected} onClick={undo}>{pending === 'undo' ? 'Undoing…' : 'Undo'}</button><button className="button primary" onClick={() => navigate('shopping')}>View cart<Icon name="arrow" /></button>
+        </div> : <div className="draft-actions"><div>{entry.localOnly ? <p className="small muted">Fixed sample. Ask AI for your own idea when connected.</p> : staleDraft ? <><p className="small muted">The cart changed. Check the updated ingredients first.</p><button className="text-button" disabled={locked} onClick={refreshDraft}>Refresh cart preview</button></> : <p className="small muted">{recoveringSave ? 'Check the previous save. It won’t add anything twice.' : meal ? `Adds the reviewed items and saves dinner for ${draft.planDate || planDate}.` : 'Adds the reviewed requests to your cart.'}</p>}</div>
+          <button className="button primary" onClick={confirm} disabled={!!pending || entry.localOnly || !connected || staleDraft}>{pending === 'confirm' ? 'Adding…' : recoveringSave ? 'Retry save' : 'Add to cart'}<Icon name="arrow" /></button>
+        </div>}
       </>}
     </section>}
-    <section className="recent-section" aria-labelledby="recent-heading"><div className="section-heading"><h2 id="recent-heading">Around your table</h2><button className="text-button" onClick={() => navigate('shopping')}>Open cart<Icon name="arrow" /></button></div>{workspace.activity?.length ? <ul className="activity-list">{workspace.activity.slice(-5).reverse().map((event, index) => <li key={event.id || index}><Icon name="leaf" /><span>{event.message || event.summary || 'Group activity recorded'}</span></li>)}</ul> : <p className="muted">No recent activity. Saved plans and shopping updates will appear here.</p>}</section>
+
+    {draft && <section className="followup" aria-label="Refine your idea"><h2>{draft.kind === 'clarification' ? 'Your reply' : 'Want to change anything?'}</h2>{composer}
+      {!connected && <details className="sample-examples"><summary>Try another sample</summary>{starters}<button className="text-button" disabled={locked} onClick={() => showSample('clarification')}>See a dietary clarification</button></details>}
+    </section>}
+    {workspace.activity?.length > 0 && <section className="recent-section" aria-labelledby="recent-heading"><div className="section-heading"><h2 id="recent-heading">Around your table</h2><button className="text-button" onClick={() => navigate('shopping')}>Open cart<Icon name="arrow" /></button></div><ul className="activity-list">{workspace.activity.slice(-5).reverse().map((event, index) => <li key={event.id || index}><Icon name="leaf" /><span>{event.message || event.summary || 'Group activity recorded'}</span></li>)}</ul></section>}
   </div>;
 }
