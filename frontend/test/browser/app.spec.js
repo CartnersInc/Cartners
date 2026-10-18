@@ -341,3 +341,39 @@ test('navigation responds with motion and respects reduced motion', async ({ pag
   await expect(page.getByRole('heading', { name: 'What sounds good today?' })).toBeVisible();
   expect(await page.evaluate(() => window.surfaceAnimations)).toEqual([220]);
 });
+
+test('notepad purchases stay visible and can be restored with the keyboard', async ({ page }) => {
+  let workspace = await fixture('workspace');
+  workspace.items = workspace.items.map(item => ({ ...item, bought: false }));
+  const item = workspace.items[0];
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/workspace') return route.fulfill({ json: workspace });
+    if (path === `/api/items/${item.id}`) {
+      const body = route.request().postDataJSON();
+      workspace = { ...workspace, listRevision: workspace.listRevision + 1, items: workspace.items.map(row => row.id === item.id ? { ...row, bought: body.bought, version: row.version + 1 } : row) };
+      return route.fulfill({ json: { workspace } });
+    }
+    return route.fulfill({ status: 503, json: { error: { message: 'Provider unavailable in this test' } } });
+  });
+  await page.goto('/#shopping');
+  const note = page.locator('.grocery-notepad');
+  await expect(note.getByRole('heading', { name: 'Our grocery list' })).toBeVisible();
+  const checkbox = page.getByRole('checkbox', { name: `Mark purchased: ${item.name}`, exact: true });
+  await checkbox.focus();
+  await page.keyboard.press('Space');
+  const purchased = page.getByRole('region', { name: 'Purchased groceries' });
+  await expect(purchased.getByRole('checkbox', { name: `Mark needed: ${item.name}`, exact: true })).toBeChecked();
+  await expect(purchased.locator('.rm-item-name').first()).toHaveCSS('text-decoration-line', 'line-through');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(purchased.locator('.notepad-check path').first()).toHaveCSS('animation-name', 'none');
+  await note.screenshot({ path: '/tmp/cartners-notepad-detail.png' });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width !== 320) await page.screenshot({ path: `/tmp/cartners-notepad-${width}.png`, fullPage: true });
+  }
+  await purchased.getByRole('checkbox', { name: `Mark needed: ${item.name}`, exact: true }).uncheck();
+  await expect(page.getByRole('checkbox', { name: `Mark purchased: ${item.name}`, exact: true })).not.toBeChecked();
+  await expect(purchased).toHaveCount(0);
+});
