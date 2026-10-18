@@ -48,7 +48,7 @@ test('add a Just me request, lose a start race, and release a run', async ({ pag
   await page.getByRole('textbox', { name: 'Add an item' }).fill('Hot sauce');
   await page.getByRole('radio', { name: 'Just me' }).first().check();
   await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
-  await expect(page.locator('.rm-cart-row').filter({ hasText: 'Hot sauce' }).locator('.rm-cart-amount')).toHaveText('1');
+  await expect(page.locator('.rm-item').filter({ hasText: 'Hot sauce' }).locator('.rm-qty-badge')).toHaveText('1');
   const add = calls.find(c => c.path === '/api/items');
   expect(add.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', name: 'Hot sauce', requestFor: 'leila', quantity: 1, unit: 'count' });
   expect(add.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
@@ -166,8 +166,8 @@ test('nearby Kroger prices are prominent and compare every open cart item on req
   expect(compare.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', postalCode: '98105' });
   expect(compare.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
   expect(compare.body.itemIds).toEqual(['item-tortillas', 'item-milk']);
-  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-price')).toHaveText('$2.50');
-  await expect(page.locator('.rm-cart-row').first().locator('.rm-cart-amount')).toHaveText('6');
+  await expect(page.locator('.rm-item').first().locator('.rm-item-price')).toHaveText('$2.50');
+  await expect(page.locator('.rm-item').first().locator('.rm-qty-badge')).toHaveText('6');
 });
 
 test('live Kroger matches show the product and prefill the store run', async ({ page }) => {
@@ -200,10 +200,21 @@ test('clear list removes all needed requests after one clear confirmation', asyn
     return { status: 404, json: { error: { message: 'Not in this check' } } };
   });
   await page.goto('/#shopping');
-  await page.getByRole('button', { name: 'Clear list' }).click();
+  await page.getByRole('button', { name: 'Empty cart' }).click();
   await expect(page.getByText('Remove all 2 items that still need buying?')).toBeVisible();
   await page.getByRole('button', { name: 'Remove all 2' }).click();
-  await expect(page.getByText('Your list is clear.')).toBeVisible();
+  await expect(page.getByText('Your cart is empty.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Find dinner with Cartners' })).toBeVisible();
   expect(calls.filter(call => call.body?.removed)).toHaveLength(2);
   await expect(page.locator('p.rm-ok[role="status"]')).toHaveText('Removed 2 items from the list.');
+});
+
+test('phone shopping makes the store-run action easy to find without covering the cart', async ({ page }) => {
+  await serve(page, () => ({ status: 404, json: { error: { message: 'Not in this check' } } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/#shopping');
+  const startShortcut = page.getByRole('button', { name: 'Start a store run', exact: true });
+  await expect(startShortcut).toBeVisible();
+  await startShortcut.click();
+  await expect(page.getByRole('textbox', { name: 'Store' })).toBeFocused();
 });

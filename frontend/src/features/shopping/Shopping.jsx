@@ -3,6 +3,7 @@ import AddItemForm from './parts/AddItemForm.jsx';
 import ItemRow from './parts/ItemRow.jsx';
 import BasketCompare from './parts/BasketCompare.jsx';
 import TripPanel from '../groups/parts/TripPanel.jsx';
+import RunBanner from '../groups/parts/RunBanner.jsx';
 import { people, useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
 import { PUNT_PROPOSAL } from './lib/proposal.js';
@@ -36,6 +37,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const waiting = offRun.filter(item => !item.bought);
   const newCount = onRun.filter(item => !item.bought && itemBadge(item, trip, actorId)?.kind === 'new').length;
   const row = item => <ItemRow key={item.id} item={item} {...shared} trip={trip} badge={itemBadge(item, trip, actorId)} price={itemPrices[item.id] || null} />;
+  const focusAdd = () => { nameRef.current?.scrollIntoView({ block: 'center' }); nameRef.current?.focus(); };
 
   async function clearList() {
     if (clearState.phase === 'confirm') {
@@ -63,14 +65,16 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
     <div className="rm-page">
       <div className="rm-title-row">
         <h1 className="rm-h1">Shopping</h1>
-        <span className="rm-count" aria-label={`${needed.length} items still needed`}>{needed.length}</span>
-        {needed.length > 0 && <button type="button" className="rm-link rm-danger rm-clear-list" disabled={!connected || clearState.phase === 'saving'} onClick={clearList}>{clearState.phase === 'saving' ? 'Removing…' : clearState.phase === 'confirm' ? `Remove all ${needed.length}` : 'Clear list'}</button>}
+        <span className="rm-cart-summary" aria-label={`${needed.length} items still needed`}>{needed.length} to buy</span>
+        {needed.length > 0 && <button type="button" className="rm-btn rm-empty-cart" disabled={!connected || clearState.phase === 'saving'} onClick={clearList}>{clearState.phase === 'saving' ? 'Emptying…' : clearState.phase === 'confirm' ? `Remove all ${needed.length}` : 'Empty cart'}</button>}
       </div>
       {clearState.phase === 'confirm' && <div className="rm-clear-confirm"><p role="status">Remove all {needed.length} items that still need buying? Bought items stay in the list.</p><button type="button" className="rm-link" onClick={() => setClearState({ phase: 'idle', message: '' })}>Keep items</button></div>}
       {clearState.message && <p className={clearState.phase === 'error' ? 'rm-error' : 'rm-ok'} role={clearState.phase === 'error' ? 'alert' : 'status'}>{clearState.message}</p>}
 
+      <RunBanner workspace={workspace} actorId={actorId} serverNowMs={serverNowMs} onAdd={focusAdd} />
       <BasketCompare workspace={workspace} actorId={actorId} api={api} connected={connected} items={needed}
         onPrices={setItemPrices} onStoreFound={setMatchedStore} />
+      {!trip && <div className="rm-dock"><button type="button" className="rm-btn" onClick={() => { startRef.current?.scrollIntoView({ block: 'center' }); startRef.current?.focus(); }}>Start a store run</button></div>}
 
       <div className="rm-columns">
         <div className="rm-main">
@@ -78,14 +82,14 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
 
           {trip && <section aria-labelledby="rm-on-run">
             <div className="rm-list-heading"><h2 id="rm-on-run" className="rm-h2">On {possessive(trip.claimedBy)} run to {trip.storeName}{isShopper && newCount > 0 && <span className="rm-badge rm-badge-new">{newCount} new</span>}</h2></div>
-            {onRun.length ? <><div className="rm-cart-columns" aria-hidden="true"><span>Item</span><span>Amount</span><span>Price</span><span>Instructions</span></div><ul className="rm-items">{onRun.map(row)}</ul></> : <p className="rm-empty">Nothing is on this run yet.</p>}
+            {onRun.length ? <ul className="rm-items">{onRun.map(row)}</ul> : <p className="rm-empty">Nothing is on this run yet.</p>}
           </section>}
 
           <section aria-labelledby="rm-waiting">
             <div className="rm-list-heading">
               <h2 id="rm-waiting" className="rm-h2">{trip ? 'Next run' : 'Needed'} <span className="rm-count">{waiting.length}</span></h2>
             </div>
-            {offRun.length ? <><div className="rm-cart-columns" aria-hidden="true"><span>Item</span><span>Amount</span><span>Price</span><span>Instructions</span></div><ul className="rm-items">{offRun.map(row)}</ul></> : <p className="rm-empty">Your list is clear. Ask Cartners for dinner ideas or add something below.</p>}
+            {offRun.length ? <ul className="rm-items">{offRun.map(row)}</ul> : <div className="rm-empty-state"><p>Your cart is empty.</p><button type="button" className="rm-btn" onClick={() => navigate('home')}>Find dinner with Cartners</button></div>}
           </section>
 
           {PUNT_PROPOSAL && <p className="rm-help rm-proposal">“Not here” is a proposal and still needs backend support before it can be used.</p>}
