@@ -105,10 +105,13 @@ def test_meal_confirm_saves_recipe_plan_and_cart(client: TestClient):
         },
     ).json()
     workspace = confirm["workspace"]
-    assert any(p["date"] == "2026-10-18" for p in workspace["plans"])
-    # Tortillas should increase 6 -> 8
+    meal_plan = next(p for p in workspace["plans"] if p["date"] == "2026-10-18")
+    # Tortillas should increase 6 -> 8 and lock to this meal
     tortillas = next(i for i in workspace["items"] if i["id"] == "item-tortillas")
     assert tortillas["quantity"] == 8
+    assert tortillas["reservedPlanId"] == meal_plan["id"]
+    beans = next(i for i in workspace["items"] if i["name"] == "Black beans" and not i["removed"])
+    assert beans["reservedPlanId"] == meal_plan["id"]
 
     # Stale expected revision must 409 without another AI call
     stale = client.post(
@@ -124,6 +127,118 @@ def test_meal_confirm_saves_recipe_plan_and_cart(client: TestClient):
     )
     assert stale.status_code == 409
     assert stale.json()["error"]["code"] == "LIST_CHANGED"
+
+
+def test_second_meal_cannot_reuse_reserved_quantities(client: TestClient):
+    """Quantities committed to one saved meal must not satisfy the next meal."""
+    first = client.post(
+        "/api/suggestions",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "message": "Something fun for dinner",
+            "planDate": "2026-10-18",
+        },
+    ).json()
+    confirmed = client.post(
+        "/api/drafts/confirm",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "draftId": first["draftId"],
+            "expectedListRevision": first["listRevision"],
+            "excludedIngredientIds": [],
+            "target": "cart",
+        },
+    ).json()
+    after_first = confirmed["workspace"]
+    tortillas_after_first = sum(
+        i["quantity"]
+        for i in after_first["items"]
+        if i["name"] == "Tortillas" and not i["removed"] and not i["bought"]
+    )
+    assert tortillas_after_first == 8
+
+    second = client.post(
+        "/api/suggestions",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "sam",
+            "requestId": rid(),
+            "message": "Something fun for dinner",
+            "planDate": "2026-10-19",
+        },
+    ).json()
+    preview = next(
+        row
+        for row in second["recommendation"]["listPreview"]
+        if row["ingredientId"] == "ing-tortillas"
+        or any(
+            ing["id"] == row["ingredientId"] and ing["name"] == "Tortillas"
+            for ing in second["recommendation"]["ingredients"]
+        )
+    )
+    # Reserved meal qty must not count; second dinner needs its own eight.
+    assert preview["action"] == "add"
+    assert preview["deltaQuantity"] == 8
+
+    confirmed_second = client.post(
+        "/api/drafts/confirm",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "sam",
+            "requestId": rid(),
+            "draftId": second["draftId"],
+            "expectedListRevision": second["listRevision"],
+            "excludedIngredientIds": [],
+            "target": "cart",
+        },
+    ).json()
+    items = confirmed_second["workspace"]["items"]
+    tortillas_total = sum(
+        i["quantity"] for i in items if i["name"] == "Tortillas" and not i["removed"] and not i["bought"]
+    )
+    assert tortillas_total == 16
+    reserved_plans = {
+        i["reservedPlanId"]
+        for i in items
+        if i["name"] == "Tortillas" and not i["removed"] and i.get("reservedPlanId")
+    }
+    assert len(reserved_plans) == 2
+
+
+def test_undo_meal_confirm_releases_reserved_quantities(client: TestClient):
+    suggestion = client.post(
+        "/api/suggestions",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "message": "Something fun for dinner",
+            "planDate": "2026-10-18",
+        },
+    ).json()
+    confirm = client.post(
+        "/api/drafts/confirm",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "draftId": suggestion["draftId"],
+            "expectedListRevision": suggestion["listRevision"],
+            "target": "cart",
+        },
+    ).json()
+    undone = client.post(
+        f"/api/actions/{confirm['actionId']}/undo",
+        json={"workspaceId": "demo-family", "actorId": "leila", "requestId": rid()},
+    ).json()
+    tortillas = next(i for i in undone["workspace"]["items"] if i["id"] == "item-tortillas")
+    assert tortillas["quantity"] == 6
+    assert tortillas["reservedPlanId"] is None
+    assert not any(p["date"] == "2026-10-18" for p in undone["workspace"]["plans"])
 
 
 def test_confirm_replay_same_request_id(client: TestClient):
