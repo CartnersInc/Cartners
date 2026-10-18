@@ -91,6 +91,10 @@ p { line-height: 1.65; max-width: 70ch; }
 .home-run-status { margin-top: 14px; padding-top: 13px; border-top: 1px solid #ccd9c1; font-size: .76rem; line-height: 1.55; color: var(--muted); }
 .home-run-status strong { color: var(--ink); }
 .home-list > .text-button { margin-top: 7px; font-size: .8rem; }
+.home-text-line { margin-top: 14px; padding-top: 13px; border-top: 1px solid #ccd9c1; }
+.home-text-line p { color: var(--muted); font-size: .76rem; line-height: 1.55; }
+.home-text-line strong { color: var(--ink); }
+.home-text-line > .text-button { margin-top: 6px; font-size: .8rem; }
 .featured-recipes { width: min(1160px, 100%); margin: 0 auto 30px; overflow: hidden; border: 1px solid #dbe3d2; border-radius: 18px; background: #f1f3e9; box-shadow: 0 10px 30px #314b2510; }
 .featured-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 18px 19px 14px; }
 .featured-heading h2 { margin-top: 4px; font-size: 1.18rem; letter-spacing: -.025em; }
