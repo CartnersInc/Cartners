@@ -3,6 +3,7 @@ import { createApi, isWorkspace, isDraft } from './api/client.js';
 import Home from './features/home/Home.jsx';
 import Icon from './components/Icon.jsx';
 import ContextPicker from './components/ContextPicker.jsx';
+import FeatureErrorBoundary from './components/FeatureErrorBoundary.jsx';
 import { initialWorkspace } from './samples.js';
 import { clearPurchasePrompt } from './features/groups/parts/TripPanel.jsx';
 import Onboarding from './features/onboarding/Onboarding.jsx';
@@ -13,7 +14,13 @@ const pages = ['home', 'plans', 'shopping', 'spending', 'groups'];
 const mainPages = ['home', 'shopping'];
 const morePages = ['plans', 'spending', 'groups'];
 const pageLabels = { home: 'Home', plans: 'This week', shopping: 'Shopping', spending: 'Spending', groups: 'Household' };
-const featureFiles = import.meta.glob('./features/{shopping,spending,groups,plans}/*.jsx');
+// Only page entry modules — not helpers like Preferences.jsx — so More-nav chunks stay stable.
+const featureFiles = import.meta.glob([
+  './features/shopping/Shopping.jsx',
+  './features/spending/Spending.jsx',
+  './features/groups/Groups.jsx',
+  './features/plans/Plans.jsx',
+]);
 const features = Object.fromEntries(pages.slice(1).map(page => {
   const filename = `./features/${page}/${page[0].toUpperCase()}${page.slice(1)}.jsx`;
   return [page, featureFiles[filename] ? lazy(featureFiles[filename]) : null];
@@ -149,7 +156,7 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
         </aside>}
         {connection === 'stale' && <p className="connection-note" role="status">{connection === 'stale' ? 'Updates are paused. Your last saved data is still visible; reconnect before making changes.' : 'Your shared list is a sample. Recipe discovery is live; AI meal planning and cart saves need the backend.'}</p>}
         <div hidden={page !== 'home'}><Home key={workspace.workspaceId} {...featureProps} active={page === 'home'} connected={connected} entry={drafts[workspace.workspaceId]} onEntryChange={entry => updateEntry(workspace.workspaceId, entry)} planDate={planDate} onPlanDateChange={setPlanDate} /></div>
-        {page !== 'home' && <Suspense fallback={<p role="status">Opening {page}…</p>}>{Feature ? <Feature key={workspace.workspaceId} {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense>}
+        {page !== 'home' && <FeatureErrorBoundary page={page} label={pageLabels[page]} icon={page} navigate={navigate}><Suspense fallback={<p role="status">Opening {pageLabels[page] || page}…</p>}>{Feature ? <Feature key={workspace.workspaceId} {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense></FeatureErrorBoundary>}
       </main><footer className="app-footer">Cartners · made for the things you share.<span>Your table</span></footer>
     </div><div className={`toast ${notice ? 'visible' : ''}`} role="status" aria-live="polite">{notice}</div>
   </div>;
