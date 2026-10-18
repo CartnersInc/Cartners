@@ -29,7 +29,11 @@ export default function Onboarding({ api, onComplete }) {
       const result = await api.request(mode === 'join' ? '/api/households/join' : '/api/households', { method: 'POST', body });
       const membership = { workspaceId: result.workspace.workspaceId, actorId: result.actorId, name: name.trim(), householdName: result.workspace.groups[0].name, sessionToken: keys.sessionToken, inviteCode, kind: mode === 'create' ? kind : 'other' };
       saveMembership(membership); onComplete(membership, result.workspace);
-    } catch (err) { setError(err.message || 'Could not save setup. Allow browser storage and try again.'); }
+    } catch (err) {
+      setError(err.status === 404 && err.code === 'REQUEST_FAILED'
+        ? 'The website is newer than the shared backend. Deploy the latest main branch to Render, then try again. Your answers are still here.'
+        : err.message || 'Could not save setup. Allow browser storage and try again.');
+    }
     finally { setPending(false); }
   }
   function demo() {

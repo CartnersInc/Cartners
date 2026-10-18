@@ -3,6 +3,7 @@ from secrets import token_hex
 from uuid import uuid4
 from fastapi.testclient import TestClient
 from app.main import create_app
+from app import suggestions
 
 
 def create(client, name='Avery'):
@@ -62,3 +63,36 @@ def test_add_purchase_undo_and_next_run(tmp_path):
         assert old['runId'] != again['workspace']['trip']['id']
         second = write('POST','/api/items',name='Rice')
         assert second['itemId'] != item['id']
+
+
+def test_private_household_idea_reaches_joined_members(tmp_path, monkeypatch):
+    monkeypatch.setattr('app.main.build_suggestion', lambda **kwargs: suggestions._stamp(
+        suggestions.sample_draft_for_message(kwargs['message']),
+        workspace_id=kwargs['workspace_id'], plan_date=kwargs['plan_date'].isoformat(),
+        list_revision=kwargs['list_revision'], previous=None,
+    ))
+    with TestClient(create_app(tmp_path / 'shared.db')) as client:
+        owner, created = create(client)
+        wid, actor = created['workspace']['workspaceId'], created['actorId']
+        owner_headers = {'Authorization': f"Bearer {owner['sessionToken']}"}
+        joining = {'name': 'Jamie', 'sessionToken': token_hex(32), 'inviteCode': owner['inviteCode']}
+        joined = client.post('/api/households/join', json=joining)
+        assert joined.status_code == 200, joined.text
+        member_headers = {'Authorization': f"Bearer {joining['sessionToken']}"}
+        idea = client.post('/api/suggestions', headers=owner_headers, json={
+            'workspaceId': wid, 'actorId': actor, 'requestId': str(uuid4()),
+            'message': 'Milk and eggs', 'planDate': '2026-10-18',
+        })
+        assert idea.status_code == 200, idea.text
+        draft = idea.json()
+        assert draft['kind'] == 'grocery_list'
+        assert client.get(f"/api/suggestions/{draft['draftId']}", params={'workspaceId': wid}, headers=member_headers).status_code == 200
+        saved = client.post('/api/drafts/confirm', headers=owner_headers, json={
+            'workspaceId': wid, 'actorId': actor, 'requestId': str(uuid4()),
+            'draftId': draft['draftId'], 'expectedListRevision': draft['listRevision'], 'target': 'cart',
+        })
+        assert saved.status_code == 200, saved.text
+        seen = client.get('/api/workspace', params={'workspaceId': wid}, headers=member_headers)
+        assert seen.status_code == 200
+        assert [item['name'] for item in seen.json()['items'] if not item['removed']] == [item['name'] for item in saved.json()['workspace']['items'] if not item['removed']]
+        assert seen.json()['items']

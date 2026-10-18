@@ -77,7 +77,7 @@ test('mobile welcome and setup have no overflow; join uses the supplied code', a
   await page.setViewportSize({width:390,height:844});
   const code = 'a'.repeat(64);
   let join;
-  await page.route('**/api/households/join', async route => { join = route.request().postDataJSON(); return route.fulfill({status:404,json:{error:{message:'That invitation was not found. Check the code with your household.'}}}); });
+  await page.route('**/api/households/join', async route => { join = route.request().postDataJSON(); return route.fulfill({status:404,json:{error:{code:'INVITE_NOT_FOUND',message:'That invitation was not found. Check the code with your household.'}}}); });
   await page.goto('/');
   await page.screenshot({path:'/tmp/cartners-welcome-mobile.png',fullPage:true});
   for (const width of [320,390,768]) {
@@ -94,4 +94,17 @@ test('mobile welcome and setup have no overflow; join uses the supplied code', a
   expect(join.name).toBe('Robin');
   expect(join.inviteCode).toBe(code);
   await expect(page.getByLabel('Invitation code')).toHaveValue(code);
+});
+
+test('outdated backend explains why setup cannot finish and keeps the answers', async ({ page }) => {
+  await page.route('**/api/households', route => route.fulfill({ status: 404, json: { detail: 'Not Found' } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Get started' }).click();
+  await page.getByLabel('Your name', { exact: true }).fill('Avery');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByLabel('Dietary needs').fill('Vegetarian');
+  await page.getByRole('button', { name: 'Let’s find something to eat' }).click();
+  await expect(page.getByRole('alert')).toContainText('Deploy the latest main branch to Render');
+  await expect(page.getByLabel('Dietary needs')).toHaveValue('Vegetarian');
 });
