@@ -134,6 +134,12 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
   );
 }
 
+function LinePhoto({ url }) {
+  const [failed, setFailed] = useState(false);
+  if (!url?.startsWith('https://') || failed) return null;
+  return <img className="rm-basket-photo" src={url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+}
+
 function Basket({ basket, best, nameOf, currency }) {
   return (
     <li className={`rm-basket ${best ? 'rm-basket-best' : ''}`}>
@@ -145,8 +151,9 @@ function Basket({ basket, best, nameOf, currency }) {
       </div>
       <ul className="rm-plain">
         {basket.items.map(line => (
-          <li key={line.itemId}>
-            {nameOf(line.itemId)}: {line.packagesNeeded} × {line.packageSize.unit === 'pack' ? `${line.packageSize.quantity} pack` : `${line.packageSize.quantity} ${line.packageSize.unit} pack`} at {formatCents(line.pricePerPackageCents, currency)} = {formatCents(line.lineTotalCents, currency)}
+          <li key={line.itemId} className="rm-basket-line">
+            <LinePhoto url={line.imageUrl} />
+            <span>{nameOf(line.itemId)}: {line.packagesNeeded} × {line.packageSize.unit === 'pack' ? `${line.packageSize.quantity} pack` : `${line.packageSize.quantity} ${line.packageSize.unit} pack`} at {formatCents(line.pricePerPackageCents, currency)} = {formatCents(line.lineTotalCents, currency)}</span>
           </li>
         ))}
         {basket.missingItemIds?.map(id => <li key={id} className="rm-missing">Missing: {nameOf(id)}</li>)}
