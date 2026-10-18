@@ -231,3 +231,16 @@ test('cart rows name the saved recipes each request is for', async ({ page }) =>
   await expect(recipesOf('Lime')).toHaveText('Black bean tacos, Pad Thai');
   await expect(recipesOf('Oat milk')).toHaveCount(0);
 });
+
+test('cart rows say whether each request is shared or personal', async ({ page }) => {
+  const base = await fixture('workspace');
+  const item = (id, name, requestFor, addedBy) => ({ id, name, quantity: 1, unit: 'count', note: '', requestFor, addedBy, bought: false, version: 1, createdAt: '2026-10-17T18:00:00Z', removed: false, runId: null });
+  const workspace = { ...base, serverNow: new Date().toISOString(), trip: null, items: [item('i-1', 'Paper plates', 'household', 'sam'), item('i-2', 'Hot sauce', 'leila', 'leila'), item('i-3', 'Oat milk', 'sam', 'sam')] };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill(new URL(route.request().url()).pathname === '/api/workspace' ? { json: workspace } : { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }));
+  await page.goto('/#shopping');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  const metaOf = name => page.locator('.rm-item').filter({ hasText: name }).locator('.rm-item-meta');
+  await expect(metaOf('Paper plates')).toHaveText('Shared · added by Sam');
+  await expect(metaOf('Hot sauce')).toHaveText('Just you · added by you');
+  await expect(metaOf('Oat milk')).toHaveText('Just Sam · added by Sam');
+});

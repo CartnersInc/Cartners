@@ -5,7 +5,6 @@ import BasketCompare from './parts/BasketCompare.jsx';
 import TripPanel from '../groups/parts/TripPanel.jsx';
 import { people, useServerNow } from './lib/format.js';
 import { activeTrip, itemBadge, liveItems } from './lib/trip.js';
-import { PUNT_PROPOSAL } from './lib/proposal.js';
 import { recipeLookup } from './lib/recipes.js';
 import './roomie.css';
 
@@ -90,7 +89,6 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
             {offRun.length ? <><div className="rm-cart-columns" aria-hidden="true"><span>Item</span><span>Amount</span><span>Price</span><span>Instructions</span></div><ul className="rm-items">{offRun.map(row)}</ul></> : <p className="rm-empty">Your list is clear. Ask Cartners for dinner ideas or add something below.</p>}
           </section>
 
-          {PUNT_PROPOSAL && <p className="rm-help rm-proposal">“Not here” is a proposal and still needs backend support before it can be used.</p>}
         </div>
 
         <div className="rm-side">

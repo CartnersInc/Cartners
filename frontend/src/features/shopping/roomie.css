@@ -160,6 +160,20 @@
 .rm-cart-row .rm-cart-instruction { grid-column: 5; grid-row: 1; color: var(--muted); font-size: .82rem; overflow-wrap: anywhere; }
 .rm-cart-row .rm-item-btns { grid-column: 6; grid-row: 1; }
 .rm-item-bought .rm-cart-price { color: var(--green); }
+/* The header and every row share identical tracks. The buttons column has a fixed width so rows
+   with "Not here" / "Put back" line up with rows that only have Edit; the header's padding matches
+   a row's padding plus border. Flexible columns may shrink instead of pushing buttons out. */
+.rm-cart-columns, .rm-cart-row { grid-template-columns: 30px minmax(0, 1.2fr) 72px 82px minmax(0, 1fr) 7.5rem; }
+.rm-cart-columns { padding: 0 13px 7px; }
+.rm-cart-row .rm-item-btns { justify-content: flex-end; }
+.rm-main > section { container-type: inline-size; }
+/* Narrow list (e.g. beside the side panel): instructions move under the item instead of squeezing. */
+@container (max-width: 640px) {
+  .rm-cart-columns, .rm-cart-row { grid-template-columns: 30px minmax(0, 1fr) 72px 82px 7.5rem; }
+  .rm-cart-columns span:nth-child(4) { display: none; }
+  .rm-cart-row .rm-cart-instruction { grid-column: 2 / 5; grid-row: 2; }
+  .rm-cart-row .rm-item-btns { grid-column: 5; }
+}
 
 /* Store prices are the first useful action on Shopping, with returned product imagery below. */
 .rm-compare-prominent { margin: 16px 0 24px; padding: 20px; }

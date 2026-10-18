@@ -56,7 +56,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
     }
   }
 
-  // Proposal only (#4): the shopper marks a request the store doesn't have; it leaves this run.
+  // "Not here" (#4): the shopper marks a request the store doesn't have; it leaves this run.
   // While the same run is going, the shopper can put it back.
   const shopperHere = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought;
   const canPunt = shopperHere && item.runId === trip.id;
@@ -66,6 +66,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   }
 
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
+  const scope = scopeLabel(item, name);
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
 
   return (
@@ -75,6 +76,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           aria-busy={toggle.saving} onChange={e => setBought(e.target.checked)} />
         <label htmlFor={checkId} className="rm-item-text">
           <span className="rm-item-name">{item.name}</span>
+          <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           {shownBought && <span className="rm-bought-label">Bought</span>}
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
@@ -85,8 +87,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <span className="rm-cart-instruction">{item.note || <span className="rm-help">No special instructions</span>}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
-            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected} title="Proposal: not in API v2 yet"
-              aria-label={canPunt ? `Proposal: ${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
+            <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}
+              aria-label={canPunt ? `${item.name} isn't at this store. Move it to the next run` : `Put ${item.name} back on this run`}
               onClick={() => setPunted(canPunt)}>
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
