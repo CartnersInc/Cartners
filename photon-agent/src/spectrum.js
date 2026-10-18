@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { Spectrum } from 'spectrum-ts';
+import { setLogLevel } from 'spectrum-ts/authoring';
 import { imessage } from 'spectrum-ts/providers/imessage';
 import { formatConfirmed, formatDraft, makeRequestId } from './agent.js';
 import { createCartnersApi } from './cartners-api.js';
@@ -75,8 +76,13 @@ function today() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+function onlyMappedActor(config) {
+  const actors = [...new Set(config.actorBySender.values())];
+  return actors.length === 1 ? actors[0] : '';
+}
+
 function actorFor(config, sender) {
-  return matchPhoneMap(config.actorBySender, sender);
+  return matchPhoneMap(config.actorBySender, sender) || onlyMappedActor(config);
 }
 
 export async function handleSpectrumMessage({ space, message, config, api, state, logger = console }) {
@@ -86,8 +92,11 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   if (message.direction === 'outbound') return false;
   if (!text) return false;
   if (sender && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
-    logger.info(`Ignored a message from an unregistered sender (${sender}).`);
-    return false;
+    if (!onlyMappedActor(config)) {
+      logger.info(`Ignored a message from an unregistered sender (${sender}).`);
+      return false;
+    }
+    logger.info(`Unlisted sender ${sender}; using the household’s only mapped member.`);
   }
   const pending = state.pendingBySpace[space.id];
   const intent = classifyHousehold(text, { hasPendingDraft: Boolean(pending) });
@@ -98,7 +107,10 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   };
   const actorId = actorFor(config, sender);
 
-  if (intent.type === 'ignore') return false;
+  if (intent.type === 'ignore') {
+    await reply('I can add groceries from here. Text “need milk”, or “going to QFC” when someone is shopping.');
+    return true;
+  }
   if (intent.type === 'help' || !api) {
     if (state.pendingBySpace[space.id]) {
       delete state.pendingBySpace[space.id];
@@ -279,6 +291,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
 }
 
 export async function runSpectrumAgent({ config = loadSpectrumConfig(), logger = console } = {}) {
+  setLogLevel('debug');
   const api = createCartnersApi({ baseUrl: config.cartnersApiUrl, token: config.sessionToken });
   const state = await createStateStore(config.stateFile);
   try {
@@ -297,14 +310,34 @@ export async function runSpectrumAgent({ config = loadSpectrumConfig(), logger =
     providers: [imessage.config()],
     options: { logLevel: 'debug' },
   });
+  if (config.workspaceId === 'demo-family' || config.workspaceId === 'demo-roommates') {
+    logger.warn(`This agent is writing the ${config.workspaceId} sample cart, not a real household. Set CARTNERS_WORKSPACE_ID and CARTNERS_SESSION_TOKEN from a created household.`);
+  }
   logger.info(`Cartners Spectrum agent is listening. Text ${config.imessageLine} as iMessage from a mapped phone.`);
-  for await (const [space, message] of app.messages) {
+  const pingTo = [...config.actorBySender.keys()].find((value) => value.startsWith('+1')) || [...config.actorBySender.keys()][0];
+  const listening = (async () => {
+    for await (const [space, message] of app.messages) {
+      try {
+        await handleSpectrumMessage({ space, message, config, api, state, logger });
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : 'The agent could not process a message.');
+      }
+    }
+  })();
+  if (pingTo) {
     try {
-      await handleSpectrumMessage({ space, message, config, api, state, logger });
+      const cloud = imessage(app);
+      const user = await cloud.user(pingTo);
+      const dm = await cloud.space.create(user);
+      await dm.send('This is your real Cartners list, not the sample. Text “need milk”.');
+      logger.info(`startup ping sent to ${pingTo}`);
     } catch (error) {
-      logger.error(error instanceof Error ? error.message : 'The agent could not process a message.');
+      logger.error(`startup ping failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
   }
+  const heartbeat = setInterval(() => logger.info('still waiting for iMessage'), 30_000);
+  heartbeat.unref?.();
+  await listening;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
