@@ -57,7 +57,8 @@ button:disabled { opacity: .55; }
 .chip { font-size: .78rem; font-weight: 600; border-color: #d6c2a6; }
 .notice { border-radius: 10px; }
 .notice.error { color: #822c23; background: #ffe4da; }
-.demo-notice { margin-top: 0; padding: 10px 14px; background: #f5e8cf; font-size: .76rem; }
+.demo-notice { margin-top: 0; margin-bottom: 8px; padding: 10px 14px; background: #f5e8cf; font-size: .76rem; }
+.connection-note { margin-top: 0; }
 .demo-notice .text-button { font-size: .76rem; min-height: 32px; }
 .cart-undo { background: var(--sun-pale); border: 0; }
 /* The request is the start of the work, with the shared list in view. */
@@ -172,7 +173,9 @@ button:disabled { opacity: .55; }
 .app-shell .rm-link { color: var(--cobalt); font-size: .82rem; }
 .app-shell .rm-field input, .app-shell .rm-field select, .app-shell .rm-inline-input, .app-shell .rm-inline-select { border-color: #baa78d; background: var(--white); border-radius: 9px; }
 .app-shell .rm-field { gap: 7px; font-size: .83rem; }
-.app-shell .rm-seg { border-color: #baa78d; border-radius: 9px; }
+.app-shell .rm-seg { display: flex; width: min(100%, 28rem); align-items: stretch; overflow: hidden; border-color: #baa78d; border-radius: 9px; }
+.app-shell .rm-seg label { flex: 1 1 0; margin: 0; min-width: 0; }
+.app-shell .rm-seg span { width: 100%; min-height: 44px; justify-content: center; padding: 10px 12px; box-sizing: border-box; }
 .app-shell .rm-seg input:checked + span { background: var(--cobalt); }
 .app-shell .rm-pill { border-radius: 5px; padding: 5px 8px; font-weight: 650; }
 .app-shell .rm-cart-summary { background: var(--sun); color: var(--ink); }
@@ -192,7 +195,10 @@ button:disabled { opacity: .55; }
 .app-shell .rm-item-bought { background: #e7f3ea; box-shadow: none; }
 .app-shell .rm-bought, .app-shell input[type=checkbox] { accent-color: var(--cobalt); }
 .app-shell .rm-details-btn { border-color: #d6c2a6; }
-.app-shell .rm-more-btn { color: var(--ink); }
+.app-shell .rm-item-main { align-items: start; }
+.app-shell .rm-bought { margin-top: 4px; }
+.app-shell .rm-item-price, .app-shell .rm-item-btns { height: 36px; display: flex; align-items: center; }
+.app-shell .rm-more-btn { width: 36px; height: 36px; min-height: 36px; color: var(--ink); }
 .app-shell .rm-empty-state { margin-top: 24px; padding: 28px; background: var(--sun-pale); border-radius: 14px; gap: 16px; }
 .app-shell .rm-empty-state h2 { font-size: 1.65rem; }
 .app-shell .rm-empty-state p { font-size: .9rem; }
@@ -207,16 +213,21 @@ button:disabled { opacity: .55; }
 .app-shell .rm-side > .rm-card:first-child { background: var(--sun-pale); }
 .app-shell .rm-price, .app-shell .rm-amount { font-variant-numeric: tabular-nums; }
 .app-shell .preferences { max-width: none; }
-.preference-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin-top: 24px; }
-.preference-summary dt { font-size: .76rem; }
+.preference-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px 20px; margin-top: 16px; }
+.preference-summary > div { margin: 0; }
+.preference-summary dt { font-size: .76rem; margin-bottom: 4px; }
 .preference-summary dd { font-size: .95rem; }
 .preferences-form label { display: grid; gap: 8px; font-size: .86rem; font-weight: 600; }
 .preferences-form input { font-size: .92rem; border-color: #baa78d; }
 .app-shell .household-settings .rm-main > .rm-card:first-child { background: var(--apron); }
 .invite-code { color: var(--ink); background: var(--ground); border: 1px solid #baa78d; border-radius: 9px; font-size: .9rem; }
 .app-shell .household-spending { background: var(--sun-pale); padding: 0 24px; border-radius: 12px; }
-.page-heading { gap: 24px; }
+.page-heading { gap: 24px; align-items: center; }
 .page-heading .intro { font-size: .95rem; max-width: 58ch; }
+.week-list > li { align-items: center; }
+.empty-day { min-height: 44px; padding: 8px 4px 8px 0; }
+.app-shell .rm-intro .rm-link { display: block; margin-top: 8px; }
+.app-shell .rm-title-row { align-items: baseline; }
 .week-plan-days { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
 .week-plan-days li { background: var(--white); border-radius: 12px; padding: 14px 16px; }
 .week-plan-days h3 { margin: 4px 0 6px; font-size: 1.15rem; }
@@ -290,7 +301,7 @@ button:disabled { opacity: .55; }
   .sidebar nav { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 2px; }
   .sidebar nav a, .sidebar-more > summary { min-height: 52px; font-size: .65rem; padding: 6px 2px; gap: 5px; font-weight: 600; }
     .nav-count { position: absolute; margin-left: 35px; margin-top: -2px; min-width: 18px; height: 18px; font-size: .6rem; }
-  .topbar { min-height: 74px; margin-inline: 22px; gap: 8px; flex-wrap: wrap; padding-block: 12px; }
+  .topbar { min-height: 64px; margin-inline: 22px; gap: 8px; flex-wrap: nowrap; padding-block: 10px; align-items: center; }
   .run-status { margin-inline: 22px; padding: 8px 12px; }
   .mobile-wordmark { font-family: var(--display); color: var(--tomato); font-size: 1.8rem; font-weight: 800; letter-spacing: -.04em; }
   .household-link { font-size: .75rem; min-height: 34px; }
@@ -304,15 +315,15 @@ button:disabled { opacity: .55; }
   .app-footer { margin-inline: 22px; padding-bottom: 24px; font-size: .67rem; }
   .app-footer span { display: none; }
   .discovery-focused { display: block; padding: 8px 0 24px; }
-  .home-hero { grid-template-columns: minmax(0,1fr) 38%; grid-template-areas: 'title title' 'intro art'; margin-bottom: 22px; gap: 12px 4px; }
+  .home-hero { grid-template-columns: minmax(0,1fr) 88px; grid-template-areas: 'title title' 'intro art'; margin-bottom: 22px; gap: 10px 12px; align-items: start; }
   .home-hero h1 { font-size: clamp(2.2rem,9.8vw,3.8rem); max-width: none; }
-  .home-hero .intro { font-size: .83rem; line-height: 1.5; margin-top: 0; }
-  .home-hero .kitchen-art { width: 100%; margin: 0; transform: none; }
+  .home-hero .intro { font-size: .83rem; line-height: 1.5; margin-top: 0; padding-right: 4px; }
+  .home-hero .kitchen-art { width: 88px; max-height: 88px; margin: 0; transform: none; justify-self: end; }
   .composer, .home-request .composer { padding: 15px; }
   .composer textarea { font-size: 1rem; min-height: 76px; }
-  .composer-bottom { gap: 12px; }
-  .composer-bottom .small { max-width: 23ch; font-size: .69rem; }
-  .composer-bottom .button { font-size: .78rem; padding-inline: 12px; }
+  .composer-bottom { flex-direction: column; align-items: stretch; gap: 10px; }
+  .composer-bottom .small { max-width: none; font-size: .69rem; }
+  .composer-bottom .button { width: 100%; font-size: .78rem; padding-inline: 12px; }
   .suggestion-starters { gap: 7px; }
   .chip { padding: 8px 11px; min-height: 40px; font-size: .73rem; }
   .home-list { margin-top: 24px; padding: 20px; }
