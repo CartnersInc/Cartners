@@ -345,6 +345,8 @@ test('navigation responds with motion and respects reduced motion', async ({ pag
 test('notepad purchases stay visible and can be restored with the keyboard', async ({ page }) => {
   let workspace = await fixture('workspace');
   workspace.items = workspace.items.map(item => ({ ...item, bought: false }));
+  // Only the active shopper sees checkboxes.
+  workspace.trip = { ...workspace.trip, id: 'run-test', claimedBy: 'leila', storeName: 'QFC', state: 'accepting_requests', claimedAt: new Date().toISOString(), requestDeadlineAt: new Date(Date.now() + 10 * 60e3).toISOString() };
   const item = workspace.items[0];
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const path = new URL(route.request().url()).pathname;

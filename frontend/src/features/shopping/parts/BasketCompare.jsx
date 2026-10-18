@@ -12,20 +12,15 @@ function milesOf(basket) {
   return null;
 }
 
+// A price only describes the item as it was when compared (name, amount, unit).
+export const priceKey = item => `${item.name}|${item.quantity}|${item.unit}`;
+
 function featuredBasket(result) {
   if (!result?.baskets?.length) return null;
   return result.baskets.find(basket => basket.id === result.nearestBasketId)
     || [...result.baskets].sort((a, b) => (milesOf(a) ?? 9999) - (milesOf(b) ?? 9999))[0]
     || result.baskets.find(basket => basket.complete)
     || result.baskets[0];
-}
-
-function pricesFromResult(result) {
-  if (!result?.baskets?.length || result.sourceMode !== 'live_api') return {};
-  const nearest = featuredBasket(result);
-  return Object.fromEntries((nearest?.items || [])
-    .filter(line => line?.itemId && Number.isInteger(line.lineTotalCents))
-    .map(line => [line.itemId, { cents: line.lineTotalCents, currency: result.currency || 'USD' }]));
 }
 
 function splitTrip(baskets, itemIds) {
@@ -50,7 +45,9 @@ function splitTrip(baskets, itemIds) {
 }
 
 // The price check is optional, visible, and only shows store results returned by the backend.
-export default function BasketCompare({ workspace, actorId, api, connected, items, onPrices, onStoreFound }) {
+// Cart rows only show prices after someone picks a store with "Shop here"; onShop receives that
+// store's basket. Comparing runs once; checking items off never re-runs it.
+export default function BasketCompare({ workspace, actorId, api, connected, items, onShop, onStoreFound }) {
   const [zip, setZip] = useState(readZip);
   const [result, setResult] = useState(null);
   const [state, setState] = useState({ phase: 'idle', error: '' });
@@ -59,6 +56,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
   const [coords, setCoords] = useState(null);
   const zipId = useId();
   const comparedFor = useRef('');
+  const [compared, setCompared] = useState(null); // item fingerprints priced by the last comparison
   const nameOf = id => workspace.items.find(item => item.id === id)?.name || 'A grocery item';
 
   function useMyLocation() {
@@ -112,7 +110,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
         ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
       } });
       setResult(response);
-      onPrices?.(pricesFromResult(response));
+      setCompared(Object.fromEntries(items.map(item => [item.id, priceKey(item)])));
       if (response.sourceMode === 'live_api') {
         const nearest = featuredBasket(response);
         if (nearest?.storeName) onStoreFound?.(nearest.storeName);
@@ -128,6 +126,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
   useEffect(() => {
     const postalCode = zip.trim();
     const signature = `${workspace.listRevision}:${postalCode}:${itemKey}`;
+    if (result || state.phase === 'loading') return; // compare automatically once, then on request
     if (!connected || !itemKey || !/^\d{5}/.test(postalCode) || comparedFor.current === signature) return;
     compareList(postalCode);
   }, [connected, itemKey, zip, workspace.listRevision, coords]);
@@ -167,6 +166,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
       {state.phase === 'loading' && <p className="rm-help" role="status">Checking {items.length} {items.length === 1 ? 'item' : 'items'} near {zip.trim()}…</p>}
 
       {result && result.sourceMode !== 'live_api' && <p className="rm-notice" role="status">{result.sourceMode === 'sample' ? 'Kroger has not returned verified prices yet. No sample prices are shown.' : 'Kroger prices are unavailable right now. Your list is ready to use.'}</p>}
+      {compared && items.some(item => compared[item.id] !== priceKey(item)) && state.phase !== 'loading' && <p className="rm-help" role="status">Your list has new or changed items. Choose Compare my list to price them.</p>}
       {result?.sourceMode === 'live_api' && <TripPicker
         baskets={baskets}
         nearest={nearest}
@@ -178,7 +178,7 @@ export default function BasketCompare({ workspace, actorId, api, connected, item
         currency={result.currency}
         checkedAt={result.checkedAt}
         feeStatus={result.feeStatus}
-        onShop={onStoreFound}
+        onShop={basket => onShop?.(basket, result.currency || 'USD')}
       />}
     </section>
   );
@@ -223,7 +223,7 @@ function TripPicker({ baskets, nearest, cheapest, split, openTrip, setOpenTrip, 
         {open && <>
           {basket.items.map(line => <ProductLine key={line.itemId} line={line} name={nameOf(line.itemId)} currency={currency} />)}
           {basket.missingItemIds?.map(id => <p key={id} className="rm-missing">No Kroger match for {nameOf(id)}</p>)}
-          <button type="button" className="rm-btn" onClick={() => onShop?.(basket.storeName)}>Shop this store · {formatCents(basket.knownSubtotalCents, currency)}</button>
+          <button type="button" className="rm-btn" onClick={() => onShop?.(basket)}>Shop here</button>
         </>}
       </section>;
     })}

@@ -233,7 +233,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
           <p className="small muted">Uncheck ingredients you already have or don’t need for this meal. Existing household requests stay on the list.</p><ul className="ingredient-list">{rows.map(item => {
             const preview = previews.find(row => row.ingredientId === item.id);
             const itemScope = meal ? scope : item.requestFor;
-            const owner = itemScope && itemScope !== 'household' ? (itemScope === actorId ? 'Just you' : workspace.actors.find(actor => actor.id === itemScope)?.name || itemScope) : 'Shared';
+            const owner = itemScope && itemScope !== 'household' ? 'Not shared' : 'Shared';
             return <li key={item.id}><label><input type="checkbox" checked={!excluded.includes(item.id)} disabled={!!pending || !!saved || !!attempt.current}
               onChange={e => { const next = e.target.checked ? excluded.filter(id => id !== item.id) : [...excluded, item.id]; setExcluded(next); onEntryChange({ ...entry, excluded: next }); }} />
               <span><strong>{item.name}</strong><small>{item.quantity} {item.unit} · {owner}{item.note ? ` · ${item.note}` : ''}</small>

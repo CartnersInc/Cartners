@@ -4,6 +4,8 @@ const fixture = async name => JSON.parse(await readFile(new URL(`../../../docs/f
 
 test('welcome → own household → return → purchase and invite; no fictional identity or checkout', async ({ page }) => {
   let workspace = { ...await fixture('workspace'), workspaceId: 'household-test', groups: [{ workspaceId:'household-test', name:'Our apartment',memberIds:['member-me'],spendingMode:'pooled' }], actors:[{id:'member-me',name:'Avery'}], items:[],plans:[],activity:[],expenses:[],balances:[],trip:null,listRevision:0,preferences:{servings:2,restrictions:[],likes:[],maxPrepMinutes:30,spendingMode:'pooled'} };
+  // Only the active shopper sees checkboxes, so this household's member is out shopping.
+  workspace.trip = { ...workspace.trip, id: 'run-test', claimedBy: 'member-me', storeName: 'QFC', state: 'accepting_requests', claimedAt: new Date().toISOString(), requestDeadlineAt: new Date(Date.now() + 10 * 60e3).toISOString() };
   let setup;
   const writes = [];
   await page.route(url => url.hostname === '127.0.0.1' && url.pathname.startsWith('/api/'), async route => {
@@ -51,7 +53,7 @@ test('welcome → own household → return → purchase and invite; no fictional
   await page.getByRole('textbox',{name:'Add an item',exact:true}).first().fill('Rice');
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).not.toBeChecked();
-  await expect(page.getByText('Not priced',{exact:true})).toBeVisible();
+  await expect(page.getByText('Not priced',{exact:true})).toHaveCount(0); // no prices until a store is chosen with Shop here
   await page.getByRole('checkbox',{name:'Mark purchased: Rice'}).check();
   await page.getByText('Purchased · 1',{exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark needed: Rice'})).toBeChecked();
@@ -59,7 +61,7 @@ test('welcome → own household → return → purchase and invite; no fictional
   expect(writes[0].removed).toBeUndefined();
   await page.getByRole('checkbox',{name:'Mark needed: Rice'}).uncheck();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).toBeVisible();
-  await page.getByRole('button',{name:'Empty list',exact:true}).click();
+  await page.getByRole('button',{name:'Clear my items',exact:true}).click();
   await page.getByRole('button',{name:'Confirm remove 1',exact:true}).click();
   await page.getByRole('button',{name:'Undo',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'Mark purchased: Rice'})).toBeVisible();

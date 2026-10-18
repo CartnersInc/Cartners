@@ -748,6 +748,7 @@ class Store:
                 )
             item = self._item_dict(row)
             before = copy.deepcopy(item)
+            self._check_item_permissions(workspace_id, actor_id, before, body)
             for field, key in [
                 ("name", "name"),
                 ("quantity", "quantity"),
@@ -793,6 +794,27 @@ class Store:
                 undo={"kind": "patch_item", "before": before, "after": item},
             )
             return {"workspace": self.snapshot(workspace_id), "actionId": action_id, "changeSummary": summary}
+
+    def _check_item_permissions(
+        self, workspace_id: str, actor_id: str, item: dict[str, Any], body: dict[str, Any]
+    ) -> None:
+        """Only the person who added a request can change its details (name, quantity, unit, note,
+        shared or not) or remove/restore it. Only the person actively shopping (the current run's
+        shopper) can check items off or uncheck them. The shopper can still punt any item."""
+        if item["addedBy"] != actor_id:
+            if any(body.get(field) is not None for field in ("name", "quantity", "unit", "note", "requestFor")):
+                raise ApiError(403, "NOT_YOUR_ITEM", "Only the person who added this item can change it.")
+            removed = body.get("removed")
+            if removed is not None and bool(removed) != bool(item["removed"]):
+                raise ApiError(403, "NOT_YOUR_ITEM", "Only the person who added this item can remove it.")
+        bought = body.get("bought")
+        if bought is not None and bool(bought) != bool(item["bought"]):
+            trip = self.conn.execute(
+                "SELECT claimed_by, state FROM trips WHERE workspace_id = ?", (workspace_id,)
+            ).fetchone()
+            shopping = trip is not None and trip["claimed_by"] == actor_id and trip["state"] != "idle"
+            if not shopping:
+                raise ApiError(403, "NOT_SHOPPING", "Start a store run to check items off.")
 
     def _apply_punt(
         self, workspace_id: str, actor_id: str, item: dict[str, Any], before: dict[str, Any], punted: bool
@@ -1052,6 +1074,9 @@ class Store:
             ).fetchone()
             if not action:
                 raise ApiError(404, "ACTION_NOT_FOUND", "That action was not found.")
+            if action["actor_id"] != actor_id:
+                # Undo removes what the action added, so only the person who made it can undo it.
+                raise ApiError(403, "NOT_YOUR_ACTION", "Only the person who made this change can undo it.")
             if action["undone"]:
                 summary = "Already undone."
                 new_action = self._record_action(

@@ -7,7 +7,7 @@ import { recipeLabel } from '../lib/recipes.js';
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
 // The checkbox records a purchase. Removing a request is a separate action.
-export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
+export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, pricing = false, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
@@ -29,6 +29,10 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   const shownChecked = toggle.state.status === 409
     ? item.bought && !item.removed
     : wantChecked ?? (item.bought && !item.removed);
+
+  // Only the person actively shopping checks items off; only the person who added an item removes it.
+  const canCheck = trip?.claimedBy === actorId;
+  const mine = item.addedBy === actorId;
 
   async function onCheckChange(next) {
     setWantChecked(next);
@@ -70,21 +74,22 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
 
   return (
     <li data-item-id={item.id} className={`rm-item ${shownChecked ? 'rm-item-bought' : ''}`}>
-      <div className="rm-item-main">
-        <span className="notepad-check"><input id={checkId} type="checkbox" className="rm-bought" checked={shownChecked} disabled={toggle.locked || !connected}
+      <div className={`rm-item-main ${canCheck ? '' : 'rm-no-check'}`}>
+        {canCheck && <span className="notepad-check"><input id={checkId} type="checkbox" className="rm-bought" checked={shownChecked} disabled={toggle.locked || !connected}
           aria-label={`${shownChecked ? 'Mark needed' : 'Mark purchased'}: ${item.name}`} aria-busy={toggle.saving} onChange={e => onCheckChange(e.target.checked)} />
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 5" /></svg>
-        </span>
-        <label htmlFor={checkId} className="rm-item-text">
+        </span>}
+        <label htmlFor={canCheck ? checkId : undefined} className="rm-item-text">
           <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
           {item.note && <span className="rm-item-note">{item.note}</span>}
           {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
           {shownChecked && <span className="rm-bought-label">Purchased</span>}
-          <span className="sr-only">{shownChecked ? ', purchased' : ', still needed'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}. Check when purchased; uncheck to mark needed again.</span>
+          <span className="sr-only">{shownChecked ? ', purchased' : ', still needed'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}{canCheck ? '. Check when purchased; uncheck to mark needed again.' : '.'}</span>
         </label>
-        <span className="rm-item-price" aria-label={`Price ${priceHint}${priceLabel || 'not available'}`}>{priceLabel ? `${priceHint}${priceLabel}` : 'Not priced'}</span>
+        {/* No price column text until a store is chosen with "Shop here". */}
+        <span className="rm-item-price" aria-label={pricing ? `Price ${priceHint}${priceLabel || 'not available'}` : undefined}>{pricing ? (priceLabel ? `${priceHint}${priceLabel}` : 'Not priced') : ''}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}
@@ -93,9 +98,9 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
               {punt.saving ? 'Moving…' : canPunt ? 'Not here' : 'Put back'}
             </button>
           )}
-          <button type="button" className="rm-more-btn" aria-expanded={open} aria-controls={panelId} aria-label={`More options for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>
+          {mine && <button type="button" className="rm-more-btn" aria-expanded={open} aria-controls={panelId} aria-label={`More options for ${item.name}`} onClick={() => (open ? setOpen(false) : openDetails())}>
             <svg viewBox="0 0 24 24" className="rm-more-icon" aria-hidden="true"><circle cx="12" cy="6" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="18" r="1.7" /></svg>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -117,7 +122,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         <div className="rm-row-error" role="alert"><span>{punt.state.error}</span><button type="button" className="rm-link" onClick={punt.reset}>Dismiss</button></div>
       )}
 
-      {open && draft && (
+      {mine && open && draft && (
         <form id={panelId} className="rm-edit" onSubmit={save} noValidate aria-label={`Details for ${item.name}`}>
           <fieldset disabled={edit.locked || !connected} className="rm-fieldset">
             <div className="rm-add-row">
@@ -159,7 +164,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
             <div className="rm-actions">
               <button type="submit" className="rm-btn rm-small" disabled={edit.saving || qtyInvalid || !connected}>{edit.saving ? 'Saving…' : edit.state.retryable ? 'Try again' : 'Save'}</button>
               <button type="button" className="rm-btn rm-secondary rm-small" disabled={edit.saving} onClick={() => { setOpen(false); edit.reset(); }}>{edit.state.retryable ? 'Discard edits' : 'Cancel'}</button>
-              <button type="button" className="rm-link rm-danger" disabled={edit.locked || !connected} onClick={e => save(e, null, { removed: true })}>Remove from cart</button>
+              {mine && <button type="button" className="rm-link rm-danger" disabled={edit.locked || !connected} onClick={e => save(e, null, { removed: true })}>Remove from cart</button>}
             </div>
           )}
           {!connected && <p className="rm-help">Preview only. Connect the backend to change requests.</p>}
