@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 Unit = Literal["count", "g", "ml", "can", "pack"]
 Kind = Literal["recommendation", "clarification"]
 
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 DEFAULT_TIMEOUT_SECONDS = 25.0
 MAX_MESSAGE_CHARS = 500
 # Gemini 429/503 are capacity spikes. Retry a few times inside the wait budget.
@@ -114,6 +114,7 @@ def _build_prompt(
     message: str,
     preferences: Preferences,
     previous_draft: dict[str, Any] | None,
+    has_image: bool,
 ) -> str:
     prefs_block = json.dumps(preferences.model_dump(), indent=2)
     previous_block = (
@@ -121,6 +122,14 @@ def _build_prompt(
         if previous_draft
         else "null (this is a fresh request)"
     )
+    image_note = (
+        "An image is attached. Treat it as the dish or ingredients the user is "
+        "referring to (e.g. 'healthier version of this', 'without tomatoes'). "
+        "Describe what you inferred from the image in inputSummary.summary."
+        if has_image
+        else "No image attached; use the text message only."
+    )
+
     return f"""You are the dinner planner for a shared household shopping app.
 
 Return ONE result:
@@ -139,6 +148,8 @@ Hard rules:
 - Do not include shopping-list diffs, draft IDs, or cost totals — those are computed elsewhere.
 - changesSummary: null on a fresh request; on a refinement, one short sentence of what changed.
 
+{image_note}
+
 Saved household preferences (defaults unless this message overrides an allowed soft value):
 {prefs_block}
 
@@ -155,6 +166,8 @@ def generate_suggestion(
     *,
     preferences: Preferences | dict[str, Any] | None = None,
     previous_draft: dict[str, Any] | None = None,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
@@ -165,6 +178,9 @@ def generate_suggestion(
     Returns a dict shaped like the AI portion of docs/fixtures/suggestions.json
     (without draftId, listRevision, listPreview, or sourceMode — the route adds those).
 
+    Optional image_bytes + image_mime_type (e.g. image/jpeg) support
+    "healthier version of this pasta" style requests for local experimentation.
+    Multipart HTTP upload is still out of P0; this keeps the function ready.
     """
     from google import genai
     from google.genai import types
@@ -176,6 +192,11 @@ def generate_suggestion(
         else Preferences.model_validate(preferences or DEFAULT_PREFERENCES)
     )
 
+    if image_bytes and not image_mime_type:
+        raise ValueError("image_mime_type is required when image_bytes is provided")
+    if image_mime_type and not image_bytes:
+        raise ValueError("image_bytes is required when image_mime_type is provided")
+
     key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not key:
         raise RuntimeError(
@@ -183,7 +204,14 @@ def generate_suggestion(
         )
 
     client = genai.Client(api_key=key)
-    prompt = _build_prompt(cleaned, prefs, previous_draft)
+    prompt = _build_prompt(cleaned, prefs, previous_draft, has_image=bool(image_bytes))
+
+    contents: list[Any] = [prompt]
+    if image_bytes and image_mime_type:
+        contents = [
+            types.Part.from_bytes(data=image_bytes, mime_type=image_mime_type),
+            prompt,
+        ]
 
     from google.genai import errors as genai_errors
 
@@ -193,11 +221,10 @@ def generate_suggestion(
         try:
             response = client.models.generate_content(
                 model=model or DEFAULT_MODEL,
-                contents=prompt,
+                contents=contents,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_json_schema=GeminiMealOutput.model_json_schema(),
-                    max_output_tokens=2048,
+                    response_schema=GeminiMealOutput,
                     http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)),
                 ),
             )
@@ -215,9 +242,15 @@ def generate_suggestion(
     if response is None:
         raise RuntimeError("Live suggestions unavailable.") from last_error
 
-    if not response.text:
-        raise RuntimeError("Gemini returned an empty response")
-    payload = GeminiMealOutput.model_validate_json(response.text).model_dump()
+    parsed = response.parsed
+    if isinstance(parsed, GeminiMealOutput):
+        payload = parsed.model_dump()
+    elif parsed is not None:
+        payload = GeminiMealOutput.model_validate(parsed).model_dump()
+    else:
+        if not response.text:
+            raise RuntimeError("Gemini returned an empty response")
+        payload = GeminiMealOutput.model_validate_json(response.text).model_dump()
 
     # Server fields the route/Xavier will fill later — useful when inspecting output.
     payload["sourceMode"] = "live_ai"
