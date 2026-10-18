@@ -23,7 +23,6 @@ test('sample meal, refinement, grocery, clarification, and draft restoration are
   await page.getByText('Try another sample', { exact: true }).click();
   await page.getByRole('button', { name: 'Weekend groceries', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your grocery list' })).toBeVisible();
-  await page.getByText('Review 2 ingredients and requests', { exact: true }).click();
   await expect(page.getByText('1 pack · Sam · Unsweetened')).toBeVisible();
   await page.getByRole('button', { name: 'See a dietary clarification', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'One thing to check' })).toBeVisible();
@@ -52,7 +51,7 @@ test('Home requests a live AI preview without pretending the sample cart is conn
   await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
   await expect(page.getByText('AI idea · preview only', { exact: true })).toBeVisible();
-  await expect(page.getByText('AI generated this idea; cart matching and saving need the shared backend.')).toBeVisible();
+  await expect(page.getByText('Connect the shared backend to match and save these ingredients.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Cart connection needed', exact: true })).toBeDisabled();
   expect(request.message).toBe('Something quick and vegetarian');
   expect(request.preferences.restrictions).toEqual(['vegetarian']);
@@ -92,13 +91,11 @@ test('live contract save retries the same action and Undo updates server state',
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
   await dateInput.fill('2026-10-19');
   await expect(page.getByText(/adding this idea keeps its original date/)).toBeVisible();
-  await page.getByText('Review 5 ingredients and requests', { exact: true }).click();
   await page.getByRole('checkbox').first().uncheck();
   await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Cannot reach');
   await page.reload();
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
-  await page.getByText('Review 5 ingredients and requests', { exact: true }).click();
   await expect(page.getByRole('checkbox').first()).not.toBeChecked();
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
   await expect(page.getByText('Added tacos to your cart.', { exact: true })).toBeVisible();
@@ -192,7 +189,7 @@ test('first-use starter and quick refinement each call AI in one click without s
   await expect(page.getByRole('heading', { name: meal.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(1);
   expect(requests[0].message).toContain('Suggest a fun dinner');
-  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('checkbox')).toHaveCount(meal.recommendation.ingredients.length);
   await page.getByRole('button', { name: 'Make it quicker', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
