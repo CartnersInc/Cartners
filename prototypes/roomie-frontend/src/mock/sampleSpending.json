@@ -1,0 +1,101 @@
+{
+  "household": { "id": "hh_4b", "name": "Unit 4B" },
+  "members": [
+    {
+      "id": "m_alex",
+      "name": "Alex",
+      "pay_links": {
+        "venmo": "https://venmo.com/u/alex-demo",
+        "paypal": "https://paypal.me/alexdemo"
+      }
+    },
+    {
+      "id": "m_sam",
+      "name": "Sam",
+      "pay_links": {
+        "venmo": "https://venmo.com/u/sam-demo",
+        "paypal": "http://paypal.me/samdemo"
+      }
+    },
+    {
+      "id": "m_priya",
+      "name": "Priya",
+      "pay_links": {}
+    }
+  ],
+  "runs": [
+    { "id": "run_qfc_1017", "store": "QFC", "started_by": "m_alex", "started_at": "2026-10-17T16:12:00-07:00" },
+    { "id": "run_tj_1016", "store": "Trader Joe's", "started_by": "m_sam", "started_at": "2026-10-16T18:40:00-07:00" }
+  ],
+  "expenses": [
+    {
+      "id": "exp_1001",
+      "created_at": "2026-10-17T17:02:00-07:00",
+      "store": "QFC",
+      "run_id": "run_qfc_1017",
+      "total_cents": 5103,
+      "payer_id": "m_alex",
+      "mode": "split",
+      "status": "recorded",
+      "participant_ids": ["m_alex", "m_sam", "m_priya"],
+      "exceptions": [
+        { "member_id": "m_sam", "description": "Oat milk", "amount_cents": 449 },
+        { "member_id": "m_alex", "description": "Greek yogurt", "amount_cents": 529 }
+      ],
+      "allocations": [
+        { "member_id": "m_alex", "amount_cents": 1904 },
+        { "member_id": "m_sam", "amount_cents": 1824 },
+        { "member_id": "m_priya", "amount_cents": 1375 }
+      ],
+      "review_reason": null
+    },
+    {
+      "id": "exp_1000",
+      "created_at": "2026-10-16T19:25:00-07:00",
+      "store": "Trader Joe's",
+      "run_id": "run_tj_1016",
+      "total_cents": 3290,
+      "payer_id": "m_sam",
+      "mode": "split",
+      "status": "needs_review",
+      "participant_ids": ["m_alex", "m_sam", "m_priya"],
+      "exceptions": [
+        { "member_id": "m_priya", "description": "Priya's snacks", "amount_cents": null }
+      ],
+      "allocations": null,
+      "review_reason": "The amount for Priya's snacks is missing."
+    },
+    {
+      "id": "exp_0999",
+      "created_at": "2026-10-15T12:10:00-07:00",
+      "store": "Costco",
+      "run_id": null,
+      "total_cents": 8640,
+      "payer_id": "m_priya",
+      "mode": "pooled",
+      "status": "recorded",
+      "participant_ids": ["m_alex", "m_sam", "m_priya"],
+      "exceptions": [],
+      "allocations": null,
+      "review_reason": null
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay_501",
+      "from_member_id": "m_priya",
+      "to_member_id": "m_alex",
+      "amount_cents": 1375,
+      "method": "venmo",
+      "recorded_at": "2026-10-17T17:20:00-07:00"
+    }
+  ],
+  "balances": [
+    { "from_member_id": "m_sam", "to_member_id": "m_alex", "amount_cents": 1824 }
+  ],
+  "summary": {
+    "split_total_cents": 5103,
+    "pooled_total_cents": 8640,
+    "needs_review_count": 1
+  }
+}
