@@ -6,15 +6,13 @@ import { recipeLabel } from '../lib/recipes.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
-// One request stays readable in the cart: item, amount, estimated price, and instructions.
-// Bought stays in place (green highlight) instead of moving to a separate Bought list.
-// Every change sends expectedItemVersion; a 409 shows the other version and lets you choose.
+// Checked = in the cart (green + price). Uncheck removes the request from the cart.
 export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
   const edit = useWrite(props);
   const punt = useWrite(props);
-  const [wantBought, setWantBought] = useState(null);
+  const [wantChecked, setWantChecked] = useState(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(null);
   const [baseVersion, setBaseVersion] = useState(null);
@@ -23,17 +21,22 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   const { name } = people(workspace, actorId);
   const path = `/api/items/${encodeURIComponent(item.id)}`;
 
-  // Once fresh data arrives, stop showing the optimistic value (unless a retry is pending).
   useEffect(() => {
-    if (!toggle.locked) setWantBought(null);
+    if (!toggle.locked) setWantChecked(null);
     if (toggle.state.status === 409) toggle.reset();
-  }, [item.version, item.bought]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [item.version, item.bought, item.removed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shownBought = toggle.state.status === 409 ? item.bought : wantBought ?? item.bought;
+  const shownChecked = toggle.state.status === 409
+    ? item.bought && !item.removed
+    : wantChecked ?? (item.bought && !item.removed);
 
-  async function setBought(next) {
-    setWantBought(next);
-    await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, bought: next });
+  async function onCheckChange(next) {
+    setWantChecked(next);
+    if (next) {
+      await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, bought: true, removed: false });
+      return;
+    }
+    await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, removed: true });
   }
 
   function openDetails() {
@@ -56,10 +59,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
     }
   }
 
-  // Proposal only (#4): the shopper marks a request the store doesn't have; it leaves this run.
-  // While the same run is going, the shopper can put it back.
-  const shopperHere = PUNT_PROPOSAL && trip?.claimedBy === actorId && !item.bought;
-  const canPunt = shopperHere && item.runId === trip.id;
+  const shopperHere = PUNT_PROPOSAL && trip?.claimedBy === actorId;
+  const canPunt = shopperHere && item.runId === trip.id && !item.punted;
   const canUnpunt = shopperHere && item.punted?.runId === trip.id;
   async function setPunted(next) {
     await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: next });
@@ -68,22 +69,31 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
   const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
   const scope = scopeLabel(item, name);
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
+  const priceHint = price?.estimated ? 'About ' : '';
+
+  if (wantChecked === false && toggle.state.phase !== 'error') {
+    return (
+      <li className="rm-item rm-item-removing" aria-live="polite">
+        <p className="rm-row-status">Removing {item.name}…</p>
+      </li>
+    );
+  }
 
   return (
-    <li className={`rm-item ${shownBought ? 'rm-item-bought' : ''}`}>
+    <li className={`rm-item ${shownChecked ? 'rm-item-bought' : ''}`}>
       <div className="rm-item-main">
-        <input id={checkId} type="checkbox" className="rm-bought" checked={shownBought} disabled={toggle.locked || !connected}
-          aria-busy={toggle.saving} onChange={e => setBought(e.target.checked)} />
+        <input id={checkId} type="checkbox" className="rm-bought" checked={shownChecked} disabled={toggle.locked || !connected}
+          aria-busy={toggle.saving} onChange={e => onCheckChange(e.target.checked)} />
         <label htmlFor={checkId} className="rm-item-text">
           <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
           {item.note && <span className="rm-item-note">{item.note}</span>}
           {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
-          {shownBought && <span className="rm-bought-label">Bought</span>}
-          <span className="sr-only">{shownBought ? ', bought' : ', not bought yet'}{priceLabel ? `, about ${priceLabel}` : ''}</span>
+          {shownChecked && <span className="rm-bought-label">In cart</span>}
+          <span className="sr-only">{shownChecked ? ', in cart' : ', not in cart'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}. Uncheck to remove.</span>
         </label>
-        <span className="rm-item-price" aria-label={`Estimated price ${priceLabel || 'not available'}`}>{priceLabel || 'Not priced'}</span>
+        <span className="rm-item-price" aria-label={`Price ${priceHint}${priceLabel || 'not available'}`}>{priceLabel ? `${priceHint}${priceLabel}` : 'Not priced'}</span>
         <div className="rm-item-btns">
           {(canPunt || canUnpunt) && (
             <button type="button" className="rm-details-btn" disabled={punt.locked || !connected}
@@ -96,15 +106,15 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         </div>
       </div>
 
-      {toggle.saving && <p className="rm-row-status">Saving…</p>}
+      {toggle.saving && wantChecked !== false && <p className="rm-row-status">Saving…</p>}
       {toggle.state.phase === 'error' && (
         <div className="rm-row-error" role="alert">
           {toggle.state.status === 409 ? <span>Someone updated {item.name} first. This shows the latest.</span> : (
             <>
               <span>{toggle.state.error}</span>
               <span className="rm-row-actions">
-                {toggle.state.retryable && <button type="button" className="rm-link" onClick={() => setBought(wantBought)}>Try again</button>}
-                <button type="button" className="rm-link" onClick={() => { toggle.reset(); setWantBought(null); }}>Undo</button>
+                {toggle.state.retryable && <button type="button" className="rm-link" onClick={() => onCheckChange(wantChecked)}>Try again</button>}
+                <button type="button" className="rm-link" onClick={() => { toggle.reset(); setWantChecked(null); }}>Keep in cart</button>
               </span>
             </>
           )}
@@ -143,7 +153,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
           {theirs && (
             <div className="rm-conflict" role="alert">
               <p><strong>Someone changed {item.name} while you were editing.</strong> Their version:</p>
-              <p className="rm-help">{quantityLabel(theirs)} · {scopeLabel(theirs, name)}{theirs.note ? ` · "${theirs.note}"` : ''}{theirs.bought ? ' · already bought' : ''}{theirs.removed ? ' · removed' : ''}</p>
+              <p className="rm-help">{quantityLabel(theirs)} · {scopeLabel(theirs, name)}{theirs.note ? ` · "${theirs.note}"` : ''}{theirs.bought ? ' · in cart' : ''}{theirs.removed ? ' · removed' : ''}</p>
               <div className="rm-actions">
                 <button type="button" className="rm-btn rm-small" disabled={!connected || theirs.removed} onClick={e => save(e, theirs.version)}>Save mine instead</button>
                 <button type="button" className="rm-btn rm-secondary rm-small" onClick={() => { setDraft(draftFrom(theirs)); setBaseVersion(theirs.version); setTheirs(null); edit.reset(); }}>Use theirs</button>
@@ -156,7 +166,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
             <div className="rm-actions">
               <button type="submit" className="rm-btn rm-small" disabled={edit.saving || qtyInvalid || !connected}>{edit.saving ? 'Saving…' : edit.state.retryable ? 'Try again' : 'Save'}</button>
               <button type="button" className="rm-btn rm-secondary rm-small" disabled={edit.saving} onClick={() => { setOpen(false); edit.reset(); }}>{edit.state.retryable ? 'Discard edits' : 'Cancel'}</button>
-              <button type="button" className="rm-link rm-danger" disabled={edit.locked || !connected} onClick={e => save(e, null, { removed: true })}>Remove request</button>
+              <button type="button" className="rm-link rm-danger" disabled={edit.locked || !connected} onClick={e => save(e, null, { removed: true })}>Remove from cart</button>
             </div>
           )}
           {!connected && <p className="rm-help">Preview only. Connect the backend to change requests.</p>}

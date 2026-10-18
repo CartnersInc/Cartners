@@ -148,7 +148,7 @@ class Store:
                 INSERT INTO items(
                   id, workspace_id, name, quantity, unit, note, request_for, added_by,
                   bought, version, created_at, removed, run_id, reserved_plan_id
-                ) VALUES (?, 'demo-family', ?, ?, ?, ?, ?, ?, 0, 1, ?, 0, ?, NULL)
+                ) VALUES (?, 'demo-family', ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, ?, NULL)
                 """,
                 (item_id, name, qty, unit, note, request_for, added_by, now, run_id),
             )
@@ -639,7 +639,7 @@ class Store:
                 "note": note,
                 "requestFor": request_for,
                 "addedBy": actor_id,
-                "bought": False,
+                "bought": True,
                 "version": 1,
                 "createdAt": now,
                 "removed": False,
@@ -781,8 +781,8 @@ class Store:
             raise ApiError(422, "NO_ACTIVE_RUN", "There's no store run in progress.")
         if trip["claimed_by"] != actor_id:
             raise ApiError(403, "NOT_SHOPPER", "Only the current shopper can move requests off the run.")
-        if before["bought"] or before["removed"]:
-            raise ApiError(422, "ITEM_NOT_OPEN", "Only unbought requests can be moved.")
+        if before["removed"]:
+            raise ApiError(422, "ITEM_NOT_OPEN", "Removed requests can't be moved.")
         if punted:
             if before.get("runId") != trip["id"]:
                 raise ApiError(422, "NOT_ON_RUN", "That request isn't on this run.")
@@ -1052,7 +1052,8 @@ class Store:
                         retained.append(delta["itemId"])
                         continue
                     item = self._item_dict(row)
-                    if item.get("bought"):
+                    # "bought" means checked in the cart UI, not "already purchased" — Undo still applies.
+                    if item.get("removed"):
                         retained.append(item["name"])
                         continue
                     if delta["op"] == "add":
@@ -1074,7 +1075,6 @@ class Store:
                         if (
                             item["quantity"] == after["quantity"]
                             and item.get("reservedPlanId") == after.get("reservedPlanId")
-                            and not item["bought"]
                         ):
                             item["quantity"] = before["quantity"]
                             item["reservedPlanId"] = before.get("reservedPlanId")
@@ -1088,7 +1088,6 @@ class Store:
                         if (
                             item.get("reservedPlanId") == after.get("reservedPlanId")
                             and item["quantity"] == after["quantity"]
-                            and not item["bought"]
                         ):
                             item["reservedPlanId"] = before.get("reservedPlanId")
                             item["version"] = int(item["version"]) + 1
@@ -1105,9 +1104,8 @@ class Store:
                         if (
                             item["quantity"] == after["quantity"]
                             and item.get("reservedPlanId") == after.get("reservedPlanId")
-                            and not item["bought"]
                             and parent_row
-                            and not parent_row["bought"]
+                            and not parent_row["removed"]
                         ):
                             item["removed"] = True
                             item["version"] = int(item["version"]) + 1
@@ -1141,7 +1139,8 @@ class Store:
                     "SELECT * FROM items WHERE id = ? AND workspace_id = ?",
                     (item_id, workspace_id),
                 ).fetchone()
-                if row and not row["bought"]:
+                # New adds default to checked; Undo still removes an untouched row.
+                if row and not row["removed"]:
                     item = self._item_dict(row)
                     item["removed"] = True
                     item["version"] = int(item["version"]) + 1
@@ -1224,15 +1223,15 @@ class Store:
                     raise ApiError(422, "INVALID_TRIP", "requestWindowMinutes must be 5, 10, or 15.")
                 store = (body.get("storeName") or trip["store_name"] or "the store").strip()
                 deadline = iso(now + timedelta(minutes=minutes))
+                # Cart rows default to checked ("bought"); still join the active run.
                 claimed_ids = [
                     item["id"]
                     for item in self._load_items(workspace_id)
-                    if not item["removed"] and not item["bought"] and not item.get("runId")
+                    if not item["removed"] and not item.get("runId")
                 ]
-                # Also include currently unbought items with no run, and attach run id
                 run_id = new_id("run")
                 for item in self._load_items(workspace_id):
-                    if not item["removed"] and not item["bought"]:
+                    if not item["removed"]:
                         item["runId"] = run_id
                         self._save_item(workspace_id, item)
                         if item["id"] not in claimed_ids:
