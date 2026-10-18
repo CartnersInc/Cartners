@@ -75,18 +75,22 @@ export function parseWindowMinutes(text) {
 }
 
 export function parseNeedItems(text) {
-  const clean = String(text || '').trim();
-  const rest = clean.replace(NEED_PREFIX, '').replace(/[.!?]+$/, '').trim();
+  let rest = String(text || '').trim()
+    .replace(/^(?:hey|hi|hello|yo|please)[,! ]+/i, '')
+    .replace(/^(?:can you |could you )?/i, '');
+  const cut = rest.search(/\b(?:need|want|grab|get|add|put)(?: some)?\b/i);
+  if (cut >= 0) rest = rest.slice(cut).replace(/^(?:need|want|grab|get|add|put)(?: some)?\s+/i, '');
+  rest = rest.replace(/[.!?]+$/, '').replace(/\s+(?:please|thanks|thank you)$/i, '').trim();
   if (!rest || /^(?:anything|something|it|this|these|that)$/i.test(rest)) return [];
   return rest.split(/\s*(?:,| and |\s+and\s+)\s*/i).map((part) => part.replace(/^(?:some|a|an)\s+/i, '').trim()).filter((part) => part.length > 1 && part.length <= 80);
 }
 
 export function groceryFromBareList(text) {
   const clean = String(text || '').trim();
-  if (!clean || clean.length > 60 || /[?]/.test(clean) || MEALISH.test(clean) || FOOD_REQUEST.test(clean) || HELP.test(clean)) return [];
+  if (!clean || clean.length > 160 || /[?]/.test(clean) || MEALISH.test(clean) || FOOD_REQUEST.test(clean) || HELP.test(clean)) return [];
   if (/\b(this is|sample idea|go to ibrahiim)\b/i.test(clean)) return [];
-  if (clean.split(/\s+/).length > 6) return [];
-  const items = parseNeedItems(NEED_PREFIX.test(clean) ? clean : `need ${clean}`);
+  if (clean.split(/\s+/).length > 16) return [];
+  const items = parseNeedItems(clean);
   if (!items.length || items.some((item) => /\b(?:the|this|that|going|should|would|could)\b/i.test(item))) return [];
   return items;
 }
@@ -111,6 +115,11 @@ export function classifyHousehold(text, { hasPendingDraft = false } = {}) {
   const grocery = groceryFromBareList(clean);
   if (grocery.length) return { type: 'need_items', items: grocery };
   if (FOOD_REQUEST.test(clean) || MEALISH.test(clean)) return { type: 'suggest' };
+  if (/\b(this is|sample idea|go to ibrahiim)\b/i.test(clean)) return { type: 'ignore' };
+  if (!/^(?:yes|no|ok|okay|k|thanks|thank you|cool|got it)[.! ]*$/i.test(clean)) {
+    const items = parseNeedItems(clean);
+    if (items.length) return { type: 'need_items', items };
+  }
   return { type: 'ignore' };
 }
 

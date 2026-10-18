@@ -80,12 +80,13 @@ function actorFor(config, sender) {
 }
 
 export async function handleSpectrumMessage({ space, message, config, api, state, logger = console }) {
-  if (message.direction === 'outbound') return false;
-  const text = inboundText(message);
-  if (!text) return false;
   const sender = senderId(message);
+  const text = inboundText(message);
+  logger.info(`inbound ${message.direction || 'unknown'} from ${sender || 'unknown'}: ${text.slice(0, 80) || message.content?.type || '(empty)'}`);
+  if (message.direction === 'outbound') return false;
+  if (!text) return false;
   if (sender && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
-    logger.info(`Ignored a message from an unregistered sender.`);
+    logger.info(`Ignored a message from an unregistered sender (${sender}).`);
     return false;
   }
   const pending = state.pendingBySpace[space.id];
@@ -280,12 +281,23 @@ export async function handleSpectrumMessage({ space, message, config, api, state
 export async function runSpectrumAgent({ config = loadSpectrumConfig(), logger = console } = {}) {
   const api = createCartnersApi({ baseUrl: config.cartnersApiUrl, token: config.sessionToken });
   const state = await createStateStore(config.stateFile);
+  try {
+    const auth = Buffer.from(`${config.projectId}:${config.projectSecret}`).toString('base64');
+    const info = await fetch(`https://spectrum.photon.codes/projects/${config.projectId}/imessage/`, {
+      headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+    });
+    const payload = await info.json().catch(() => ({}));
+    logger.info(`Photon iMessage mode: ${payload?.data?.type || info.status}`);
+  } catch (error) {
+    logger.error(`Could not read Photon iMessage mode: ${error instanceof Error ? error.message : 'unknown error'}`);
+  }
   const app = await Spectrum({
     projectId: config.projectId,
     projectSecret: config.projectSecret,
     providers: [imessage.config()],
+    options: { logLevel: 'debug' },
   });
-  logger.info('Cartners Spectrum agent is listening for iMessage.');
+  logger.info(`Cartners Spectrum agent is listening. Text ${config.imessageLine} as iMessage from a mapped phone.`);
   for await (const [space, message] of app.messages) {
     try {
       await handleSpectrumMessage({ space, message, config, api, state, logger });
