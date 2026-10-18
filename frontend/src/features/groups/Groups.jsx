@@ -6,7 +6,7 @@ import { activeTrip } from '../shopping/lib/trip.js';
 import '../shopping/roomie.css';
 import Preferences from '../plans/Preferences.jsx';
 import { PAY_APPS, isValidHandle, cleanHandle } from '../spending/proposal/payLinks.js';
-import PersonName from '../spending/proposal/PayHandleMarks.jsx';
+import PersonName, { PayAppLogo, PayHandleMarks } from '../spending/proposal/PayHandleMarks.jsx';
 import { isFamilyTable, splitsCosts, withMemberPayLinks } from '../../household.js';
 import { readMembership, saveMembership } from '../onboarding/session.js';
 import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
@@ -39,7 +39,8 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
               {members.map(member => (
                 <li key={member.id}>
                   <span className="avatar" aria-hidden="true">{member.name[0]}</span>
-                  <PersonName workspace={workspace} actorId={member.id}>{member.name}{member.id === actorId ? ' (you)' : ''}</PersonName>
+                  <PersonName>{member.name}{member.id === actorId ? ' (you)' : ''}</PersonName>
+                  <PayHandleMarks payLinks={member.payLinks} />
                   {trip?.claimedBy === member.id && <span className="rm-badge rm-badge-new">Shopping now</span>}
                 </li>
               ))}
@@ -135,9 +136,10 @@ function PayHandles({ workspace, actorId, api, onWorkspaceChange, connected, not
   return (
     <form className="rm-card" onSubmit={save}>
       <h2 className="rm-h2">Venmo, Zelle, Cash App, PayPal</h2>
-      <p className="rm-help">{isFamilyTable(workspace, membership) ? 'Shown next to your name so people can find you. Family grocery spending does not create IOUs. Cartners never moves money.' : 'Shown next to your name. Opening a link never marks a debt paid. Cartners never moves money.'}</p>
+      <p className="rm-help">{isFamilyTable(workspace, membership) ? 'Family grocery spending does not create IOUs. Cartners never moves money.' : 'Opening a link never marks a debt paid. Cartners never moves money.'}</p>
       {PAY_APPS.map(app => (
-        <label key={app.key} className="rm-field">{app.field}
+        <label key={app.key} className="rm-field">
+          <span className="rm-pay-label"><PayAppLogo appKey={app.key} />{app.field}</span>
           <input value={values[app.key] || ''} placeholder={app.placeholder} autoComplete="off" maxLength={40} disabled={write.locked || !connected} onChange={e => setValues(current => ({ ...current, [app.key]: e.target.value }))} />
           <span className="rm-help">{app.hint}</span>
         </label>

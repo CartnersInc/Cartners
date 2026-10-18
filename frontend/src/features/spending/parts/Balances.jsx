@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { copyText, formatCents } from '../../shopping/lib/format.js';
 import { PAY_APPS, payLink } from '../proposal/payLinks.js';
-import PersonName from '../proposal/PayHandleMarks.jsx';
+import PersonName, { PayAppLogo } from '../proposal/PayHandleMarks.jsx';
 
 // Who owes whom, straight from the server's balances. Pay links are optional and member-provided;
 // opening one never marks anything paid, and there is no in-app payment.
@@ -41,8 +41,8 @@ function Settle({ balance, recipient, name, workspace }) {
       {links.length ? links.map(({ app, link }) => (
         <div className="rm-paylink" key={app.key}>
           {link.href
-            ? <a className="rm-btn rm-small" href={link.href} target="_blank" rel="noopener noreferrer">{link.label}{app.key !== 'venmo' ? ` · $${amount}` : ''}</a>
-            : <button type="button" className="rm-btn rm-small" onClick={() => copy('Zelle contact', link.copy)}>Copy {link.label}</button>}
+            ? <a className="rm-btn rm-small" href={link.href} target="_blank" rel="noopener noreferrer"><PayAppLogo appKey={app.key} />{link.label}{app.key !== 'venmo' ? ` · $${amount}` : ''}</a>
+            : <button type="button" className="rm-btn rm-small" onClick={() => copy('Zelle contact', link.copy)}><PayAppLogo appKey={app.key} />Copy {link.label}</button>}
         </div>
       )) : <p className="rm-help">{name(balance.to)} hasn’t added Venmo, Zelle, Cash App, or PayPal yet. Pay them another way, or ask them to add handles in Household.</p>}
       <p className="rm-help">Opening a link doesn’t send money or mark this paid.</p>
