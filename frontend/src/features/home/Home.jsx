@@ -116,7 +116,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     busy.current = true; setPending('suggestion'); setError('');
     const input = { workspaceId: workspace.workspaceId, actorId, message: text.trim(), planDate, ...(draft && !entry.localOnly ? { previousDraftId: draft.draftId } : {}), ...(photo ? { photo: `${photo.name}:${photo.size}:${photo.lastModified}` } : {}) };
     const key = JSON.stringify(input);
-    const previewOnly = !connected || Boolean(photo);
+    const previewOnly = !connected;
     if (suggestionAttempt.current?.key !== key) suggestionAttempt.current = { key, body: { ...input, requestId: crypto.randomUUID() } };
     try {
       let next;
@@ -128,11 +128,17 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         formData.set('requestId', fields.requestId);
         formData.set('message', fields.message);
         formData.set('planDate', fields.planDate);
-        formData.set('listRevision', String(workspace.listRevision));
-        formData.set('preferences', JSON.stringify(workspace.preferences));
-        if (draft && !entry.localOnly) formData.set('previousDraft', JSON.stringify(draft));
-        formData.set('image', photo);
-        next = await api.request('/api/ai/suggestions', { method: 'POST', formData });
+        if (connected) {
+          if (fields.previousDraftId && !entry?.aiPreviewOnly) formData.set('previousDraftId', fields.previousDraftId);
+          formData.set('image', photo);
+          next = await api.request('/api/suggestions', { method: 'POST', formData });
+        } else {
+          formData.set('listRevision', String(workspace.listRevision));
+          formData.set('preferences', JSON.stringify(workspace.preferences));
+          if (draft && !entry.localOnly) formData.set('previousDraft', JSON.stringify(draft));
+          formData.set('image', photo);
+          next = await api.request('/api/ai/suggestions', { method: 'POST', formData });
+        }
       } else {
         const body = previewOnly ? {
           ...suggestionAttempt.current.body,

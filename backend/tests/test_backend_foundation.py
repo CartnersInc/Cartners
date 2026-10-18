@@ -280,6 +280,98 @@ def test_ingredients_catalog_shape(client: TestClient):
     assert {"id", "name", "description", "priceCents"} <= set(sample)
 
 
+def test_photo_suggestion_is_saved_on_the_shared_route(client: TestClient, monkeypatch):
+    seen = {}
+
+    def fake_generate(message, **kwargs):
+        seen["message"] = message
+        seen["image"] = kwargs.get("image_bytes")
+        seen["mime"] = kwargs.get("image_mime_type")
+        return {
+            "kind": "recommendation",
+            "inputSummary": {
+                "message": message,
+                "summary": "From the photo.",
+                "servings": 4,
+                "restrictions": ["vegetarian"],
+                "maxPrepMinutes": 20,
+            },
+            "recommendation": {
+                "title": "Photo pasta",
+                "servings": 4,
+                "prepMinutesApprox": 20,
+                "fitReason": "Based on the photo.",
+                "ingredients": [{"name": "Pasta", "quantity": 200, "unit": "g", "note": ""}],
+                "steps": ["Boil the pasta."],
+                "uncertainties": [],
+            },
+        }
+
+    monkeypatch.setattr("app.services.gemini_suggestions.generate_suggestion", fake_generate)
+    response = client.post(
+        "/api/suggestions",
+        data={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "message": "healthier version of this",
+            "planDate": "2026-10-18",
+        },
+        files={"image": ("pasta.jpg", b"\xff\xd8\xff\xd9", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert seen["image"].startswith(b"\xff\xd8")
+    assert seen["mime"] == "image/jpeg"
+    assert draft["kind"] == "recommendation"
+    assert draft["recommendation"]["title"] == "Photo pasta"
+    assert draft["recommendation"]["listPreview"]
+    saved = client.get("/api/suggestions/" + draft["draftId"], params={"workspaceId": "demo-family"})
+    assert saved.status_code == 200
+    assert saved.json()["recommendation"]["title"] == "Photo pasta"
+
+
+def test_chosen_event_meal_becomes_a_confirmable_draft(client: TestClient):
+    response = client.post(
+        "/api/event-drafts",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "planDate": "2026-10-18",
+            "eventName": "Movie night at ours",
+            "option": {
+                "title": "Bean nachos",
+                "servings": 4,
+                "prepMinutesApprox": 20,
+                "fitReason": "Easy to share during a movie.",
+                "ingredients": [{"name": "Tortilla chips", "quantity": 1, "unit": "pack"}],
+                "steps": ["Warm the chips and beans."],
+                "uncertainties": [],
+            },
+        },
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["sourceMode"] == "live_ai"
+    assert draft["planDate"] == "2026-10-18"
+    assert draft["recommendation"]["title"] == "Bean nachos"
+    assert draft["recommendation"]["listPreview"]
+    confirm = client.post(
+        "/api/drafts/confirm",
+        json={
+            "workspaceId": "demo-family",
+            "actorId": "leila",
+            "requestId": rid(),
+            "draftId": draft["draftId"],
+            "expectedListRevision": draft["listRevision"],
+            "target": "cart",
+        },
+    )
+    assert confirm.status_code == 200
+    assert any(plan["date"] == "2026-10-18" and plan["title"] == "Bean nachos" for plan in confirm.json()["workspace"]["plans"])
+
+
 def test_basket_compare_sample(client: TestClient):
     result = client.post(
         "/api/baskets/compare",

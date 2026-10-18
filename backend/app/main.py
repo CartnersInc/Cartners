@@ -30,7 +30,7 @@ from app.schemas import (
     TripPatchRequest,
     UndoRequest,
 )
-from app.services.gemini_suggestions import Preferences, generate_suggestion, suggest_for_event
+from app.services.gemini_suggestions import EventOption, Preferences, generate_suggestion, suggest_for_event
 from app.store import Store
 from app.suggestions import build_suggestion, require_message
 
@@ -74,6 +74,17 @@ class EventSuggestionRequest(BaseModel):
     notes: str = Field(default="", max_length=300)
     preferences: Preferences
     savedSuggestions: list[SavedSuggestionInput] = Field(default_factory=list, max_length=8)
+
+
+class EventDraftRequest(BaseModel):
+    """Save one event meal as a confirmable cart draft. No second model call."""
+
+    workspaceId: str = Field(min_length=1, max_length=80)
+    actorId: str = Field(min_length=1, max_length=80)
+    requestId: str = Field(min_length=1, max_length=80)
+    planDate: date
+    eventName: str = Field(min_length=1, max_length=80)
+    option: EventOption
 
 
 class SuggestionRequest(BaseModel):
@@ -217,8 +228,46 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
     def preferences(body: PreferencesPatch, request: Request) -> dict[str, Any]:
         return store_of(request).patch_preferences(body.model_dump())
 
+    async def read_contract_suggestion(request: Request) -> tuple[ContractSuggestionRequest, bytes | None, str | None]:
+        """JSON for a text idea, or multipart when Home attaches a photo."""
+        if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            form = await request.form()
+            body = ContractSuggestionRequest.model_validate({
+                "workspaceId": form.get("workspaceId"),
+                "actorId": form.get("actorId"),
+                "requestId": form.get("requestId"),
+                "message": form.get("message"),
+                "previousDraftId": form.get("previousDraftId") or None,
+                "planDate": form.get("planDate") or None,
+            })
+            upload = form.get("image")
+            if upload is None or isinstance(upload, str):
+                return body, None, None
+            mime = (getattr(upload, "content_type", "") or "").split(";", 1)[0].strip().lower()
+            if mime not in IMAGE_TYPES:
+                raise ValueError("Photo must be a JPEG, PNG, or WebP.")
+            data = await upload.read()
+            if not data:
+                raise ValueError("The photo was empty.")
+            if len(data) > MAX_IMAGE_BYTES:
+                raise ValueError("Use a photo under 5 MB.")
+            return body, data, mime
+        return ContractSuggestionRequest.model_validate(await request.json()), None, None
+
     @application.post("/api/suggestions")
-    async def suggestions(body: ContractSuggestionRequest, request: Request) -> dict[str, Any]:
+    async def suggestions(request: Request) -> dict[str, Any]:
+        try:
+            body, image_bytes, image_mime_type = await read_contract_suggestion(request)
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=422,
+                content={"error": {
+                    "code": "INVALID_SUGGESTION_REQUEST",
+                    "message": str(exc),
+                    "retryable": False,
+                    "requestId": None,
+                }},
+            )
         store = store_of(request)
         require_message(body.message)
         ws = store.require_workspace(body.workspaceId)
@@ -241,7 +290,50 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
             preferences=prefs,
             previous_draft=previous,
             previous_draft_id=body.previousDraftId,
+            image_bytes=image_bytes,
+            image_mime_type=image_mime_type,
         )
+        items = store._load_items(body.workspaceId)
+        draft = store.refresh_draft_preview(draft, items, ws["list_revision"])
+        store.save_draft(draft)
+        return draft
+
+    @application.post("/api/event-drafts")
+    def save_event_draft(body: EventDraftRequest, request: Request) -> dict[str, Any]:
+        store = store_of(request)
+        ws = store.require_workspace(body.workspaceId)
+        store.require_actor(body.workspaceId, body.actorId)
+        option = body.option
+        ingredients = [
+            {**item.model_dump(), "id": f"ing-{uuid4().hex[:8]}"}
+            for item in option.ingredients
+        ]
+        draft = {
+            "draftId": f"draft-{uuid4().hex[:10]}",
+            "previousDraftId": None,
+            "workspaceId": body.workspaceId,
+            "planDate": body.planDate.isoformat(),
+            "listRevision": ws["list_revision"],
+            "sourceMode": "live_ai",
+            "sampleNotice": None,
+            "kind": "recommendation",
+            "inputSummary": {
+                "message": body.eventName,
+                "summary": option.fitReason,
+                "servings": option.servings,
+                "restrictions": loads(ws["restrictions_json"], []),
+                "maxPrepMinutes": option.prepMinutesApprox,
+            },
+            "recommendation": {
+                "title": option.title,
+                "servings": option.servings,
+                "prepMinutesApprox": option.prepMinutesApprox,
+                "fitReason": option.fitReason,
+                "ingredients": ingredients,
+                "steps": option.steps,
+                "uncertainties": option.uncertainties,
+            },
+        }
         items = store._load_items(body.workspaceId)
         draft = store.refresh_draft_preview(draft, items, ws["list_revision"])
         store.save_draft(draft)

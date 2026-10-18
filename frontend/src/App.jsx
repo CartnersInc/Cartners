@@ -91,8 +91,13 @@ export default function App() {
     } catch (err) { setNotice(err.message); }
     finally { setSwitching(false); }
   }
+  function useDraft(draft) {
+    if (draft?.planDate) setPlanDate(draft.planDate);
+    updateEntry(activeGroup.current, { draft, localOnly: false, aiPreviewOnly: false, message: '' });
+    navigate('home');
+  }
   const connected = connection === 'connected' && !switching;
-  const featureProps = { workspace, actorId, api, onWorkspaceChange, navigate, notify: setNotice };
+  const featureProps = { workspace, actorId, api, onWorkspaceChange, navigate, notify: setNotice, onUseDraft: useDraft };
   return <div className="app-shell">
     <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
     <aside className="sidebar"><a className="wordmark" href="#home" aria-label="Cartners Home">cartners<span>.</span></a><div className="sidebar-house"><Icon name="home" /><span>{workspace.groups.find(group => group.workspaceId === workspace.workspaceId)?.name || 'Your group'}</span></div><nav aria-label="Main navigation">{pages.map(id => <a key={id} href={`#${id}`} aria-current={page === id ? 'page' : undefined}><Icon name={id} /><span>{id[0].toUpperCase() + id.slice(1)}</span></a>)}</nav><div className="sidebar-footer"><Icon name="leaf" /><p>A little more together.</p><span>A shared table.<br />A lighter everyday.</span></div></aside>
