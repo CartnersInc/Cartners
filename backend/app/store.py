@@ -832,7 +832,10 @@ class Store:
         draft["listRevision"] = list_revision
         if draft.get("kind") == "recommendation":
             ingredients = draft["recommendation"]["ingredients"]
-            draft["recommendation"]["listPreview"] = build_list_preview(ingredients, items)
+            open_run_id = self._assign_run_if_open(draft["workspaceId"], iso(utc_now()))
+            draft["recommendation"]["listPreview"] = build_list_preview(
+                ingredients, items, combine_reserved=True, open_run_id=open_run_id
+            )
         elif draft.get("kind") == "grocery_list":
             draft["listPreview"] = build_list_preview(draft.get("items") or [], items)
         return draft
@@ -883,9 +886,20 @@ class Store:
             if kind == "recommendation" and body.get("target", "cart") == "cart":
                 recipe = draft["recommendation"]
                 plan_id = new_id("plan")
-                preview = build_list_preview(recipe["ingredients"], items)
+                ingredients = recipe["ingredients"]
+                request_for = body.get("requestFor")
+                if request_for:
+                    if request_for != "household":
+                        self.require_actor(workspace_id, request_for)
+                    ingredients = [{**ingredient, "requestFor": request_for} for ingredient in ingredients]
+                preview = build_list_preview(
+                    ingredients,
+                    items,
+                    combine_reserved=True,
+                    open_run_id=self._assign_run_if_open(workspace_id, now),
+                )
                 updated, deltas = apply_preview_to_cart(
-                    recipe["ingredients"],
+                    ingredients,
                     preview,
                     items,
                     excluded_ids=excluded,
