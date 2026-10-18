@@ -6,7 +6,7 @@ import { recipeLabel } from '../lib/recipes.js';
 
 const draftFrom = item => ({ quantity: String(item.quantity), unit: item.unit || 'count', note: item.note || '', mine: item.requestFor !== 'household' });
 
-// Checked = in the cart (green + price). Uncheck removes the request from the cart.
+// The checkbox records a purchase. Removing a request is a separate action.
 export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChange, connected, trip, badge, price, recipes = [] }) {
   const props = { api, workspace, actorId, onWorkspaceChange };
   const toggle = useWrite(props);
@@ -32,11 +32,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
 
   async function onCheckChange(next) {
     setWantChecked(next);
-    if (next) {
-      await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, bought: true, removed: false });
-      return;
-    }
-    await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, removed: true });
+    await toggle.send(path, 'PATCH', { expectedItemVersion: item.version, bought: next });
   }
 
   function openDetails() {
@@ -45,8 +41,8 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
 
   async function save(event, overrideVersion, extra) {
     event?.preventDefault();
-    const q = /^\d+$/.test(draft.quantity.trim()) ? Number(draft.quantity.trim()) : NaN;
-    if (!extra && !(q >= 1 && q <= 99)) return;
+    const q = Number(draft.quantity);
+    if (!extra && !(Number.isFinite(q) && q > 0 && q <= 100000)) return;
     const version = overrideVersion ?? baseVersion;
     if (overrideVersion != null) setBaseVersion(overrideVersion);
     const fields = extra || { quantity: q, unit: draft.unit, note: draft.note.trim(), requestFor: draft.mine ? (item.requestFor !== 'household' ? item.requestFor : actorId) : 'household' };
@@ -66,32 +62,25 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
     await punt.send(path, 'PATCH', { expectedItemVersion: item.version, punted: next });
   }
 
-  const qtyInvalid = !!draft && !(/^\d+$/.test(draft.quantity.trim()) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= 99);
+  const qtyInvalid = !!draft && !(Number.isFinite(Number(draft.quantity)) && Number(draft.quantity) > 0 && Number(draft.quantity) <= 100000);
   const scope = scopeLabel(item, name);
   const priceLabel = price && Number.isInteger(price.cents) ? formatCents(price.cents, price.currency || 'USD') : null;
   const priceHint = price?.estimated ? 'About ' : '';
 
-  if (wantChecked === false && toggle.state.phase !== 'error') {
-    return (
-      <li className="rm-item rm-item-removing" aria-live="polite">
-        <p className="rm-row-status">Removing {item.name}…</p>
-      </li>
-    );
-  }
 
   return (
     <li className={`rm-item ${shownChecked ? 'rm-item-bought' : ''}`}>
       <div className="rm-item-main">
         <input id={checkId} type="checkbox" className="rm-bought" checked={shownChecked} disabled={toggle.locked || !connected}
-          aria-busy={toggle.saving} onChange={e => onCheckChange(e.target.checked)} />
+          aria-label={`${shownChecked ? 'Mark needed' : 'Mark purchased'}: ${item.name}`} aria-busy={toggle.saving} onChange={e => onCheckChange(e.target.checked)} />
         <label htmlFor={checkId} className="rm-item-text">
           <span className="rm-item-name">{item.name} <span className="rm-qty-badge">{quantityLabel(item)}</span></span>
           {item.note && <span className="rm-item-note">{item.note}</span>}
           {recipes.length > 0 && <span className="rm-item-recipes">{recipeLabel(recipes)}</span>}
           <span className="rm-item-meta"><span className={`rm-scope ${scope === 'Shared' ? '' : 'rm-scope-personal'}`}>{scope}</span> · added by {name(item.addedBy).replace(/^You$/, 'you')}</span>
           {badge && <span className={`rm-badge rm-badge-${badge.kind}`}>{badge.text}</span>}
-          {shownChecked && <span className="rm-bought-label">In cart</span>}
-          <span className="sr-only">{shownChecked ? ', in cart' : ', not in cart'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}. Uncheck to remove.</span>
+          {shownChecked && <span className="rm-bought-label">Purchased</span>}
+          <span className="sr-only">{shownChecked ? ', purchased' : ', still needed'}{priceLabel ? `, ${priceHint}${priceLabel}` : ''}. Check when purchased; uncheck to mark needed again.</span>
         </label>
         <span className="rm-item-price" aria-label={`Price ${priceHint}${priceLabel || 'not available'}`}>{priceLabel ? `${priceHint}${priceLabel}` : 'Not priced'}</span>
         <div className="rm-item-btns">
@@ -106,7 +95,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
         </div>
       </div>
 
-      {toggle.saving && wantChecked !== false && <p className="rm-row-status">Saving…</p>}
+      {toggle.saving && <p className="rm-row-status">Saving…</p>}
       {toggle.state.phase === 'error' && (
         <div className="rm-row-error" role="alert">
           {toggle.state.status === 409 ? <span>Someone updated {item.name} first. This shows the latest.</span> : (
@@ -130,7 +119,7 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
             <div className="rm-add-row">
               <div className="rm-field rm-qty">
                 <label htmlFor={`${panelId}-q`}>Quantity</label>
-                <input id={`${panelId}-q`} inputMode="numeric" value={draft.quantity} aria-invalid={qtyInvalid} onChange={e => setDraft({ ...draft, quantity: e.target.value })} />
+                <input id={`${panelId}-q`} inputMode="decimal" value={draft.quantity} aria-invalid={qtyInvalid} onChange={e => setDraft({ ...draft, quantity: e.target.value })} />
               </div>
               <div className="rm-field">
                 <label htmlFor={`${panelId}-u`}>Unit</label>
@@ -147,13 +136,13 @@ export default function ItemRow({ item, workspace, actorId, api, onWorkspaceChan
             </div>
           </fieldset>
 
-          {qtyInvalid && <p className="rm-error" role="alert">Quantity must be a whole number from 1 to 99.</p>}
+          {qtyInvalid && <p className="rm-error" role="alert">Enter a quantity greater than zero, up to 100,000.</p>}
           {item.version !== baseVersion && !theirs && <p className="rm-help">Someone updated this request since you opened it. Saving will ask which version to keep.</p>}
 
           {theirs && (
             <div className="rm-conflict" role="alert">
               <p><strong>Someone changed {item.name} while you were editing.</strong> Their version:</p>
-              <p className="rm-help">{quantityLabel(theirs)} · {scopeLabel(theirs, name)}{theirs.note ? ` · "${theirs.note}"` : ''}{theirs.bought ? ' · in cart' : ''}{theirs.removed ? ' · removed' : ''}</p>
+              <p className="rm-help">{quantityLabel(theirs)} · {scopeLabel(theirs, name)}{theirs.note ? ` · "${theirs.note}"` : ''}{theirs.bought ? ' · purchased' : ''}{theirs.removed ? ' · removed' : ''}</p>
               <div className="rm-actions">
                 <button type="button" className="rm-btn rm-small" disabled={!connected || theirs.removed} onClick={e => save(e, theirs.version)}>Save mine instead</button>
                 <button type="button" className="rm-btn rm-secondary rm-small" onClick={() => { setDraft(draftFrom(theirs)); setBaseVersion(theirs.version); setTheirs(null); edit.reset(); }}>Use theirs</button>

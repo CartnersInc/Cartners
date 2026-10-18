@@ -1,31 +1,32 @@
 import { useId, useState } from 'react';
-import TripPanel from './parts/TripPanel.jsx';
 import RunBanner from './parts/RunBanner.jsx';
 import { useWrite } from '../shopping/lib/useWrite.js';
 import { people, spendingModeOf, useServerNow } from '../shopping/lib/format.js';
 import { activeTrip } from '../shopping/lib/trip.js';
 import '../shopping/roomie.css';
+import Preferences from '../plans/Preferences.jsx';
 
 // Groups (#9): who is in this group, the active shopper and countdown, the store-run sheet,
 // and the group's Pooled/Split spending preference. The shell's group menu does the switching.
-export default function Groups({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
+export default function Groups({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected, membership, onLeave }) {
+  const [copied, setCopied] = useState('');
+  const [leaving, setLeaving] = useState(false);
   const serverNowMs = useServerNow(workspace.serverNow);
   const { members, group } = people(workspace, actorId);
   const trip = activeTrip(workspace);
-  const others = (workspace.groups || []).filter(g => g.workspaceId !== workspace.workspaceId);
   const shared = { workspace, actorId, api, onWorkspaceChange, connected, notify };
 
   return (
     <div className="rm-page">
       <div className="rm-title-row">
-        <h1 className="rm-h1">Groups</h1>
+        <h1 className="rm-h1">Your household</h1>
         {!connected && <span className="rm-pill rm-pill-sample">Offline</span>}
       </div>
       <p className="rm-intro">Everything here belongs to {group?.name || 'this group'}. Lists, runs and spending never mix between groups.</p>
 
       <RunBanner workspace={workspace} actorId={actorId} serverNowMs={serverNowMs} onAdd={() => navigate('shopping')} addLabel="Open the cart" />
 
-      <div className="rm-columns">
+      <div className="household-settings">
         <div className="rm-main">
           <section className="rm-card" aria-labelledby="rm-members">
             <h2 id="rm-members" className="rm-h2">{group?.name || 'This group'}</h2>
@@ -40,21 +41,14 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
             </ul>
           </section>
 
-          <SpendingStyle {...shared} />
+          <Preferences {...shared} />
+          {!membership?.demo && <section className="rm-card"><h2 className="rm-h2">Invite someone to your table</h2><p className="rm-help">They can choose “Join with a code” on the welcome screen. Only share this code with people you want in your household.</p><details><summary>Show invitation code</summary><textarea className="invite-code" aria-label="Invitation code" readOnly value={membership?.inviteCode || ''} /><button className="rm-btn rm-secondary" onClick={async () => { try { await navigator.clipboard.writeText(membership.inviteCode); setCopied('Invitation copied.'); } catch { setCopied('Select the code above and copy it.'); } }}>Copy invitation code</button><p role="status">{copied}</p></details></section>}
+          <details className="household-spending"><summary>Default for purchase records</summary><SpendingStyle {...shared} /></details>
+          {onLeave && <section className="rm-card"><h2 className="rm-h2">Your profile</h2><p>{membership?.demo ? 'You’re exploring sample people and shared sample data.' : `You’re here as ${membership?.name}. Your membership is saved in this browser.`}</p>{!membership?.demo && <p className="rm-help">Keep your invitation code to rejoin on another device. Rejoining creates a new member; account recovery is not available yet.</p>}{leaving ? <><p>Save your invitation before leaving. This removes access from this browser, not your household’s records.</p><button className="rm-btn" onClick={onLeave}>Leave this browser</button><button className="rm-link" onClick={() => setLeaving(false)}>Stay here</button></> : <button className="rm-btn rm-secondary" onClick={() => membership?.demo ? onLeave() : setLeaving(true)}>{membership?.demo ? 'Set up your own household' : 'Leave or join another household'}</button>}</section>}
 
-          <section className="rm-card" aria-labelledby="rm-other-groups">
-            <h2 id="rm-other-groups" className="rm-h2">Your other groups</h2>
-            {others.length ? (
-              <>
-                <ul className="rm-plain">{others.map(g => <li key={g.workspaceId}><strong>{g.name}</strong>{g.spendingMode ? ` · ${g.spendingMode === 'pooled' ? 'Pooled' : 'Split'} spending` : ''}</li>)}</ul>
-                <p className="rm-help">Switch groups with the group menu at the top.{!connected && ' Switching needs the backend.'}</p>
-              </>
-            ) : <p className="rm-help">You're only in this group.</p>}
-          </section>
+
         </div>
-        <div className="rm-side">
-          <TripPanel {...shared} serverNowMs={serverNowMs} />
-        </div>
+
       </div>
     </div>
   );
@@ -80,8 +74,8 @@ function SpendingStyle({ workspace, actorId, api, onWorkspaceChange, connected, 
       <fieldset className="rm-fieldset" disabled={write.locked || !connected}>
         <legend className="sr-only">Spending style</legend>
         <div className="rm-seg rm-seg-wide">
-          <label><input type="radio" name="rm-spending-mode" checked={mode === 'pooled'} onChange={() => setMode('pooled')} /><span>Pooled</span></label>
-          <label><input type="radio" name="rm-spending-mode" checked={mode === 'split'} onChange={() => setMode('split')} /><span>Split</span></label>
+          <label><input type="radio" name="rm-spending-mode" checked={mode === 'pooled'} onChange={() => setMode('pooled')} /><span>Track who paid</span></label>
+          <label><input type="radio" name="rm-spending-mode" checked={mode === 'split'} onChange={() => setMode('split')} /><span>Split expenses</span></label>
         </div>
       </fieldset>
       <p className="rm-help">{mode === 'pooled' ? 'Pooled: receipts show who paid. Nobody owes anyone, like a family budget.' : 'Split: each receipt is shared among chosen people, with personal items assigned to their owner.'}</p>

@@ -2,88 +2,11 @@ import { useState } from 'react';
 import ReceiptForm, { runsOf } from './parts/ReceiptForm.jsx';
 import ExpenseCard from './parts/ExpenseCard.jsx';
 import Balances from './parts/Balances.jsx';
-import CartCheckout from './parts/CartCheckout.jsx';
-import Payments from './proposal/Payments.jsx';
-import PayProfile from './proposal/PayProfile.jsx';
-import { PAYMENTS_PROPOSAL } from './proposal/payLinks.js';
 import { formatCents, people, spendingModeOf } from '../shopping/lib/format.js';
-import { readCheckout } from '../shopping/lib/checkout.js';
 import { clearPurchasePrompt, pendingPurchasePrompt } from '../groups/parts/TripPanel.jsx';
 import '../shopping/roomie.css';
 
-// Spending (#8): record purchases, settle with Venmo/Zelle, and show Buy-from-cart checkout.
-const TABS = [['receipts', 'Receipts'], ['payments', 'Payments'], ['profile', 'Your profile']];
-const TAB_KEY = 'roomie:spendingTab';
-const readTab = () => {
-  if (readCheckout()) return 'payments';
-  if (pendingPurchasePrompt()) return 'receipts';
-  try {
-    const saved = sessionStorage.getItem(TAB_KEY);
-    return TABS.some(([id]) => id === saved) ? saved : 'receipts';
-  } catch {
-    return 'receipts';
-  }
-};
-
-export default function Spending(props) {
-  const [checkout, setCheckout] = useState(readCheckout);
-  const showPayments = PAYMENTS_PROPOSAL || !!checkout;
-  const [tab, setTab] = useState(() => (showPayments ? readTab() : 'receipts'));
-
-  if (!showPayments) return <Receipts {...props} />;
-
-  function choose(next) {
-    setTab(next);
-    try { sessionStorage.setItem(TAB_KEY, next); } catch { /* Remembering the tab is only a convenience. */ }
-  }
-  function onKey(event) {
-    const index = TABS.findIndex(([id]) => id === tab);
-    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-    if (!step) return;
-    event.preventDefault();
-    const next = TABS[(index + step + TABS.length) % TABS.length][0];
-    choose(next);
-    document.getElementById(`rm-tab-${next}`)?.focus();
-  }
-
-  return (
-    <div className="rm-page">
-      <div className="rm-tabs" role="tablist" aria-label="Spending views" onKeyDown={onKey}>
-        {TABS.map(([id, label]) => (
-          <button key={id} id={`rm-tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls={`rm-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => choose(id)}>
-            {label}{id !== 'receipts' && !checkout && <span className="rm-tab-tag">proposal</span>}
-          </button>
-        ))}
-      </div>
-      <div id={`rm-panel-${tab}`} role="tabpanel" aria-labelledby={`rm-tab-${tab}`}>
-        {tab === 'payments' && (
-          <TabPage title="Payments">
-            {checkout && (
-              <CartCheckout
-                checkout={checkout}
-                actorId={props.actorId}
-                onDismiss={() => setCheckout(null)}
-                onEditProfile={() => choose('profile')}
-              />
-            )}
-            <Payments key={props.actorId} workspace={props.workspace} actorId={props.actorId} onEditProfile={() => choose('profile')} />
-          </TabPage>
-        )}
-        {tab === 'profile' && <TabPage title="Your profile"><PayProfile key={props.actorId} workspace={props.workspace} actorId={props.actorId} /></TabPage>}
-        {tab === 'receipts' && <Receipts {...props} />}
-      </div>
-    </div>
-  );
-}
-
-function TabPage({ title, children }) {
-  return (
-    <div className="rm-page">
-      <div className="rm-title-row"><h1 className="rm-h1">{title}</h1></div>
-      {children}
-    </div>
-  );
-}
+export default function Spending(props) { return <Receipts {...props} />; }
 
 function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
   const [promptRunId] = useState(pendingPurchasePrompt);
@@ -107,8 +30,8 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
         {!connected && <span className="rm-pill rm-pill-sample">Offline</span>}
       </div>
       <p className="rm-intro">
-        This group's spending is <strong>{mode === 'pooled' ? 'pooled' : 'split'}</strong>. {mode === 'pooled' ? 'Receipts show who paid; nobody owes anyone.' : 'Confirmed receipts decide who owes whom.'}{' '}
-        <button type="button" className="rm-link" onClick={() => navigate('groups')}>Change in Groups</button>
+        Your household’s spending is <strong>{mode === 'pooled' ? 'pooled' : 'split'}</strong>. {mode === 'pooled' ? 'Receipts show who paid; nobody owes anyone.' : 'Confirmed receipts decide who owes whom.'}{' '}
+        <button type="button" className="rm-link" onClick={() => navigate('groups')}>Household settings</button>
       </p>
 
       <div className="rm-columns">

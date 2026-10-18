@@ -11,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -32,6 +32,7 @@ from app.schemas import (
 )
 from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, suggest_for_event
 from app.store import Store
+from app.households import authorize_household, register_household_routes
 from app.suggestions import build_suggestion, require_message
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -202,7 +203,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
         finally:
             conn.close()
 
-    application = FastAPI(title="Cartners API", version="2.0.0", lifespan=lifespan)
+    application = FastAPI(title="Cartners API", version="2.0.0", lifespan=lifespan, dependencies=[Depends(authorize_household)])
     application.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),
@@ -217,6 +218,8 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
 
     def store_of(request: Request) -> Store:
         return request.app.state.store
+
+    register_household_routes(application)
 
     @application.get("/api/health")
     def health() -> dict[str, Any]:

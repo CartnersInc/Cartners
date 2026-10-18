@@ -28,6 +28,16 @@ CREATE TABLE IF NOT EXISTS workspaces (
   last_store_name TEXT
 );
 
+CREATE TABLE IF NOT EXISTS household_invites (
+  workspace_id TEXT PRIMARY KEY,
+  code_hash TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS member_sessions (
+  token_hash TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  actor_id TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS actors (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL

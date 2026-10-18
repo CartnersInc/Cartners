@@ -148,7 +148,7 @@ class Store:
                 INSERT INTO items(
                   id, workspace_id, name, quantity, unit, note, request_for, added_by,
                   bought, version, created_at, removed, run_id, reserved_plan_id
-                ) VALUES (?, 'demo-family', ?, ?, ?, ?, ?, ?, 1, 1, ?, 0, ?, NULL)
+                ) VALUES (?, 'demo-family', ?, ?, ?, ?, ?, ?, 0, 1, ?, 0, ?, NULL)
                 """,
                 (item_id, name, qty, unit, note, request_for, added_by, now, run_id),
             )
@@ -244,7 +244,10 @@ class Store:
         server_now = iso(utc_now())
 
         groups = []
-        for row in self.conn.execute("SELECT * FROM workspaces ORDER BY id"):
+        for row in self.conn.execute(
+            "SELECT * FROM workspaces WHERE id = ? OR (id IN ('demo-family','demo-roommates') AND ? IN ('demo-family','demo-roommates')) ORDER BY id",
+            (workspace_id, workspace_id),
+        ):
             members = [
                 r["actor_id"]
                 for r in self.conn.execute(
@@ -639,7 +642,7 @@ class Store:
                 "note": note,
                 "requestFor": request_for,
                 "addedBy": actor_id,
-                "bought": True,
+                "bought": False,
                 "version": 1,
                 "createdAt": now,
                 "removed": False,
@@ -1052,8 +1055,8 @@ class Store:
                         retained.append(delta["itemId"])
                         continue
                     item = self._item_dict(row)
-                    # "bought" means checked in the cart UI, not "already purchased" — Undo still applies.
-                    if item.get("removed"):
+                    # A confirmed purchase must survive Undo of an earlier meal.
+                    if item.get("removed") or item.get("bought"):
                         retained.append(item["name"])
                         continue
                     if delta["op"] == "add":
@@ -1106,6 +1109,7 @@ class Store:
                             and item.get("reservedPlanId") == after.get("reservedPlanId")
                             and parent_row
                             and not parent_row["removed"]
+                            and not parent_row["bought"]
                         ):
                             item["removed"] = True
                             item["version"] = int(item["version"]) + 1
@@ -1139,8 +1143,8 @@ class Store:
                     "SELECT * FROM items WHERE id = ? AND workspace_id = ?",
                     (item_id, workspace_id),
                 ).fetchone()
-                # New adds default to checked; Undo still removes an untouched row.
-                if row and not row["removed"]:
+                # Preserve purchases and later edits when undoing a direct add.
+                if row and not row["removed"] and not row["bought"] and row["version"] == 1:
                     item = self._item_dict(row)
                     item["removed"] = True
                     item["version"] = int(item["version"]) + 1
@@ -1223,15 +1227,15 @@ class Store:
                     raise ApiError(422, "INVALID_TRIP", "requestWindowMinutes must be 5, 10, or 15.")
                 store = (body.get("storeName") or trip["store_name"] or "the store").strip()
                 deadline = iso(now + timedelta(minutes=minutes))
-                # Cart rows default to checked ("bought"); still join the active run.
+                # Only outstanding requests join a new run.
                 claimed_ids = [
                     item["id"]
                     for item in self._load_items(workspace_id)
-                    if not item["removed"] and not item.get("runId")
+                    if not item["removed"] and not item["bought"] and not item.get("runId")
                 ]
                 run_id = new_id("run")
                 for item in self._load_items(workspace_id):
-                    if not item["removed"]:
+                    if not item["removed"] and not item["bought"]:
                         item["runId"] = run_id
                         self._save_item(workspace_id, item)
                         if item["id"] not in claimed_ids:

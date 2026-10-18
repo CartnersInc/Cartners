@@ -27,7 +27,8 @@ export function runsOf(workspace) {
 // Record purchase (#8). Only the actual total is required for a shared receipt. In split mode,
 // personal bought requests open a short exception section: each person's actual personal subtotal.
 // The server allocates the shared remainder; this form only validates input.
-export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode, onDone, initialRunId, expense = null }) {
+export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange, connected, notify, mode: defaultMode, onDone, initialRunId, expense = null }) {
+  const [mode, setMode] = useState(expense?.mode || defaultMode);
   const runs = runsOf(workspace);
   const { name, members } = people(workspace, actorId);
   const editing = Boolean(expense?.id);
@@ -64,6 +65,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   const { body, errors, needsReview } = useMemo(() => {
     const errs = [];
     const totalCents = parseDollars(totalText);
+    if (!members.some(member => member.id === payerId)) errs.push('Choose who paid before saving.');
     if (totalCents == null || totalCents <= 0) errs.push('Enter the actual receipt total, including tax and fees, like 20.00.');
     const allocations = {};
     let known = 0, unknown = false;
@@ -110,15 +112,15 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
       const result = await api.request('/api/ai/expense-draft', { method: 'POST', body: {
         workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), message: aiNote.trim(), mode,
       } });
-      if (Number.isInteger(result.totalCents) && result.totalCents > 0) setTotalText((result.totalCents / 100).toFixed(2));
-      if (workspace.actors.some(actor => actor.id === result.payerId)) setPayerId(result.payerId);
-      if (Array.isArray(result.sharedMemberIds) && result.sharedMemberIds.length) setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
+      setTotalText(Number.isInteger(result.totalCents) && result.totalCents > 0 ? (result.totalCents / 100).toFixed(2) : '');
+      setPayerId(workspace.actors.some(actor => actor.id === result.payerId) ? result.payerId : '');
+      if (Array.isArray(result.sharedMemberIds)) setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
       const parsed = result.personalAllocations && typeof result.personalAllocations === 'object' ? result.personalAllocations : {};
       const validIds = Object.keys(parsed).filter(id => members.some(member => member.id === id));
-      if (validIds.length) {
-        setExtraIds(ids => [...new Set([...ids, ...validIds.filter(id => !personalBought[id])])]);
+      {
+        setExtraIds(validIds.filter(id => !personalBought[id]));
         setPersonal(map => {
-          const next = { ...map };
+          const next = {};
           for (const id of validIds) next[id] = parsed[id] == null
             ? { text: '', unknown: true }
             : { text: (parsed[id] / 100).toFixed(2), unknown: false };
@@ -144,13 +146,19 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
         <label htmlFor={`${ids.total}-note`}>Describe the receipt</label>
         <p className="rm-help">For example: “I paid $42.18 at QFC. $8 was my snacks; the rest is shared.”</p>
         <textarea id={`${ids.total}-note`} rows="2" maxLength="500" value={aiNote} onChange={event => setAiNote(event.target.value)} placeholder="Say who paid and the exact total…" disabled={!connected || aiPending || write.locked} />
-        <div className="rm-actions"><button type="button" className="rm-btn rm-secondary" disabled={!connected || !aiNote.trim() || aiPending || write.locked} onClick={fillFromNote}>{aiPending ? 'Reading…' : 'Fill receipt with AI'}</button></div>
-        {aiFilled && <p className="rm-notice" role="status">AI filled a draft. Check the fields below, then save when they’re right. Nothing is recorded yet.</p>}
+        <div className="rm-actions"><button type="button" className="rm-btn rm-secondary" disabled={!connected || !aiNote.trim() || aiPending || write.locked} onClick={fillFromNote}>{aiPending ? 'Reading…' : 'Review purchase'}</button></div>
+        {aiFilled && <p className="rm-notice" role="status">Check the amount and who paid below. Nothing is recorded until you confirm.</p>}
         {aiError && <p className="rm-help" role="status">{aiError}</p>}
       </div>
+      <fieldset className="rm-fieldset" disabled={editing || aiPending || write.locked}>
+        <legend>How should we record this?</legend>
+        <div className="rm-checks"><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'pooled'} onChange={() => setMode('pooled')} />Just track who paid</label><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'split'} onChange={() => setMode('split')} />Split with people</label></div>
+      </fieldset>
+      <details className="receipt-review" open={aiFilled || editing || showErrors || undefined}>
+        <summary>{aiFilled || editing ? 'Review purchase details' : 'Or enter the receipt yourself'}</summary>
       <fieldset disabled={write.locked || !connected} className="rm-fieldset">
         <div className="rm-field">
-          <label htmlFor={ids.run}>Store run</label>
+          <label htmlFor={ids.run}>Shopping trip (optional)</label>
           <select id={ids.run} value={runId} onChange={e => { setRunId(e.target.value); setSeparate(false); }}>
             <option value="">Not part of a store run</option>
             {runs.map(run => <option key={run.id} value={run.id}>{name(run.claimedBy)}'s run to {run.storeName || 'the store'}{run.claimedAt ? `, ${whenOf(run.claimedAt)}` : ''}</option>)}
@@ -168,7 +176,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
           <div className="rm-field rm-grow">
             <label htmlFor={ids.payer}>Paid by</label>
             <select id={ids.payer} value={payerId} onChange={e => setPayerId(e.target.value)}>
-              {workspace.actors.map(actor => <option key={actor.id} value={actor.id}>{actor.id === actorId ? `${actor.name} (you)` : actor.name}</option>)}
+              <option value="">Choose who paid</option>{workspace.actors.map(actor => <option key={actor.id} value={actor.id}>{actor.id === actorId ? `${actor.name} (you)` : actor.name}</option>)}
             </select>
           </div>
         </div>
@@ -227,6 +235,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
           </>
         )}
       </div>
+      </details>
       {!connected && <p className="rm-help">Preview only. Connect the backend to record purchases.</p>}
     </form>
   );
