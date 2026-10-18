@@ -4,6 +4,7 @@ import ExpenseCard from './parts/ExpenseCard.jsx';
 import Balances from './parts/Balances.jsx';
 import { formatCents, people, spendingModeOf } from '../shopping/lib/format.js';
 import { isFamilyTable } from '../../household.js';
+import PersonName from './proposal/PayHandleMarks.jsx';
 import { lastConfirmedSplit, unrecordedRuns } from './lib/remember.js';
 import { clearPurchasePrompt, pendingPurchasePrompt, queuePurchasePrompt } from '../groups/parts/TripPanel.jsx';
 import '../shopping/roomie.css';
@@ -55,7 +56,7 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
                     <ul className="rm-plain">
                       {waiting.map(run => (
                         <li key={run.id} className="rm-balance">
-                          <span>{name(run.claimedBy)}’s run{run.storeName ? ` to ${run.storeName}` : ''}</span>
+                          <span><PersonName workspace={workspace} actorId={run.claimedBy}>{name(run.claimedBy)}</PersonName>’s run{run.storeName ? ` to ${run.storeName}` : ''}</span>
                           <button type="button" className="rm-btn rm-small" disabled={!connected} onClick={() => { queuePurchasePrompt(run.id); setPromptRunId(run.id); setRecording(true); }}>{mode === 'split' ? 'Split this run' : 'Record this run'}</button>
                         </li>
                       ))}
@@ -68,14 +69,14 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
 
           <h2 className="rm-h2 rm-section">Receipts</h2>
           {expenses.length === 0 && <p className="rm-empty">No receipts yet. Record one after a store run; it's optional.</p>}
-          {[...expenses].reverse().map(expense => <ExpenseCard key={expense.id} expense={expense} name={name} run={runs.find(run => run.id === expense.runId)} onResolve={expense.status === 'needs_review' && connected ? () => { setRecording(false); setEditingId(expense.id); } : null} />)}
+          {[...expenses].reverse().map(expense => <ExpenseCard key={expense.id} expense={expense} name={name} workspace={workspace} run={runs.find(run => run.id === expense.runId)} onResolve={expense.status === 'needs_review' && connected ? () => { setRecording(false); setEditingId(expense.id); } : null} />)}
         </div>
 
         <div className="rm-side">
           <section className="rm-card" aria-labelledby="rm-paid">
             <h2 id="rm-paid" className="rm-h2">Who paid</h2>
             {Object.keys(paidBy).length
-              ? <ul className="rm-plain">{Object.entries(paidBy).map(([id, cents]) => <li key={id} className="rm-balance"><span>{name(id)}</span><span className="rm-price">{formatCents(cents)}</span></li>)}</ul>
+              ? <ul className="rm-plain">{Object.entries(paidBy).map(([id, cents]) => <li key={id} className="rm-balance"><span><PersonName workspace={workspace} actorId={id}>{name(id)}</PersonName></span><span className="rm-price">{formatCents(cents)}</span></li>)}</ul>
               : <p className="rm-help">No confirmed receipts yet.</p>}
             {reviewCount > 0 && <p className="rm-help">{reviewCount} receipt{reviewCount === 1 ? '' : 's'} need review and aren't counted.</p>}
           </section>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { copyText, formatCents } from '../../shopping/lib/format.js';
 import { PAY_APPS, payLink } from '../proposal/payLinks.js';
+import PersonName from '../proposal/PayHandleMarks.jsx';
 
 // Who owes whom, straight from the server's balances. Pay links are optional and member-provided;
 // opening one never marks anything paid, and there is no in-app payment.
@@ -12,17 +13,17 @@ export default function Balances({ balances, workspace, actorId, name }) {
       <h2 id="rm-balances" className="rm-h2">Who owes whom</h2>
       {balances.length === 0 && <p className="rm-help">Everyone is square.</p>}
       {mine.map(b => (b.from === actorId
-        ? <Settle key={`${b.from}-${b.to}`} balance={b} recipient={workspace.actors.find(a => a.id === b.to)} name={name} />
-        : <div className="rm-balance" key={`${b.from}-${b.to}`}><span><strong>{name(b.from)}</strong> owes you</span><span className="rm-price">{formatCents(b.cents)}</span></div>))}
+        ? <Settle key={`${b.from}-${b.to}`} balance={b} recipient={workspace.actors.find(a => a.id === b.to)} name={name} workspace={workspace} />
+        : <div className="rm-balance" key={`${b.from}-${b.to}`}><span><strong><PersonName workspace={workspace} actorId={b.from}>{name(b.from)}</PersonName></strong> owes you</span><span className="rm-price">{formatCents(b.cents)}</span></div>))}
       {others.map(b => (
-        <div className="rm-balance rm-muted" key={`${b.from}-${b.to}`}><span>{name(b.from)} owes {name(b.to)}</span><span>{formatCents(b.cents)}</span></div>
+        <div className="rm-balance rm-muted" key={`${b.from}-${b.to}`}><span><PersonName workspace={workspace} actorId={b.from}>{name(b.from)}</PersonName> owes <PersonName workspace={workspace} actorId={b.to}>{name(b.to)}</PersonName></span><span>{formatCents(b.cents)}</span></div>
       ))}
       {balances.length > 0 && <p className="rm-help">From confirmed split receipts only. Repayments aren't tracked in the app yet.</p>}
     </section>
   );
 }
 
-function Settle({ balance, recipient, name }) {
+function Settle({ balance, recipient, name, workspace }) {
   const [copied, setCopied] = useState('');
   const amount = (balance.cents / 100).toFixed(2);
   const links = PAY_APPS.map(app => ({ app, link: payLink(app.key, recipient?.payLinks?.[app.key], balance.cents) })).filter(entry => entry.link);
@@ -32,9 +33,9 @@ function Settle({ balance, recipient, name }) {
   }
   return (
     <div className="rm-settle">
-      <div className="rm-balance"><span>You owe <strong>{name(balance.to)}</strong></span><span className="rm-price">{formatCents(balance.cents)}</span></div>
+      <div className="rm-balance"><span>You owe <strong><PersonName workspace={workspace} actorId={balance.to}>{name(balance.to)}</PersonName></strong></span><span className="rm-price">{formatCents(balance.cents)}</span></div>
       <div className="rm-copy-amount">
-        <span>Send <strong>${amount}</strong> to {name(balance.to)}</span>
+        <span>Send <strong>${amount}</strong> to <PersonName workspace={workspace} actorId={balance.to}>{name(balance.to)}</PersonName></span>
         <button type="button" className="rm-btn rm-secondary rm-small" onClick={() => copy('Amount', amount)}>Copy amount</button>
       </div>
       {links.length ? links.map(({ app, link }) => (

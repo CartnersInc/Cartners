@@ -3,8 +3,10 @@ import Icon from '../../components/Icon.jsx';
 import { isDraft } from '../../api/client.js';
 import { localDate, weekDates, shiftWeek } from './dates.js';
 import { recipeTitle } from '../shopping/lib/recipes.js';
+import Preferences from './Preferences.jsx';
 
 const WEEK_MESSAGE = 'Plan dinners for this week using our saved preferences.';
+const planDateOf = plan => plan.date || plan.planDate;
 
 export default function Plans({ workspace, actorId, api, onWorkspaceChange, navigate, notify, connected }) {
   const [anchor, setAnchor] = useState(localDate);
@@ -13,9 +15,22 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, navi
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
   const dates = weekDates(anchor);
+  const today = localDate();
   const format = (value, options) => new Intl.DateTimeFormat(undefined, options).format(new Date(`${value}T12:00:00`));
-  const meals = (workspace.plans || []).filter(plan => dates.includes(plan.date || plan.planDate)).sort((a,b) => (a.date || a.planDate).localeCompare(b.date || b.planDate));
+  const mealsByDate = new Map();
+  for (const plan of workspace.plans || []) {
+    const key = planDateOf(plan);
+    if (!dates.includes(key)) continue;
+    const list = mealsByDate.get(key) || [];
+    list.push(plan);
+    mealsByDate.set(key, list);
+  }
   const locked = !!pending;
+
+  function openNight(value) {
+    setDate(value);
+    navigate('home-new', value);
+  }
 
   async function planWeek() {
     if (locked) return;
@@ -58,8 +73,8 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, navi
     finally { setPending(''); }
   }
 
-  return <div className="plans-page"><div className="page-heading"><div><h1>This week</h1><p className="intro">Ask once for seven dinners. Saving the week puts meals on this calendar. Groceries wait until you confirm a single night.</p></div><button className="button" onClick={() => navigate('shopping')}>View shopping list</button></div>
-    <form className="plan-another" onSubmit={e => { e.preventDefault(); navigate('home-new', date); }}><label>Plan a meal for<input type="date" required value={date} onChange={e => setDate(e.target.value)} /></label><button className="button primary">Find an idea</button><button type="button" className="button" disabled={locked} onClick={planWeek}>{pending === 'week' ? 'Planning…' : 'Plan this week'}</button></form>
+  return <div className="plans-page"><div className="page-heading"><div><h1>This week</h1><p className="intro">Each night is already a date. Empty nights open the same dinner ask on Home. Groceries wait until you add one meal to the cart.</p></div><button className="button" onClick={() => navigate('shopping')}>View shopping list</button></div>
+    <form className="plan-another" onSubmit={e => { e.preventDefault(); openNight(date); }}><label>Plan a meal for<input type="date" required value={date} onChange={e => setDate(e.target.value)} /></label><button className="button primary">Find an idea</button><button type="button" className="button" disabled={locked} onClick={planWeek}>{pending === 'week' ? 'Planning…' : 'Plan this week'}</button></form>
     {error && <div className="notice error" role="alert"><p>{error}</p></div>}
     {weekDraft && <section className="week-draft" aria-labelledby="week-draft-title">
       <span className="source-label">{weekDraft.previewOnly ? 'AI idea · preview only' : weekDraft.draft.sourceMode === 'sample' ? 'Sample week' : 'AI week'}</span>
@@ -75,11 +90,30 @@ export default function Plans({ workspace, actorId, api, onWorkspaceChange, navi
         <button className="button primary" onClick={saveWeek} disabled={locked || weekDraft.previewOnly || !connected}>{pending === 'save' ? 'Saving…' : 'Save this week'}<Icon name="arrow" /></button>
       </div>
     </section>}
-    <div className="week-toolbar"><h2>{format(dates[0], { month: 'short', day: 'numeric' })} – {format(dates[6], { month: 'short', day: 'numeric' })}</h2><div><button className="text-button" onClick={() => setAnchor(shiftWeek(anchor,-1))}>Previous week</button><button className="text-button" onClick={() => setAnchor(localDate())}>This week</button><button className="text-button" onClick={() => setAnchor(shiftWeek(anchor,1))}>Next week</button></div></div>
-    {meals.length ? <ul className="saved-meals">{meals.map(plan => {
-      const recipe = plan.recommendation || plan.plan || plan;
-      const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
-      return <li key={plan.id}><p className="small muted">{format(plan.date || plan.planDate, { weekday: 'long', month: 'short', day: 'numeric' })}{plan.servings ? ` · ${plan.servings} servings` : ''}</p><h2>{recipeTitle(plan)}</h2>{steps.length > 0 && <details><summary>How to make it</summary><ol className="recipe-steps">{steps.map((step,i) => <li key={i}>{step}</li>)}</ol></details>}</li>;
-    })}</ul> : <div className="empty-week"><h2>No meals planned for this week yet.</h2><p>Plan this week for seven dated dinners, or start with one night. Ingredients land on the shopping list only when you confirm a single meal.</p><button className="button primary" onClick={planWeek} disabled={locked}>{pending === 'week' ? 'Planning…' : 'Plan this week'}</button></div>}
+    <div className="plans-layout">
+      <div>
+        <div className="week-toolbar"><h2>{format(dates[0], { month: 'short', day: 'numeric' })} – {format(dates[6], { month: 'short', day: 'numeric' })}</h2><div><button className="text-button" onClick={() => setAnchor(shiftWeek(anchor,-1))}>Previous week</button><button className="text-button" onClick={() => setAnchor(localDate())}>This week</button><button className="text-button" onClick={() => setAnchor(shiftWeek(anchor,1))}>Next week</button></div></div>
+        <ul className="week-list">{dates.map(day => {
+          const planned = mealsByDate.get(day) || [];
+          const label = format(day, { weekday: 'long', month: 'short', day: 'numeric' });
+          return <li key={day} className={day === today ? 'today' : undefined}>
+            <div className="plan-day"><span>{format(day, { weekday: 'short' })}</span><strong>{format(day, { day: 'numeric' })}</strong>{day === today && <small>Today</small>}</div>
+            <div className="plan-content">{planned.length ? planned.map(plan => {
+              const recipe = plan.recommendation || plan.plan || plan;
+              const steps = Array.isArray(recipe.steps) ? recipe.steps : (Array.isArray(plan.steps) ? plan.steps : []);
+              return <article key={plan.id} className="saved-plan">
+                <p className="small muted">{plan.servings ? `${plan.servings} servings` : 'Saved meal'}</p>
+                <h3>{recipeTitle(plan)}</h3>
+                {steps.length > 0 && <details><summary>How to make it</summary><ol className="recipe-steps">{steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details>}
+              </article>;
+            }) : <button type="button" className="empty-day" data-date={day} onClick={() => openNight(day)} aria-label={`No meal planned ${label}`}>
+              <span>No meal planned</span><span>Find an idea<Icon name="arrow" /></span>
+            </button>}</div>
+          </li>;
+        })}</ul>
+        <p className="calendar-note small muted">A confirmed dinner from Home lands on its date. Drafts alone do not fill this week.</p>
+      </div>
+      <Preferences workspace={workspace} actorId={actorId} api={api} onWorkspaceChange={onWorkspaceChange} connected={connected} notify={notify} />
+    </div>
   </div>;
 }

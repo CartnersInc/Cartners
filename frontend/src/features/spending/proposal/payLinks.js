@@ -29,3 +29,16 @@ export function payLink(key, handle, cents) {
   if (key === 'zelle') return { copy: cleanHandle(key, handle), label: `Zelle ${cleanHandle(key, handle)}` };
   return null;
 }
+
+// Only apps the member actually saved. Invalid or empty handles are omitted — never invented.
+export function memberPayApps(payLinks, cents) {
+  if (!payLinks || typeof payLinks !== 'object') return [];
+  return PAY_APPS.flatMap(app => {
+    const link = payLink(app.key, payLinks[app.key], cents);
+    return link ? [{ app, link }] : [];
+  });
+}
+
+export function actorPayLinks(workspace, actorId) {
+  return workspace?.actors?.find(actor => actor.id === actorId)?.payLinks;
+}

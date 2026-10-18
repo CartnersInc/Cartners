@@ -10,6 +10,7 @@ import Onboarding from './features/onboarding/Onboarding.jsx';
 import { readMembership, leaveMembership } from './features/onboarding/session.js';
 import { withMemberPayLinks } from './household.js';
 import { useSurfaceMotion } from './components/useMotion.js';
+import RunStatus from './components/RunStatus.jsx';
 
 const api = createApi({ baseUrl: import.meta.env.VITE_API_BASE_URL || '', getToken: () => readMembership()?.sessionToken });
 const pages = ['home', 'plans', 'shopping', 'spending', 'groups'];
@@ -133,7 +134,7 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
       const next = await api.request(`/api/workspace?workspaceId=${encodeURIComponent(nextId)}`);
       if (!isWorkspace(next, nextId)) throw new Error('The server returned an invalid group. Your previous group is still selected.');
       ++pollRequest.current; activeGroup.current = nextId;
-      setWorkspace(next); setActorId(next.actors.some(actor => actor.id === actorId) ? actorId : next.actors[0]?.id || '');
+      setWorkspace(withMemberPayLinks(next, readMembership())); setActorId(next.actors.some(actor => actor.id === actorId) ? actorId : next.actors[0]?.id || '');
       setConnection('connected'); setPlanDate(today());
     } catch (err) { setNotice(err.message); }
     finally { setSwitching(false); }
@@ -144,12 +145,14 @@ function WorkspaceApp({ membership, initialSnapshot, onLeave }) {
     navigate('home');
   }
   const connected = connection === 'connected' && !switching;
-  const featureProps = { workspace, actorId, api, onWorkspaceChange, navigate, notify: setNotice, onUseDraft: useDraft, connection, membership, onLeave };
+  const payWorkspace = withMemberPayLinks(workspace, membership);
+  const featureProps = { workspace: payWorkspace, actorId, api, onWorkspaceChange, navigate, notify: setNotice, onUseDraft: useDraft, connection, membership, onLeave };
   const navLink = id => <a key={id} href={`#${id}`} aria-current={page === id ? 'page' : undefined}><Icon name={id} /><span>{pageLabels[id]}</span>{id === 'shopping' && workspace.items.some(item => !item.removed && !item.bought) && <span className="nav-count" aria-hidden="true">{workspace.items.filter(item => !item.removed && !item.bought).length}</span>}</a>;
   return <div className={`app-shell page-${page}`}>
     <a className="skip-link" href="#content" onClick={e => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
     <aside className="sidebar"><a className="wordmark" href="#home" aria-label="Cartners Home">cartners<span>.</span></a><div className="sidebar-house"><Icon name="home" /><span>{workspace.groups.find(group => group.workspaceId === workspace.workspaceId)?.name || 'Your group'}</span></div><nav aria-label="Main navigation">{navigationPages.map(navLink)}</nav><div className="sidebar-footer"><Icon name="leaf" /><p>A little more together.</p><span>A shared table.<br />A lighter everyday.</span></div></aside>
     <div className="app-stage"><header className="topbar"><a className="mobile-wordmark" href="#home">cartners<span>.</span></a>{membership.demo ? <ContextPicker label="Sample household" value={workspace.workspaceId} options={workspace.groups.map(group => ({ value: group.workspaceId, label: group.name }))} disabled={!connected} onChange={changeGroup} icon="home" /> : <button className="text-button household-link" onClick={() => navigate('groups')}><Icon name="home" />{workspace.groups[0]?.name || membership.householdName}</button>}<div className="session-controls">{page !== 'home' && <a className="home-return" href="#home"><Icon name="home" /><span>Home</span></a>}<span className="connection-label">{connection === 'loading' ? 'Connecting…' : connection === 'connected' ? (membership.demo ? 'Shared demo' : 'List up to date') : connection === 'stale' ? 'Connection lost · showing last update' : 'Offline · changes paused'}</span>{membership.demo ? <ContextPicker label="Demo as" value={actorId} options={workspace.actors.map(actor => ({ value: actor.id, label: actor.name }))} disabled={switching} onChange={setActorId} /> : <button className="text-button" onClick={() => navigate('groups')}>{membership.name}</button>}</div></header>
+      <RunStatus workspace={workspace} actorId={actorId} page={page} />
       <main id="content" ref={mainRef} tabIndex={-1} className="main-content">
         {accessLost && <p className="notice error" role="alert">Your household membership is no longer available on the server. <button className="text-button" onClick={onLeave}>Return to setup</button></p>}
         {membership.demo && <p className="notice demo-notice">You’re exploring a shared sample household. Names, history, and preferences are examples. <button className="text-button" onClick={onLeave}>Set up your own</button></p>}

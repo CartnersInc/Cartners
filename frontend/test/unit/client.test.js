@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
 import { householdKind, isFamilyTable, splitsCosts, withMemberPayLinks } from '../../src/household.js';
 import { allocateSplit, rememberedSharers, unrecordedRuns } from '../../src/features/spending/lib/remember.js';
+import { memberPayApps, payLink } from '../../src/features/spending/proposal/payLinks.js';
 import { readFile } from 'node:fs/promises';
 
 test('writes preserve the caller action ID and structured conflicts', async () => {
@@ -63,6 +64,27 @@ test('family tables stay pooled; roommate tables split costs', () => {
     { workspaceId: 'household-1', actorId: 'member-me', payLinks: { venmo: 'sam-k', zelle: '4255006832' } },
   );
   assert.equal(overlaid.actors[0].payLinks.venmo, 'sam-k');
+  const demo = withMemberPayLinks(
+    { workspaceId: 'demo-family', actors: [{ id: 'sam', name: 'Sam' }, { id: 'jordan', name: 'Jordan', payLinks: {} }] },
+    { demo: true, workspaceId: 'demo-family', actorId: 'leila' },
+  );
+  assert.equal(demo.actors[0].payLinks.venmo, 'sam-k');
+  assert.equal(demo.actors[1].payLinks.paypal, 'jordanm');
+  const live = withMemberPayLinks(
+    { workspaceId: 'household-1', actors: [{ id: 'sam', name: 'Sam' }] },
+    { workspaceId: 'household-1', actorId: 'other' },
+  );
+  assert.equal(live.actors[0].payLinks, undefined);
+});
+
+test('pay logos only include saved valid handles and opening a link is not a payment', () => {
+  const apps = memberPayApps({ venmo: 'sam-k', cashapp: 'samk', paypal: '', zelle: 'nope' });
+  assert.deepEqual(apps.map(entry => entry.app.key), ['venmo', 'cashapp']);
+  assert.equal(memberPayApps({}).length, 0);
+  assert.equal(memberPayApps(undefined).length, 0);
+  const venmo = payLink('venmo', 'sam-k', 1300);
+  assert.equal(venmo.href, 'https://venmo.com/u/sam-k');
+  assert.ok(!('paid' in venmo));
 });
 
 test('roommate receipts reuse the last split and even-split leftover cents', () => {

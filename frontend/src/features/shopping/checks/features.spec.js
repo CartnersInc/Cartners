@@ -5,9 +5,10 @@ import { readFile } from 'node:fs/promises';
 
 const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
 
-async function serve(page, handlers) {
+async function serve(page, handlers, seed) {
   const base = await fixture('workspace');
   let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
+  if (seed) workspace = seed(workspace);
   const calls = [];
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const path = new URL(route.request().url()).pathname;
@@ -113,6 +114,51 @@ test.skip('split receipt sends personal subtotals; retry reuses the requestId', 
   expect(posts).toHaveLength(2);
   expect(posts[1].body.requestId).toBe(posts[0].body.requestId);
   expect(posts[0].body).toMatchObject({ totalCents: 2000, payerId: 'leila', mode: 'split', sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: 600 }, status: 'confirmed' });
+});
+
+test('payment logos sit next to names and opening one does not mark paid', async ({ page }) => {
+  const expense = {
+    id: 'e-split', runId: null, totalCents: 2000, currency: 'USD', payerId: 'leila', mode: 'split',
+    sharedMemberIds: ['leila', 'sam', 'casey'], personalAllocations: {},
+    allocations: { leila: 667, sam: 667, casey: 666 }, status: 'confirmed', createdAt: '2026-10-18T08:00:00Z',
+  };
+  const calls = await serve(page, () => ({ status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } }), workspace => ({
+    ...workspace,
+    preferences: { ...workspace.preferences, spendingMode: 'split' },
+    actors: [
+      { id: 'leila', name: 'Leila', payLinks: { venmo: 'leila-p', paypal: 'leilap', zelle: 'leila@example.com' } },
+      { id: 'sam', name: 'Sam', payLinks: { venmo: 'sam-k', cashapp: 'samk' } },
+      { id: 'casey', name: 'Casey' },
+    ],
+    groups: [{ ...workspace.groups[0], memberIds: ['leila', 'sam', 'casey'], spendingMode: 'split' }],
+    expenses: [expense],
+    balances: [{ from: 'sam', to: 'leila', cents: 667 }],
+  }));
+
+  await page.goto('/#groups');
+  await expect(page.getByRole('heading', { name: 'Your household' })).toBeVisible();
+  const samRow = page.locator('.rm-members li').filter({ hasText: 'Sam' });
+  await expect(samRow.getByRole('link', { name: /Venmo @sam-k/ })).toHaveAttribute('href', 'https://venmo.com/u/sam-k');
+  await expect(samRow.getByRole('link', { name: /Cash App \$samk/ })).toBeVisible();
+  await expect(samRow.getByRole('link', { name: /PayPal/ })).toHaveCount(0);
+  const caseyRow = page.locator('.rm-members li').filter({ hasText: 'Casey' });
+  await expect(caseyRow.getByRole('link', { name: /Venmo|Cash App|PayPal/ })).toHaveCount(0);
+  await expect(caseyRow.getByRole('button', { name: /Zelle/ })).toHaveCount(0);
+
+  await page.goto('/#spending');
+  await expect(page.getByRole('heading', { name: 'Spending' })).toBeVisible();
+  const receipt = page.getByRole('article', { name: /Receipt for/ });
+  await expect(receipt.getByRole('link', { name: /Venmo @leila-p/ }).first()).toBeVisible();
+  await expect(page.locator('#rm-paid').locator('..').getByRole('link', { name: /Venmo @leila-p/ })).toBeVisible();
+  await expect(page.getByText('Sam owes you')).toBeVisible();
+  const popupPromise = page.waitForEvent('popup');
+  await page.getByRole('link', { name: /Venmo @sam-k/ }).first().click();
+  const popup = await popupPromise;
+  expect(popup.url()).toContain('venmo.com');
+  await popup.close();
+  expect(calls.filter(call => call.path.includes('/api/expenses'))).toHaveLength(0);
+  await expect(page.getByText('Sam owes you')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Does not send money or mark paid/ }).first()).toBeVisible();
 });
 
 test('AI fills a receipt draft, but the user must review and save it', async ({ page }) => {

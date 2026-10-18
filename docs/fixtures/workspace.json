@@ -15,11 +15,20 @@
   "actors": [
     {
       "id": "leila",
-      "name": "Leila"
+      "name": "Leila",
+      "payLinks": {
+        "venmo": "leila-p",
+        "paypal": "leilap",
+        "zelle": "leila@example.com"
+      }
     },
     {
       "id": "sam",
-      "name": "Sam"
+      "name": "Sam",
+      "payLinks": {
+        "venmo": "sam-k",
+        "cashapp": "samk"
+      }
     }
   ],
   "currentMeal": null,
