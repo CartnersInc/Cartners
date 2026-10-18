@@ -60,7 +60,8 @@ test('add a Just me request, lose a start race, and release a run', async ({ pag
   expect(calls.find(c => c.body?.action === 'start').body).toMatchObject({ expectedTripVersion: 3, storeName: 'QFC', requestWindowMinutes: 10 });
 
   // As Sam, release the run.
-  await page.locator('.actor-control select').selectOption('sam');
+  await page.getByRole('button', { name: /^You:/ }).click();
+  await page.getByRole('group', { name: 'Choose you' }).getByRole('button', { name: 'Sam' }).click();
   await page.getByRole('button', { name: 'Release run', exact: true }).click();
   await page.getByRole('group', { name: 'Confirm releasing the run' }).getByRole('button', { name: 'Release run' }).click();
   await expect(page.getByRole('button', { name: 'Start store run' })).toBeVisible();
