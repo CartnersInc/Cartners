@@ -77,7 +77,7 @@ class SuggestionValidationTests(unittest.TestCase):
         self.assertEqual(result["sourceMode"], "live_ai")
         self.assertEqual(result["recommendation"]["title"], "Bean tacos")
         call = client_class.return_value.models.generate_content.call_args
-        self.assertEqual(call.kwargs["model"], "gemini-3.8-flash")
+        self.assertEqual(call.kwargs["model"], "gemini-3.5-flash-lite")
         self.assertEqual(call.kwargs["config"].max_output_tokens, 2048)
 
     def test_ai_preview_has_review_rows_and_cannot_claim_to_be_saved(self):
