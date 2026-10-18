@@ -13,7 +13,7 @@ import '../shopping/roomie.css';
 // Allocations and balances come only from the server; this page never calculates them.
 const TABS = [['receipts', 'Receipts'], ['payments', 'Payments'], ['profile', 'Your profile']];
 const TAB_KEY = 'roomie:spendingTab';
-const readTab = () => { try { return sessionStorage.getItem(TAB_KEY) || 'receipts'; } catch { return 'receipts'; } };
+const readTab = () => { try { const saved = sessionStorage.getItem(TAB_KEY); return TABS.some(([id]) => id === saved) ? saved : 'receipts'; } catch { return 'receipts'; } };
 
 // The shell has five fixed pages, so the proposed Payments and Your profile views are tabs inside
 // Spending for now. If they get their own shell tab later, these components move unchanged.
