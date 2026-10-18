@@ -1,21 +1,35 @@
 const CONFIRM = /^(?:yes|yes please|add|add it|add these|add this|put it in|put it in the cart|add to cart|sounds good|let's do it)[.! ]*$/i;
 const DISMISS = /^(?:no|no thanks|not now|skip|cancel|forget it)[.! ]*$/i;
-const HELP = /^(?:hi|hello|hey|yo|what'?s up|help|who are you|what (?:is this|do (?:u|you) do)|text cartners.*|hello (?:photon|proton))[.!? ]*$/i;
+const HELP = /^(?:hi|hello|hey|yo|what'?s up|what(?:'?s| is) going on|help|who are you|what (?:is this|do (?:u|you) do)|text cartners.*|hello (?:photon|proton)|are you (?:there|working))[.!? ]*$/i;
+const SPECTRUM_ECHO = /photon spectrum is connected|you said:/i;
 const START_RUN = /\b(?:going to|heading to|on my way to|leaving for|stop(?:ping)? by|i(?:'?m| am) (?:at|going to)|what do you(?: guys| all)? need|need anything|anybody need|anyone need|last call)\b/i;
 const STORE_HINT = /\b(?:the store|the grocery store|qfc|safeway|kroger|whole foods|trader joe'?s?|costco|target|aldi|h-?e-?b)\b/i;
+const NAMED_RUN = /\b(?:is|are) going to (?:the )?(?:store|grocery store)\b/i;
 const FINISH_RUN = /\b(?:done shopping|i(?:'?m| am) done|leaving (?:now|the store)|heading (?:home|back)|at checkout|checking out|got everything|closing the run)\b/i;
 const CANCEL_RUN = /\b(?:not going(?: anymore)?|false alarm|cancel(?:led)? the (?:run|trip)|never mind the store)\b/i;
-const LIST_STATUS = /\b(?:what(?:'?s| is) on the (?:list|cart)|show (?:the )?(?:list|cart)|shopping list|what do we (?:need|have))\b/i;
+const LIST_STATUS = /\b(?:what(?:'?s| is) on (?:the |our |my )?(?:shopping )?(?:list|cart)|show (?:the |our )?(?:list|cart)|what do we (?:need|have))\b/i;
 const NEED_PREFIX = /^(?:(?:please )?(?:can you )?(?:(?:i|we) )?(?:need|want|grab|get|add)(?: some)?\s+)/i;
-const MEALISH = /\b(?:taco|dinner|recipe|meal|cook|eat|for \d+|something (?:quick|easy|fun)|vegetarian|vegan)\b/i;
+const MEALISH = /\b(?:tacos?|dinner|recipe|meal|cook|eat|for \d+|something (?:quick|easy|fun)|vegetarian|vegan)\b/i;
 const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|plan (?:this|our|the|my) week|week of meals|grocery list|groceries for)\b/i;
 
-export const HELP_REPLY = [
-  'I’m Cartners, in this thread with your household.',
-  'Heading to the store? Text “going to QFC — what do you guys need?” I’ll start a 10-minute run and read the shared list.',
-  'Everyone else: “need milk and eggs” adds it to this run. “Tacos for four” gets a meal draft; “plan this week” gets seven dinners on Plans — groceries stay off the cart. Reply “add it” to confirm.',
-  '“What’s on the list?” anytime. “Done shopping” when you’re leaving.',
-].join('\n\n');
+export function helpReply(kind = 'family') {
+  if (kind === 'roommates' || kind === 'friends') {
+    return [
+      'I’m Cartners in this roommate thread — not a family grocery chat.',
+      'Someone grabbing groceries? Text “going to QFC — what do you guys need?” I’ll start a 10-minute run.',
+      '“Need milk” adds it to this run. Afterward, split the receipt in Cartners and settle with Venmo, Zelle, or Cash App. Opening a link never marks a debt paid.',
+      '“What’s on the list?” anytime. “Done shopping” when you leave. Meal ideas still need “add it” before they hit the cart.',
+    ].join('\n\n');
+  }
+  return [
+    'I’m Cartners in this family thread.',
+    'Mom or dad heading to the store? Text “going to the store — what does everyone need?” I’ll start a 10-minute run.',
+    'Everyone else can text “need milk” and it lands on the list. “Tacos for four” is a meal draft; reply “add it” to confirm. “Plan this week” saves dinners, not groceries.',
+    '“What’s on the list?” anytime. “Done shopping” when you’re leaving.',
+  ].join('\n\n');
+}
+
+export const HELP_REPLY = helpReply('family');
 
 export function liveItems(workspace) {
   return (workspace?.items || []).filter((item) => !item.removed && !item.bought);
@@ -68,11 +82,12 @@ export function parseNeedItems(text) {
 export function classifyHousehold(text, { hasPendingDraft = false } = {}) {
   const clean = String(text || '').replace(/\u2019/g, "'").trim();
   if (!clean) return { type: 'ignore' };
+  if (SPECTRUM_ECHO.test(clean)) return { type: 'ignore' };
   if (hasPendingDraft && CONFIRM.test(clean)) return { type: 'confirm' };
   if (hasPendingDraft && DISMISS.test(clean)) return { type: 'dismiss' };
   if (FINISH_RUN.test(clean)) return { type: 'finish_run' };
   if (CANCEL_RUN.test(clean)) return { type: 'cancel_run' };
-  if (START_RUN.test(clean) && (STORE_HINT.test(clean) || /what do you|need anything|anybody need|anyone need|last call|going to|heading to|on my way/i.test(clean))) {
+  if ((START_RUN.test(clean) && (STORE_HINT.test(clean) || /what do you|need anything|anybody need|anyone need|last call|going to|heading to|on my way/i.test(clean))) || NAMED_RUN.test(clean)) {
     return { type: 'start_run', storeName: parseStoreName(clean), requestWindowMinutes: parseWindowMinutes(clean) };
   }
   if (LIST_STATUS.test(clean)) return { type: 'list' };
@@ -81,7 +96,7 @@ export function classifyHousehold(text, { hasPendingDraft = false } = {}) {
     const items = parseNeedItems(clean);
     if (items.length) return { type: 'need_items', items };
   }
-  if (FOOD_REQUEST.test(clean) || MEALISH.test(clean) || clean.length > 2) return { type: 'suggest' };
+  if (FOOD_REQUEST.test(clean) || MEALISH.test(clean)) return { type: 'suggest' };
   return { type: 'ignore' };
 }
 
@@ -102,7 +117,7 @@ export function formatCart(workspace) {
 export function formatRunStatus(workspace, nowMs = Date.now()) {
   const trip = activeTrip(workspace);
   const cart = formatCart(workspace);
-  if (!trip) return `${cart}\n\nNo one is shopping right now. Text “going to the store — what do you guys need?” to start a run.`;
+  if (!trip) return `${cart}\n\nNo one is shopping right now. Text “going to the store — what do you need?” to start a run.`;
   const shopper = actorName(workspace, trip.claimedBy);
   if (windowOpen(trip, nowMs)) {
     return `${shopper} is heading to ${trip.storeName}. You’ve got about ${minutesLeft(trip, nowMs)} min to add requests.\n\n${cart}\n\nText “need milk” to add something, or “done shopping” when they leave.`;

@@ -188,8 +188,10 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <p className="home-run-status">{trip ? <><strong>{shopper?.name || 'Someone'} is at {trip.storeName}.</strong> New requests {trip.requestDeadlineAt && Date.parse(trip.requestDeadlineAt) > Date.now() ? 'can still join this run.' : 'will wait for the next run.'}</> : 'No one is shopping right now.'}</p>
         <button className="text-button" onClick={() => navigate('shopping')}>Open shared list<Icon name="arrow" /></button>
         <div className="home-text-line">
-          <p>{isFamilyTable(workspace, membership) ? <><strong>Mom or dad heading to the store?</strong> Text Cartners from the car. The rest of the family can reply “need milk” and it lands on this list.</> : <><strong>A roommate grabbing groceries?</strong> Text Cartners from the car. “Need milk” joins this run. Split the receipt later with Venmo, Zelle, or Cash App.</>}</p>
-          <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent(isFamilyTable(workspace, membership) ? 'Going to the store — what does everyone need?' : 'Going to the store — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
+          <p>{isFamilyTable(workspace, membership)
+            ? <><strong>Mom or dad heading to the store?</strong> Text Cartners from the car. The rest of the family can reply “need milk” and it lands on this list.</>
+            : <><strong>Who’s grabbing groceries?</strong> Text “going to QFC — what do you guys need?” Roommates add “need milk.” Split later with Venmo, Zelle, or Cash App — not a family budget.</>}</p>
+          <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent(isFamilyTable(workspace, membership) ? 'Going to the store — what does everyone need?' : 'Going to QFC — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
         </div>
       </aside>
     </div> : <div className="idea-page-heading"><h1>{week ? 'Your week' : meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}

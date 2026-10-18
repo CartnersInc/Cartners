@@ -14,9 +14,11 @@ import {
   formatAdded,
   formatRunStarted,
   formatRunStatus,
+  helpReply,
+  windowOpen,
 } from './scenario.js';
 
-export { HELP_REPLY };
+export { HELP_REPLY, helpReply };
 
 function optional(env, key) {
   return env[key]?.trim() || '';
@@ -42,6 +44,8 @@ export function loadSpectrumConfig(env = process.env) {
     actorBySender,
     cartnersApiUrl: optional(env, 'CARTNERS_API_URL') || 'http://127.0.0.1:8000',
     workspaceId: optional(env, 'CARTNERS_WORKSPACE_ID') || 'demo-family',
+    sessionToken: optional(env, 'CARTNERS_SESSION_TOKEN'),
+    householdKind: optional(env, 'CARTNERS_HOUSEHOLD_KIND'),
     stateFile: optional(env, 'PHOTON_STATE_FILE') || '.runtime/state.json',
   };
 }
@@ -83,11 +87,15 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   };
   const actorId = actorFor(config, sender);
 
+  if (intent.type === 'ignore') return false;
   if (intent.type === 'help' || !api) {
-    await reply(HELP_REPLY);
+    if (state.pendingBySpace[space.id]) {
+      delete state.pendingBySpace[space.id];
+      await state.save();
+    }
+    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family')));
     return true;
   }
-  if (intent.type === 'ignore') return false;
   if (!actorId) {
     await reply('This number isn’t on the household yet, so I won’t change the shared list. Ask someone in Cartners to add you.');
     return true;
@@ -120,17 +128,34 @@ export async function handleSpectrumMessage({ space, message, config, api, state
     }
 
     if (intent.type === 'list') {
+      delete state.pendingBySpace[space.id];
+      await state.save();
       const workspace = await api.getWorkspace(config.workspaceId);
       await reply(formatRunStatus(workspace));
       return true;
     }
 
     if (intent.type === 'start_run') {
-      const workspace = await api.getWorkspace(config.workspaceId);
+      delete state.pendingBySpace[space.id];
+      await state.save();
+      let workspace = await api.getWorkspace(config.workspaceId);
       const existing = activeTrip(workspace);
       if (existing) {
-        await reply(formatRunStatus(workspace));
-        return true;
+        if (!windowOpen(existing) && existing.claimedBy === actorId) {
+          workspace = (await api.patchTrip({
+            workspaceId: config.workspaceId,
+            actorId,
+            requestId: makeRequestId(message.id || randomUUID(), 'trip-finish-stale'),
+            expectedTripVersion: existing.version,
+            action: 'finish',
+          })).workspace;
+        } else if (!windowOpen(existing)) {
+          await reply(`${actorName(workspace, existing.claimedBy)}’s ${existing.storeName} run is still open, but it isn’t taking new texts. They should send “done shopping”, then you can start a new run.`);
+          return true;
+        } else {
+          await reply(formatRunStatus(workspace));
+          return true;
+        }
       }
       try {
         const result = await api.patchTrip({
@@ -178,6 +203,8 @@ export async function handleSpectrumMessage({ space, message, config, api, state
     }
 
     if (intent.type === 'need_items') {
+      delete state.pendingBySpace[space.id];
+      await state.save();
       let workspace;
       const added = [];
       for (const [index, name] of intent.items.entries()) {
@@ -194,14 +221,26 @@ export async function handleSpectrumMessage({ space, message, config, api, state
       return true;
     }
 
-    const draft = await api.suggest({
+    const refinement = /\b(make it|instead|without|quicker|swap|change it|more|less)\b/i.test(text);
+    const suggestBody = {
       workspaceId: config.workspaceId,
       actorId,
       requestId: makeRequestId(message.id || randomUUID(), 'suggest'),
       message: text,
       planDate: today(),
-      ...(pending?.draft?.draftId ? { previousDraftId: pending.draft.draftId } : {}),
-    });
+      ...(refinement && pending?.draft?.draftId ? { previousDraftId: pending.draft.draftId } : {}),
+    };
+    let draft;
+    try {
+      draft = await api.suggest(suggestBody);
+    } catch (error) {
+      if (error.code === 'DRAFT_NOT_FOUND' && suggestBody.previousDraftId) {
+        delete suggestBody.previousDraftId;
+        draft = await api.suggest({ ...suggestBody, requestId: makeRequestId(message.id || randomUUID(), 'suggest-retry') });
+      } else {
+        throw error;
+      }
+    }
     state.pendingBySpace[space.id] = {
       draft,
       sourceMessageId: message.id,
@@ -212,13 +251,24 @@ export async function handleSpectrumMessage({ space, message, config, api, state
     return true;
   } catch (error) {
     logger.error(error instanceof Error ? error.message : 'Cartners could not complete that request.');
-    await reply('I couldn’t reach the shared Cartners list. The iMessage line is up; try again in a moment, or open the website.');
+    const detail = error instanceof Error ? error.message : '';
+    if (error.status === 401 || error.code === 'HOUSEHOLD_ACCESS') {
+      await reply('This iMessage line isn’t signed into that Cartners household. Set CARTNERS_SESSION_TOKEN and CARTNERS_WORKSPACE_ID in photon-agent/.env, then restart the agent.');
+    } else if (error.code === 'DRAFT_NOT_FOUND') {
+      delete state.pendingBySpace[space.id];
+      await state.save();
+      await reply('That meal idea expired. Ask again, or text “what’s on the list?” for the cart.');
+    } else {
+      await reply(detail && detail.length < 180
+        ? `Cartners couldn’t do that (${detail}). The iMessage line is up — try “what’s on the list?” or open the website.`
+        : 'I couldn’t reach the shared Cartners list. The iMessage line is up; try again in a moment, or open the website.');
+    }
     return true;
   }
 }
 
 export async function runSpectrumAgent({ config = loadSpectrumConfig(), logger = console } = {}) {
-  const api = createCartnersApi({ baseUrl: config.cartnersApiUrl });
+  const api = createCartnersApi({ baseUrl: config.cartnersApiUrl, token: config.sessionToken });
   const state = await createStateStore(config.stateFile);
   const app = await Spectrum({
     projectId: config.projectId,

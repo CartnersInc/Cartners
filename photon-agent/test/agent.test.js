@@ -131,7 +131,7 @@ test('Spectrum greets without writing the cart, and treats a craving as a draft'
     state: { pendingBySpace: {}, async save() {} },
   });
   assert.equal(hello, true);
-  assert.equal(replies[0], HELP_REPLY);
+  assert.match(replies[0], /Mom or dad heading to the store/);
 
   const dinner = await handleSpectrumMessage({
     space: { id: 'space-1' },

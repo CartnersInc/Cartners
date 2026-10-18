@@ -1,9 +1,13 @@
-export function createCartnersApi({ baseUrl, fetchImpl = globalThis.fetch }) {
+export function createCartnersApi({ baseUrl, token = '', fetchImpl = globalThis.fetch }) {
   const root = baseUrl.replace(/\/$/, '');
   async function request(method, path, body) {
     const response = await fetchImpl(`${root}${path}`, {
       method,
-      headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(25_000),
     });
