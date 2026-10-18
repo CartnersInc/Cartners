@@ -242,6 +242,11 @@
 .rm-members { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
 .rm-members li { display: flex; align-items: center; gap: 10px; font-size: .9rem; font-weight: 650; }
 .rm-members .avatar { width: 30px; height: 30px; }
+.rm-person { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rm-pay-marks { display: inline-flex; align-items: center; gap: 3px; }
+.rm-pay-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; line-height: 0; cursor: pointer; text-decoration: none; flex: 0 0 auto; }
+.rm-pay-mark:focus-visible { outline: 2px solid #4575a0; outline-offset: 2px; }
+.rm-pay-icon { width: 18px; height: 18px; display: block; }
 
 /* Spending */
 .rm-form { display: grid; gap: 4px; }

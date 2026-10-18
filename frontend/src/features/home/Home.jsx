@@ -152,7 +152,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     <summary>{dateLabel} · {workspace.preferences.servings} servings{workspace.preferences.restrictions.length ? ` · ${workspace.preferences.restrictions.join(', ')}` : ''}</summary>
     <div className="request-options-body">
       <label className="date-control">Meal date<input aria-label="Meal date" type="date" value={planDate} onChange={e => { const value = e.target.value; if (value && !Number.isNaN(new Date(`${value}T12:00:00`).getTime())) onPlanDateChange(value); }} disabled={locked} required /></label>
-      <button className="text-button" onClick={() => navigate('groups')}>Edit preferences</button>
+      <button className="text-button" onClick={() => navigate('plans')}>Edit preferences</button>
     </div>
   </details>;
   const composer = <form className={`composer ${draft ? 'followup-composer' : ''}`} data-pending={pending === 'suggestion'} data-has-input={Boolean(message.trim())} onSubmit={event => { event.preventDefault(); requestSuggestion(message); }} aria-busy={pending === 'suggestion'}>

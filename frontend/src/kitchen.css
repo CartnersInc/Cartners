@@ -42,6 +42,9 @@ button:disabled { opacity: .55; }
 .household-link, .context-picker-trigger { font-size: .84rem; color: var(--ink); }
 .household-link .icon { color: var(--cobalt); }
 .connection-label { font-size: .72rem; }
+.run-status { margin: 8px 40px 0; background: var(--cobalt); border-radius: 12px; }
+.run-status-closed { background: var(--sun-pale); color: var(--ink); }
+.run-status-copy { font-size: .78rem; }
 .session-controls > .text-button { color: var(--ink); background: var(--apron); padding: 6px 14px; border-radius: 24px; font-size: .8rem; }
 .home-return { border: 0; background: var(--apron); color: var(--ink); }
 .avatar { background: var(--apron); color: var(--ink); }
@@ -222,6 +225,15 @@ button:disabled { opacity: .55; }
 .plan-another label { font-size: .85rem; font-weight: 600; }
 .plan-another input { background: var(--white); border-color: #baa78d; border-radius: 9px; }
 .week-toolbar h2 { font-size: 1.3rem; }
+.week-list > li { border-color: var(--line); }
+.today .plan-day { background: var(--tomato-pale); color: var(--ink); }
+.today .plan-day strong { color: var(--ink); }
+.empty-day { cursor: pointer; border-radius: 10px; }
+.empty-day:hover { background: var(--sun-pale); }
+.saved-plan { background: var(--white); border-radius: 12px; padding: 14px 16px; }
+.saved-plan + .saved-plan { margin-top: 10px; }
+.saved-plan h3 { margin-top: 4px; font-size: 1.2rem; }
+.plans-page .preferences { background: var(--apron); }
 .empty-week { max-width: none; padding: 32px; background: var(--sun-pale); border-radius: 14px; margin-top: 22px; }
 .empty-week h2 { font-size: 1.65rem; }
 .empty-week p { margin-top: 12px; font-size: .95rem; }
@@ -245,7 +257,7 @@ button:disabled { opacity: .55; }
   .sidebar { width: 190px; padding-inline: 14px; }
   .sidebar .wordmark { font-size: 2.25rem; }
   .main-content { padding-inline: 26px; }
-  .topbar, .app-footer { margin-inline: 26px; }
+  .topbar, .app-footer, .run-status { margin-inline: 26px; }
   .discovery-focused { grid-template-columns: minmax(0,1fr); }
   .home-hero h1 { font-size: 3.8rem; }
   .home-hero .kitchen-art { width: 100%; margin: 0; }
@@ -279,6 +291,7 @@ button:disabled { opacity: .55; }
   .sidebar nav a, .sidebar-more > summary { min-height: 52px; font-size: .65rem; padding: 6px 2px; gap: 5px; font-weight: 600; }
     .nav-count { position: absolute; margin-left: 35px; margin-top: -2px; min-width: 18px; height: 18px; font-size: .6rem; }
   .topbar { min-height: 74px; margin-inline: 22px; gap: 8px; flex-wrap: wrap; padding-block: 12px; }
+  .run-status { margin-inline: 22px; padding: 8px 12px; }
   .mobile-wordmark { font-family: var(--display); color: var(--tomato); font-size: 1.8rem; font-weight: 800; letter-spacing: -.04em; }
   .household-link { font-size: .75rem; min-height: 34px; }
   .household-link .icon { width: 16px; }

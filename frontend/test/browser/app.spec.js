@@ -137,7 +137,13 @@ test('phone opens on dinner prompt and navigation fits without horizontal overfl
 });
 
 test('planning a day opens a fresh request; household preferences save without AI', async ({ page }) => {
+  const localDate = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const start = new Date(`${localDate()}T12:00:00`);
+  start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+  const week = Array.from({ length: 7 }, (_, i) => { const date = new Date(start); date.setDate(start.getDate() + i); return localDate(date); });
+  const filled = week[1];
   let workspace = await fixture('workspace');
+  workspace = { ...workspace, plans: [{ id: 'plan-taco', date: filled, planDate: filled, title: 'Bean tacos', servings: 4, steps: [] }] };
   const preferences = [];
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const path = new URL(route.request().url()).pathname;
@@ -151,13 +157,22 @@ test('planning a day opens a fresh request; household preferences save without A
   });
   await page.goto('/#plans');
   await expect(page.getByRole('heading',{name:'This week',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Bean tacos',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/No meal planned/})).toHaveCount(6);
+  const emptyDate = await page.locator('.empty-day').first().getAttribute('data-date');
+  await page.locator('.empty-day').first().click();
+  await expect(page.getByRole('heading',{name:'What sounds good today?'})).toBeVisible();
+  await page.locator('.request-options > summary').click();
+  await expect(page.getByLabel('Meal date',{exact:true})).toHaveValue(emptyDate);
+  await page.getByRole('link',{name:'This week',exact:true}).click();
   await page.getByLabel('Plan a meal for').fill('2026-10-25');
   await page.getByRole('button',{name:'Find an idea',exact:true}).click();
   await expect(page.getByRole('heading',{name:'What sounds good today?'})).toBeVisible();
   await page.locator('.request-options > summary').click();
   await expect(page.getByLabel('Meal date',{exact:true})).toHaveValue('2026-10-25');
   await page.getByRole('button',{name:'Edit preferences',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Your household',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'This week',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your food preferences',exact:true})).toBeVisible();
   await page.locator('.preferences').getByRole('button',{name:'Edit preferences',exact:true}).click();
   await page.getByRole('spinbutton',{name:'Servings',exact:true}).fill('6');
   await page.getByRole('button',{name:'Save preferences',exact:true}).click();
@@ -196,6 +211,55 @@ test('AI request is the first step, and quick refinement stays one click', async
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: quick.recommendation.title })).toBeVisible();
   expect(requests).toHaveLength(2);
+});
+
+test('an active store run stays on every page and opens shopping', async ({ page }) => {
+  const workspace = await fixture('workspace');
+  let live = true;
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    if (new URL(route.request().url()).pathname !== '/api/workspace') return route.fulfill({ status: 404, json: { error: { message: 'Not used' } } });
+    if (live) return route.fulfill({ json: workspace });
+    return route.fulfill({ status: 503, json: { error: { message: 'Paused' } } });
+  });
+  await page.goto('/');
+  const run = page.getByRole('link', { name: /Store run: Sam is at Sample neighborhood store/ });
+  await expect(run).toBeVisible();
+  await expect(run).toContainText('Requests can still join');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  for (const [name, heading] of [['This week', 'This week'], ['Spending', 'Spending'], ['Household', 'Your household'], ['Home', 'What sounds good today?']]) {
+    await nav.getByRole('link', { name, exact: true }).click();
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+    await expect(run).toBeVisible();
+  }
+  live = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('Connection lost · showing last update')).toBeVisible();
+  await expect(run).toBeVisible();
+  await run.click();
+  await expect(page).toHaveURL(/#shopping$/);
+  await expect(page.getByRole('heading', { name: 'Shopping', exact: true })).toBeVisible();
+  await expect(run).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Store run' })).toBeVisible();
+});
+
+test('no store-run chip when nobody is shopping', async ({ page }) => {
+  const workspace = await fixture('workspace');
+  workspace.trip = { ...workspace.trip, claimedBy: null, state: 'idle' };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/#plans');
+  await expect(page.getByRole('heading', { name: 'This week', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Store run:/ })).toHaveCount(0);
+});
+
+test('a closed store run still shows who is shopping and waits for the next run', async ({ page }) => {
+  const workspace = await fixture('workspace');
+  workspace.trip = { ...workspace.trip, requestDeadlineAt: '2026-10-17T17:00:00Z', state: 'shopping' };
+  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({ json: workspace }));
+  await page.goto('/#spending');
+  const run = page.getByRole('link', { name: /Store run: Sam is at Sample neighborhood store/ });
+  await expect(run).toBeVisible();
+  await expect(run).toContainText('Wait for next run');
+  await expect(run).not.toContainText('Requests can still join');
 });
 
 test('all five areas are visible on desktop and reduced motion pauses discovery', async ({ page }) => {

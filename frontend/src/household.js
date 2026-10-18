@@ -19,15 +19,26 @@ export function splitsCosts(workspace) {
   return (workspace?.preferences?.spendingMode || workspace?.groups?.find(group => group.workspaceId === workspace?.workspaceId)?.spendingMode) === 'split';
 }
 
+// Fictional demo handles (same as the backend seed). Used only when the snapshot has none.
+const SAMPLE_PAY_LINKS = {
+  leila: { venmo: 'leila-p', paypal: 'leilap', zelle: 'leila@example.com' },
+  sam: { venmo: 'sam-k', cashapp: 'samk' },
+  jordan: { paypal: 'jordanm' },
+  maya: { venmo: 'maya-r' },
+};
+
 export function withMemberPayLinks(workspace, membership) {
-  const links = membership?.payLinks;
-  if (!workspace || !links || typeof links !== 'object' || membership.workspaceId !== workspace.workspaceId) return workspace;
+  if (!workspace) return workspace;
+  const mine = membership?.workspaceId === workspace.workspaceId && membership?.payLinks && typeof membership.payLinks === 'object'
+    ? membership.payLinks
+    : null;
   return {
     ...workspace,
     actors: (workspace.actors || []).map(actor => {
-      if (actor.id !== membership.actorId) return actor;
-      const server = actor.payLinks && Object.keys(actor.payLinks).length > 0;
-      return server ? actor : { ...actor, payLinks: links };
+      if (actor.payLinks && Object.keys(actor.payLinks).length > 0) return actor;
+      if (actor.id === membership?.actorId && mine) return { ...actor, payLinks: mine };
+      if (membership?.demo && SAMPLE_PAY_LINKS[actor.id]) return { ...actor, payLinks: SAMPLE_PAY_LINKS[actor.id] };
+      return actor;
     }),
   };
 }

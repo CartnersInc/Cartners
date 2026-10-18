@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { copyText, formatCents, people, whenOf } from '../../shopping/lib/format.js';
 import { PAY_APPS, payLink } from './payLinks.js';
+import { PayHandleMarks } from './PayHandleMarks.jsx';
 import { proposalSample } from './sample.js';
 
 // PROPOSAL (#8): who you owe and who owes you, per grocery trip, with the recipient's pay links.
@@ -77,7 +78,7 @@ function TripHead({ settlement: s, who, name }) {
     <div className="rm-debt-head">
       <span className="avatar" aria-hidden="true">{name(who)[0]}</span>
       <div className="rm-debt-who">
-        <strong>{name(who)}</strong>
+        <strong className="rm-person">{name(who)}<PayHandleMarks payLinks={proposalSample.payProfiles[who]} /></strong>
         <span className="rm-help">{s.storeName} run · {whenOf(s.finishedAt)} · receipt {formatCents(s.receiptTotalCents)} incl. tax</span>
       </div>
       <span className="rm-price rm-debt-amount">{formatCents(s.cents)}</span>

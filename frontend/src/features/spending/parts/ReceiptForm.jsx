@@ -3,6 +3,7 @@ import { useWrite } from '../../shopping/lib/useWrite.js';
 import { formatCents, parseDollars, people, whenOf } from '../../shopping/lib/format.js';
 import { activeTrip, liveItems } from '../../shopping/lib/trip.js';
 import { allocateSplit, lastConfirmedSplit, rememberedPayer, rememberedSharers } from '../lib/remember.js';
+import PersonName from '../proposal/PayHandleMarks.jsx';
 
 function centsToText(cents) {
   return (cents / 100).toFixed(2);
@@ -203,7 +204,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
             <div className="rm-field">
               <span className="rm-label" id={ids.who}>Who shares the rest?</span>
               <div className="rm-checks" role="group" aria-labelledby={ids.who}>
-                {members.map(m => <label key={m.id} className="rm-check"><input type="checkbox" checked={sharedIds.includes(m.id)} onChange={() => toggleShared(m.id)} /><span>{m.name}</span></label>)}
+                {members.map(m => <label key={m.id} className="rm-check"><input type="checkbox" checked={sharedIds.includes(m.id)} onChange={() => toggleShared(m.id)} /><PersonName workspace={workspace} actorId={m.id}>{m.name}</PersonName></label>)}
               </div>
               <span className="rm-help">{lastSplit
                 ? `Same people as the last confirmed receipt${selectedRun ? `, unless you change it for ${selectedRun.storeName || 'this run'}` : ''}.`
@@ -214,7 +215,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
                 <p className="rm-label">Each person’s share</p>
                 <ul className="rm-plain">
                   {Object.entries(preview).sort(([a], [b]) => a.localeCompare(b)).map(([id, cents]) => (
-                    <li key={id} className="rm-balance"><span>{name(id)}{id === payerId ? ' (paid the store)' : ''}</span><span className="rm-price">{formatCents(cents)}</span></li>
+                    <li key={id} className="rm-balance"><span><PersonName workspace={workspace} actorId={id}>{name(id)}</PersonName>{id === payerId ? ' (paid the store)' : ''}</span><span className="rm-price">{formatCents(cents)}</span></li>
                   ))}
                 </ul>
                 <p className="rm-help">Even split of what’s left after any personal amounts. Saving still needs your confirmation — this is not a payment.</p>
@@ -227,7 +228,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
                 const entry = personal[id] || { text: '', unknown: false };
                 return (
                   <div key={id} className="rm-exception">
-                    <span className="rm-exception-who"><strong>{name(id)}</strong>{personalBought[id] ? <span className="rm-help"> {personalBought[id].join(', ')}</span> : null}</span>
+                    <span className="rm-exception-who"><strong><PersonName workspace={workspace} actorId={id}>{name(id)}</PersonName></strong>{personalBought[id] ? <span className="rm-help"> {personalBought[id].join(', ')}</span> : null}</span>
                     <input aria-label={`${name(id)} personal subtotal`} inputMode="decimal" placeholder="0.00" className="rm-amount" disabled={entry.unknown} value={entry.unknown ? '' : entry.text} onChange={e => setEntry(id, { text: e.target.value })} />
                     <label className="rm-check rm-small-text"><input type="checkbox" checked={entry.unknown} onChange={e => setEntry(id, { unknown: e.target.checked })} /><span>Don't know</span></label>
                     {!personalBought[id] && <button type="button" className="rm-icon-btn" aria-label={`Remove ${name(id)}'s personal amount`} onClick={() => { setExtraIds(list => list.filter(x => x !== id)); setPersonal(map => { const next = { ...map }; delete next[id]; return next; }); }}>×</button>}
