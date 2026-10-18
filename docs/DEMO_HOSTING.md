@@ -2,7 +2,7 @@
 
 `main` is the source of truth. Teammates build on their own branches and open pull requests; every push to `main` runs frontend checks and deploys the app to one stable public URL:
 
-**https://xaviergorriti.github.io/Groceries_fun_time_with_friends/**
+**https://xaviergorriti.github.io/Cartners/**
 
 Branch previews are not published. Each successful deployment replaces the previous live app at that URL, so the team shares the current `main` build. The first deployment is live; no additional setup is needed.
 

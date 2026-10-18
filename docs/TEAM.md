@@ -1,6 +1,6 @@
 # Team workspace — final brainstorm
 
-Repository: https://github.com/XavierGorriti/Groceries_fun_time_with_friends
+Repository: https://github.com/XavierGorriti/Cartners
 
 **[Start building: four copy-paste AI prompts and integration order](START_HERE.md).**
 
@@ -12,10 +12,10 @@ Five pages are places to find things, not five required steps. Build the connect
 
 | Person | Ownership and assigned GitHub issues | Existing work branch |
 | --- | --- | --- |
-| Ibrahiim · @ibrahiimmuhamud | [Home and shared React shell #3](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/3); [Plans and preferences #7](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/7) | `ibrahiim/dinner-ui` |
-| Suyash · @sdpandit | [Shopping #4](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/4); [Spending UI #8](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/8); [Groups and countdown #9](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/9) | `suyash/shopping-ui` |
-| Xavier · @XavierGorriti | [FastAPI, SQLite, group/run state, plans, expense calculations and deployment #2](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/2) | `xavier/backend` |
-| Ethan · @chocbox2 | [AI meal/grocery/refinement drafts #5](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/5); [authorized price access and integration #6](https://github.com/XavierGorriti/Groceries_fun_time_with_friends/issues/6) | `ethan/ai-integrations` |
+| Ibrahiim · @ibrahiimmuhamud | [Home and shared React shell #3](https://github.com/XavierGorriti/Cartners/issues/3); [Plans and preferences #7](https://github.com/XavierGorriti/Cartners/issues/7) | `ibrahiim/dinner-ui` |
+| Suyash · @sdpandit | [Shopping #4](https://github.com/XavierGorriti/Cartners/issues/4); [Spending UI #8](https://github.com/XavierGorriti/Cartners/issues/8); [Groups and countdown #9](https://github.com/XavierGorriti/Cartners/issues/9) | `suyash/shopping-ui` |
+| Xavier · @XavierGorriti | [FastAPI, SQLite, group/run state, plans, expense calculations and deployment #2](https://github.com/XavierGorriti/Cartners/issues/2) | `xavier/backend` |
+| Ethan · @chocbox2 | [AI meal/grocery/refinement drafts #5](https://github.com/XavierGorriti/Cartners/issues/5); [authorized price access and integration #6](https://github.com/XavierGorriti/Cartners/issues/6) | `ethan/ai-integrations` |
 
 Issues contain acceptance criteria and handoffs. Suyash builds the three thin UI areas in sequence, not three simultaneous projects; Xavier supplies their shared routes and money calculations. Ibrahiim finishes shell/Home before Plans. Ethan connects live AI before optional weekly generation. Rebalance a task together if someone finishes early.
 
@@ -24,8 +24,8 @@ Each teammate uses their own local clone. GitHub shares code; shared household d
 ## Start your copy
 
 ```sh
-git clone https://github.com/XavierGorriti/Groceries_fun_time_with_friends.git
-cd Groceries_fun_time_with_friends
+git clone https://github.com/XavierGorriti/Cartners.git
+cd Cartners
 git switch YOUR-BRANCH-FROM-THE-TABLE
 ```
 
