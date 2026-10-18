@@ -17,6 +17,7 @@ import {
   helpReply,
   windowOpen,
 } from './scenario.js';
+import { expandPhoneMap, expandPhoneSet, matchPhoneMap, matchPhoneSet } from './phone.js';
 
 export { HELP_REPLY, helpReply };
 
@@ -30,12 +31,12 @@ export function loadSpectrumConfig(env = process.env) {
   if (!projectId) throw new Error('Set SPECTRUM_PROJECT_ID in photon-agent/.env.');
   if (!projectSecret) throw new Error('Set SPECTRUM_PROJECT_SECRET in photon-agent/.env.');
   const allowed = optional(env, 'PHOTON_ALLOWED_SENDERS');
-  const allowedSenders = new Set(allowed.split(',').map((value) => value.trim().toLowerCase()).filter(Boolean));
+  const allowedSenders = expandPhoneSet(allowed.split(',').map((value) => value.trim()).filter(Boolean));
   let actorBySender = new Map();
   const rawActors = optional(env, 'CARTNERS_ACTOR_BY_SENDER');
   if (rawActors) {
     const parsed = JSON.parse(rawActors);
-    actorBySender = new Map(Object.entries(parsed).map(([sender, id]) => [sender.toLowerCase(), id]));
+    actorBySender = expandPhoneMap(Object.entries(parsed));
   }
   return {
     projectId,
@@ -46,12 +47,21 @@ export function loadSpectrumConfig(env = process.env) {
     workspaceId: optional(env, 'CARTNERS_WORKSPACE_ID') || 'demo-family',
     sessionToken: optional(env, 'CARTNERS_SESSION_TOKEN'),
     householdKind: optional(env, 'CARTNERS_HOUSEHOLD_KIND'),
+    imessageLine: optional(env, 'CARTNERS_IMESSAGE_LINE') || optional(env, 'PHOTON_AGENT_HANDLE') || '+14156055508',
     stateFile: optional(env, 'PHOTON_STATE_FILE') || '.runtime/state.json',
   };
 }
 
 export function senderId(message) {
-  return String(message.sender?.id || message.sentBy?.handle || '').trim().toLowerCase();
+  const candidates = [
+    message.sender?.phoneNumber,
+    message.sender?.phone,
+    message.sender?.id,
+    message.sentBy?.handle,
+    message.sentBy?.id,
+    message.author?.phoneNumber,
+  ];
+  return String(candidates.find(Boolean) || '').trim().toLowerCase();
 }
 
 export function inboundText(message) {
@@ -66,7 +76,7 @@ function today() {
 }
 
 function actorFor(config, sender) {
-  return config.actorBySender.get(sender) || config.actorBySender.get(sender.replace(/^\+/, '')) || null;
+  return matchPhoneMap(config.actorBySender, sender);
 }
 
 export async function handleSpectrumMessage({ space, message, config, api, state, logger = console }) {
@@ -74,7 +84,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
   const text = inboundText(message);
   if (!text) return false;
   const sender = senderId(message);
-  if (config.allowedSenders.size && sender && !config.allowedSenders.has(sender)) {
+  if (sender && !matchPhoneSet(config.allowedSenders, sender) && !matchPhoneMap(config.actorBySender, sender)) {
     logger.info(`Ignored a message from an unregistered sender.`);
     return false;
   }
@@ -93,7 +103,7 @@ export async function handleSpectrumMessage({ space, message, config, api, state
       delete state.pendingBySpace[space.id];
       await state.save();
     }
-    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family')));
+    await reply(helpReply(config.householdKind || (config.workspaceId.includes('roommate') ? 'roommates' : 'family'), config.imessageLine));
     return true;
   }
   if (!actorId) {
