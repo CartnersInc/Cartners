@@ -14,7 +14,7 @@ const features = Object.fromEntries(pages.slice(1).map(page => {
 export const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 const currentPage = () => pages.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
 function loadDrafts() {
-  try { const data = JSON.parse(sessionStorage.getItem('common:drafts') || '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? Object.fromEntries(Object.entries(data).filter(([id, entry]) => isDraft(entry?.draft, entry?.localOnly ? 'demo-family' : id))) : {}; } catch { return {}; }
+  try { const data = JSON.parse(sessionStorage.getItem('common:drafts') || '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? Object.fromEntries(Object.entries(data).filter(([id, entry]) => entry && typeof entry === 'object' && (entry.message === undefined || (typeof entry.message === 'string' && entry.message.length <= 500)) && (!entry.draft || isDraft(entry.draft, entry.localOnly ? 'demo-family' : id)))) : {}; } catch { return {}; }
 }
 function ComingSoon({ page, navigate }) {
   return <section className="empty-page"><Icon name={page} /><h1>{page[0].toUpperCase() + page.slice(1)}</h1><p>{page === 'plans' ? 'Ibrahiim' : 'Suyash'}’s screen is not connected yet. Your current meal draft stays on Home.</p><button className="button" onClick={() => navigate('home')}>Back to Home<Icon name="arrow" /></button></section>;
@@ -46,9 +46,13 @@ export default function App() {
     return () => removeEventListener('hashchange', handle);
   }, []);
   useEffect(() => { mainRef.current?.focus(); }, [page]);
-  useEffect(() => {
-    try { sessionStorage.setItem('common:drafts', JSON.stringify(drafts)); } catch { /* In-memory drafts still survive navigation when browser storage is blocked. */ }
-  }, [drafts]);
+  function updateEntry(id, entry) {
+    setDrafts(current => {
+      const next = { ...current, [id]: entry };
+      try { sessionStorage.setItem('common:drafts', JSON.stringify(next)); } catch { /* In-memory drafts survive navigation if storage is blocked. */ }
+      return next;
+    });
+  }
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(''), 7000);
@@ -95,8 +99,8 @@ export default function App() {
     <div className="app-stage"><header className="topbar"><a className="mobile-wordmark" href="#home">common.</a><label className="group-control"><span className="sr-only">Active group</span><select value={workspace.workspaceId} disabled={!connected} onChange={e => changeGroup(e.target.value)}>{workspace.groups.map(group => <option key={group.workspaceId} value={group.workspaceId}>{group.name}</option>)}</select></label><div className="session-controls"><span className="connection-label">{connection === 'loading' ? 'Connecting…' : connection === 'connected' ? 'Demo backend connected' : connection === 'stale' ? 'Connection lost · showing last update' : 'Sample preview'}</span><label className="actor-control"><span className="sr-only">Demo person</span><span className="avatar" aria-hidden="true">{workspace.actors.find(actor => actor.id === actorId)?.name[0]}</span><select value={actorId} disabled={switching} onChange={e => setActorId(e.target.value)}>{workspace.actors.map(actor => <option key={actor.id} value={actor.id}>{actor.name}</option>)}</select></label></div></header>
       <main id="content" ref={mainRef} tabIndex={-1} className="main-content">
         {connection !== 'connected' && <p className="connection-note" role="status">{connection === 'loading' ? 'Checking for the shared backend…' : connection === 'stale' ? 'Updates are paused. Your last saved data is still visible; reconnect before making changes.' : 'Explore fixed samples while the backend is being built. Nothing here is live AI or a saved purchase.'}</p>}
-        <div hidden={page !== 'home'}><Home key={workspace.workspaceId} {...featureProps} connected={connected} entry={drafts[workspace.workspaceId]} onEntryChange={entry => setDrafts(current => ({ ...current, [workspace.workspaceId]: entry }))} planDate={planDate} onPlanDateChange={setPlanDate} /></div>
-        {page !== 'home' && <Suspense fallback={<p role="status">Opening {page}…</p>}>{Feature ? <Feature {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense>}
+        <div hidden={page !== 'home'}><Home key={workspace.workspaceId} {...featureProps} connected={connected} entry={drafts[workspace.workspaceId]} onEntryChange={entry => updateEntry(workspace.workspaceId, entry)} planDate={planDate} onPlanDateChange={setPlanDate} /></div>
+        {page !== 'home' && <Suspense fallback={<p role="status">Opening {page}…</p>}>{Feature ? <Feature key={workspace.workspaceId} {...featureProps} connected={connected} onPlanDateChange={setPlanDate} /> : <ComingSoon page={page} navigate={navigate} />}</Suspense>}
       </main><footer className="app-footer">Common · made for the things you share.<span>Fictional groups · demo person selector is not a login.</span></footer>
     </div><div className={`toast ${notice ? 'visible' : ''}`} role="status" aria-live="polite">{notice}</div>
   </div>;

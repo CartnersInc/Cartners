@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createApi, isWorkspace } from '../../src/api/client.js';
+import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
 import { readFile } from 'node:fs/promises';
 
 test('writes preserve the caller action ID and structured conflicts', async () => {
@@ -26,4 +26,13 @@ test('snapshot boundary rejects another group and non-snapshots', async () => {
   assert.ok(isWorkspace(sample, 'demo-family'));
   assert.ok(!isWorkspace(sample, 'demo-roommates'));
   assert.ok(!isWorkspace({ workspaceId: 'demo-family' }, 'demo-family'));
+});
+
+test('draft boundary accepts contract variants and rejects malformed recipes', async () => {
+  for (const name of ['suggestions', 'refinement', 'groceries', 'clarification']) {
+    const draft = JSON.parse(await readFile(new URL(`../../../docs/fixtures/${name}.json`, import.meta.url)));
+    assert.ok(isDraft(draft, 'demo-family'), name);
+    assert.ok(!isDraft(draft, 'another-group'));
+  }
+  assert.ok(!isDraft({ kind: 'recommendation', draftId: 'broken', workspaceId: 'demo-family', sourceMode: 'live_ai', listRevision: 1 }, 'demo-family'));
 });

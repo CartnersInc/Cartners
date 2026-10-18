@@ -24,7 +24,7 @@ The feature/API interface is published in [issue #3](https://github.com/XavierGo
 - Props: `{workspace, actorId, api, onWorkspaceChange, navigate, notify}` plus `connected`. When connected is false, disable writes. Pass `onWorkspaceChange(serverResponse.workspace)` after a committed write.
 - `api.request('/api/...', {method, body, signal})` returns JSON and throws errors with `status`, `code`, `payload`. Include workspaceId/actorId/requestId in writes. Generate the request ID once and reuse it on retry. The client never retries automatically or fabricates successful writes.
 - The shell owns group/actor, visible-tab three-second polling, stale status, and navigation. Features own form state, not another snapshot poller.
-- Home accepts direct v2 draft responses; confirmation/Undo use the response envelope. It retains uncommitted drafts in sessionStorage by group. These fictional examples are not private production storage.
+- Home accepts direct v2 draft responses; confirmation/Undo use the response envelope. It retains input, drafts, exclusions, pending confirmation IDs, and saved Undo metadata in sessionStorage by group. These fictional examples are not private production storage.
 - Plans receives `onPlanDateChange(date)` so an empty date returns to Home without an event form.
 
 ## Checks
