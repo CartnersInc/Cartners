@@ -107,6 +107,43 @@ test('split receipt sends personal subtotals; retry reuses the requestId', async
   expect(posts[0].body).toMatchObject({ totalCents: 2000, payerId: 'leila', mode: 'split', sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: 600 }, status: 'confirmed' });
 });
 
+test('AI fills a receipt draft, but the user must review and save it', async ({ page }) => {
+  const calls = await serve(page, ({ path, method, body, workspace, set }) => {
+    if (path === '/api/preferences') {
+      const next = { ...workspace, preferences: { ...workspace.preferences, spendingMode: 'split' } };
+      set(next);
+      return { json: { workspace: next, actionId: 'p1', changeSummary: 'Spending is now split.' } };
+    }
+    if (path === '/api/ai/expense-draft') return { json: {
+      totalCents: 4218, payerId: 'leila', sharedMemberIds: ['leila', 'sam'],
+      personalAllocations: { sam: 800 }, missing: [], saved: false,
+    } };
+    if (path === '/api/expenses' && method === 'POST') {
+      const next = { ...workspace, expenses: [{ id: 'e-ai', ...body, allocations: { leila: 1709, sam: 2509 } }], balances: [] };
+      set(next);
+      return { json: { workspace: next, actionId: 'e-ai', changeSummary: 'Receipt saved.' } };
+    }
+    return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
+  });
+
+  await page.goto('/#groups');
+  await page.getByRole('radio', { name: 'Split' }).check();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.goto('/#spending');
+  await page.getByRole('button', { name: 'Record a purchase' }).click();
+  await page.getByLabel('Describe the receipt').fill("I paid $42.18 at QFC; $8 was Sam's personal snacks, rest shared.");
+  await page.getByRole('button', { name: 'Fill receipt with AI' }).click();
+  await expect(page.getByLabel('Actual total')).toHaveValue('42.18');
+  await expect(page.getByLabel('Sam personal subtotal')).toHaveValue('8.00');
+  expect(calls.some(call => call.path === '/api/expenses')).toBe(false);
+  await page.getByRole('button', { name: /Save \$42\.18 receipt/ }).click();
+  await expect(page.getByText('Receipt saved.')).toBeVisible();
+  const ai = calls.find(call => call.path === '/api/ai/expense-draft');
+  expect(ai.body.message).toContain('$42.18');
+  expect(ai.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(calls.find(call => call.path === '/api/expenses').body).toMatchObject({ totalCents: 4218, payerId: 'leila', mode: 'split', personalAllocations: { sam: 800 } });
+});
+
 test('price comparison includes the selected actor and request ID', async ({ page }) => {
   const pricing = await fixture('pricing');
   const calls = await serve(page, ({ path }) => path === '/api/baskets/compare'

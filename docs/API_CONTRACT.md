@@ -25,6 +25,7 @@ Snapshots include `schemaVersion:2`, `workspaceId`, `serverNow`, available `grou
 | PATCH `/api/items/{itemId}` | `expectedItemVersion`; editable details, bought, removed, or `punted` (shopper only) | Safe row update; do not infer any debt. |
 | PATCH `/api/trip` | `expectedTripVersion`, action=start/release/finish; start includes store name and requestWindowMinutes=10 | Atomic one-shopper run per group; deadline assigned by server. Finish preserves unbought requests and requires no price. |
 | POST `/api/expenses` | Run ID if applicable, totalCents, payerId, mode, sharedMemberIds, personalAllocations, status | Validate actual purchase and allocations; only confirmed split records affect balances. |
+| POST `/api/ai/expense-draft` | `workspaceId`, `actorId`, `requestId`, `message`, `mode` | Extract receipt details into a review-only draft (`saved:false`); never writes an expense or calculates balances. User confirms by reviewing the form and submitting `/api/expenses`. |
 | POST `/api/baskets/compare` | Selected cart item IDs and ZIP/postal code | One authorized provider if available; otherwise explicit sample/unavailable response. Rank only complete comparable baskets. |
 
 Provider-dependent payment transfers, repayment reconciliation, real group invitations/accounts, and background push have no P0 endpoints. Group switching selects an existing seeded workspace and fetches its snapshot. Ordinary reads are not writes and do not require request IDs.
