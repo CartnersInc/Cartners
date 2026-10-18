@@ -60,9 +60,16 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     const timer = setInterval(() => {
       setFeaturedIndex(index => (index + 1) % featuredItems.length);
       setFeaturedImageFailed(false);
-    }, 7000);
+    }, 12000);
     return () => clearInterval(timer);
   }, [active, featured, featuredIndex, featuredInteracting, featuredItems.length, featuredPaused]);
+
+  useEffect(() => {
+    if (!featured || featuredItems.length < 2) return;
+    const next = featuredItems[(featuredIndex + 1) % featuredItems.length];
+    const image = new Image();
+    image.src = next.thumbnailUrl;
+  }, [featured, featuredIndex, featuredItems]);
 
   function moveFeatured(direction) {
     setFeaturedIndex(index => (index + direction + featuredItems.length) % featuredItems.length);
@@ -199,7 +206,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         onFocusCapture={() => setFeaturedInteracting(true)}
         onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFeaturedInteracting(false); }}>
         <div className="featured-heading"><div><span className="eyebrow">A little inspiration</span><h2>Something new to try</h2></div><span>{featuredIndex + 1} of {featuredItems.length}</span></div>
-        {featured ? <article className="featured-slide" aria-roledescription="slide" aria-label={(featuredIndex + 1) + ' of ' + featuredItems.length + ': ' + featured.title}>
+        {featured ? <article key={featured.id} className="featured-slide" aria-roledescription="slide" aria-label={(featuredIndex + 1) + ' of ' + featuredItems.length + ': ' + featured.title}>
           <div className="featured-media">{!featuredImageFailed ? <img src={featured.thumbnailUrl} alt={'Recipe for ' + featured.title} loading="eager" referrerPolicy="no-referrer" onError={() => setFeaturedImageFailed(true)} /> : <div className="featured-image-fallback"><Icon name="leaf" /><span>{featured.title}</span></div>}<span className="featured-badge">{featured.sourceType === 'article' ? 'Recipe find' : 'Video find'}</span></div>
           <div className="featured-copy"><p className="featured-source">{[featured.cuisine, featured.sourceName].filter(Boolean).join(' · ') || 'A recipe to discover'}</p><h3>{featured.title}</h3>
             <div className="featured-actions"><button className="button primary" disabled={!!pending} onClick={planFeatured}>Make this tonight<Icon name="arrow" /></button>
