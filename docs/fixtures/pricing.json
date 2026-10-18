@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "workspaceId": "demo-family",
+  "listRevision": 2,
+  "sourceMode": "sample",
+  "sampleNotice": "Synthetic prices for UI development, not live retailer quotes.",
+  "checkedAt": "2026-10-17T18:00:00Z",
+  "currency": "USD",
+  "requestQuantities": [
+    {
+      "itemId": "item-tortillas",
+      "quantity": 8,
+      "unit": "count"
+    },
+    {
+      "itemId": "item-milk",
+      "quantity": 1,
+      "unit": "pack"
+    }
+  ],
+  "feeStatus": "Tax, delivery, discounts, and travel costs not included; final totals unverified.",
+  "baskets": [
+    {
+      "id": "basket-a",
+      "storeId": "basket-a",
+      "storeName": "Sample Store A",
+      "distanceKm": null,
+      "items": [
+        {
+          "itemId": "item-tortillas",
+          "productId": "sample-a-item-tortillas",
+          "packageSize": {
+            "quantity": 8,
+            "unit": "count"
+          },
+          "packagesNeeded": 1,
+          "pricePerPackageCents": 250,
+          "lineTotalCents": 250
+        },
+        {
+          "itemId": "item-milk",
+          "productId": "sample-a-item-milk",
+          "packageSize": {
+            "quantity": 1,
+            "unit": "pack"
+          },
+          "packagesNeeded": 1,
+          "pricePerPackageCents": 425,
+          "lineTotalCents": 425
+        }
+      ],
+      "missingItemIds": [],
+      "complete": true,
+      "knownSubtotalCents": 675,
+      "taxCents": null,
+      "deliveryFeeCents": null
+    },
+    {
+      "id": "basket-b",
+      "storeId": "basket-b",
+      "storeName": "Sample Store B",
+      "distanceKm": null,
+      "items": [
+        {
+          "itemId": "item-tortillas",
+          "productId": "sample-b-item-tortillas",
+          "packageSize": {
+            "quantity": 10,
+            "unit": "count"
+          },
+          "packagesNeeded": 1,
+          "pricePerPackageCents": 210,
+          "lineTotalCents": 210
+        },
+        {
+          "itemId": "item-milk",
+          "productId": "sample-b-item-milk",
+          "packageSize": {
+            "quantity": 1,
+            "unit": "pack"
+          },
+          "packagesNeeded": 1,
+          "pricePerPackageCents": 475,
+          "lineTotalCents": 475
+        }
+      ],
+      "missingItemIds": [],
+      "complete": true,
+      "knownSubtotalCents": 685,
+      "taxCents": null,
+      "deliveryFeeCents": null
+    },
+    {
+      "id": "basket-c",
+      "storeId": "sample-c",
+      "storeName": "Sample Store C",
+      "distanceKm": null,
+      "items": [
+        {
+          "itemId": "item-tortillas",
+          "productId": "sample-c-item-tortillas",
+          "packageSize": {
+            "quantity": 8,
+            "unit": "count"
+          },
+          "packagesNeeded": 1,
+          "pricePerPackageCents": 199,
+          "lineTotalCents": 199
+        }
+      ],
+      "missingItemIds": [
+        "item-milk"
+      ],
+      "complete": false,
+      "knownSubtotalCents": 199,
+      "taxCents": null,
+      "deliveryFeeCents": null
+    }
+  ],
+  "cheapestCompleteBasketId": "basket-a",
+  "perItemCheapest": [
+    {
+      "itemId": "item-tortillas",
+      "basketId": "basket-c",
+      "lineTotalCents": 199
+    },
+    {
+      "itemId": "item-milk",
+      "basketId": "basket-a",
+      "lineTotalCents": 425
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+// Browser checks for the Shopping/Groups/Spending modules against an intercepted v2 API.
+// Run from frontend/: npx playwright test -c src/features/shopping/checks/playwright.config.js
+import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+const fixture = async name => JSON.parse(await readFile(new URL(`../../../../../docs/fixtures/${name}.json`, import.meta.url)));
+
+async function serve(page, handlers) {
+  const base = await fixture('workspace');
+  let workspace = { ...base, serverNow: new Date().toISOString(), trip: { id: 'run-0', version: 3, claimedBy: null, completedTrips: [], storeName: 'QFC', state: 'idle' } };
+  const calls = [];
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const path = new URL(route.request().url()).pathname;
+    const method = route.request().method();
+    if (path === '/api/workspace') return route.fulfill({ json: { ...workspace, serverNow: new Date().toISOString() } });
+    const body = route.request().postDataJSON();
+    calls.push({ path, method, body });
+    const handled = await handlers({ path, method, body, workspace, calls, set: next => { workspace = next; } });
+    return route.fulfill(handled);
+  });
+  return calls;
+}
+
+test('add a Just me request, lose a start race, and release a run', async ({ page }) => {
+  const calls = await serve(page, ({ path, body, workspace, calls, set }) => {
+    if (path === '/api/items') {
+      const item = { id: 'item-new', name: body.name, quantity: body.quantity, unit: body.unit, note: body.note, requestFor: body.requestFor, addedBy: body.actorId, bought: false, version: 1, createdAt: new Date().toISOString(), removed: false, runId: null };
+      const next = { ...workspace, listRevision: workspace.listRevision + 1, items: [...workspace.items, item] };
+      set(next);
+      return { json: { workspace: next, actionId: 'a1', changeSummary: `Added ${body.name}.`, itemId: 'item-new' } };
+    }
+    if (path === '/api/trip' && body.action === 'start' && calls.filter(c => c.body?.action === 'start').length === 1) {
+      const next = { ...workspace, trip: { ...workspace.trip, version: 4, claimedBy: 'sam', storeName: 'Safeway', claimedAt: new Date().toISOString(), requestDeadlineAt: new Date(Date.now() + 5 * 60e3).toISOString(), state: 'accepting_requests' } };
+      set(next);
+      return { status: 409, json: { error: { code: 'TRIP_CLAIMED', message: 'Sam already started a run.', retryable: false }, workspace: next } };
+    }
+    if (path === '/api/trip' && body.action === 'release') {
+      const next = { ...workspace, trip: { ...workspace.trip, version: workspace.trip.version + 1, claimedBy: null, state: 'idle' } };
+      set(next);
+      return { json: { workspace: next, actionId: 'a3', changeSummary: 'Run released.' } };
+    }
+    return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
+  });
+
+  await page.goto('/#shopping');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Add an item' }).fill('Hot sauce');
+  await page.getByRole('radio', { name: 'Just me' }).first().check();
+  await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
+  await expect(page.getByText('Just you', { exact: false }).first()).toBeVisible();
+  const add = calls.find(c => c.path === '/api/items');
+  expect(add.body).toMatchObject({ workspaceId: 'demo-family', actorId: 'leila', name: 'Hot sauce', requestFor: 'leila', quantity: 1, unit: 'count' });
+  expect(add.body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+
+  // Only 5/10/15 are offered; start loses the race and names the winner.
+  await expect(page.locator('.rm-inline-select option')).toHaveText(['5 minutes', '10 minutes', '15 minutes']);
+  await page.getByRole('button', { name: 'Start store run' }).click();
+  await expect(page.getByText(/Sam started a run to Safeway/)).toBeVisible();
+  await expect(page.getByText(/Sam is going to the store\. Want anything\?/)).toBeVisible();
+  expect(calls.find(c => c.body?.action === 'start').body).toMatchObject({ expectedTripVersion: 3, storeName: 'QFC', requestWindowMinutes: 10 });
+
+  // As Sam, release the run.
+  await page.locator('.actor-control select').selectOption('sam');
+  await page.getByRole('button', { name: 'Release run', exact: true }).click();
+  await page.getByRole('group', { name: 'Confirm releasing the run' }).getByRole('button', { name: 'Release run' }).click();
+  await expect(page.getByRole('button', { name: 'Start store run' })).toBeVisible();
+  expect(calls.find(c => c.body?.action === 'release').body).toMatchObject({ expectedTripVersion: 4, actorId: 'sam' });
+});
+
+test('split receipt sends personal subtotals; retry reuses the requestId', async ({ page }) => {
+  let attempts = 0;
+  const calls = await serve(page, ({ path, workspace, set }) => {
+    if (path === '/api/preferences') {
+      const next = { ...workspace, preferences: { ...workspace.preferences, spendingMode: 'split' } };
+      set(next);
+      return { json: { workspace: next, actionId: 'p1', changeSummary: 'Spending is now split.' } };
+    }
+    if (path === '/api/expenses') {
+      attempts += 1;
+      if (attempts === 1) return { status: 503, json: { error: { code: 'UNAVAILABLE', message: 'Server busy, try again.', retryable: true } } };
+      const next = { ...workspace, expenses: [{ id: 'e1', totalCents: 2000, payerId: 'leila', mode: 'split', sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: 600 }, status: 'confirmed', allocations: { leila: 700, sam: 1300 } }], balances: [{ from: 'sam', to: 'leila', cents: 1300 }] };
+      set(next);
+      return { json: { workspace: next, actionId: 'e1', changeSummary: 'Receipt saved.' } };
+    }
+    return { status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not in this check' } } };
+  });
+
+  await page.goto('/#groups');
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: 'Split' }).check();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText(/Split: each receipt/)).toBeVisible();
+  expect(calls.find(c => c.path === '/api/preferences').body).toMatchObject({ spendingMode: 'split' });
+
+  await page.goto('/#spending');
+  await page.getByRole('button', { name: 'Record a purchase' }).click();
+  await page.getByLabel('Actual total').fill('20.00');
+  await page.getByLabel('Add a personal amount').selectOption('sam');
+  await page.getByLabel('Sam personal subtotal').fill('6');
+  await page.getByRole('button', { name: /Save \$20\.00 receipt/ }).click();
+  await expect(page.getByText('Server busy, try again.')).toBeVisible();
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByText('Sam owes you')).toBeVisible();
+  const posts = calls.filter(c => c.path === '/api/expenses');
+  expect(posts).toHaveLength(2);
+  expect(posts[1].body.requestId).toBe(posts[0].body.requestId);
+  expect(posts[0].body).toMatchObject({ totalCents: 2000, payerId: 'leila', mode: 'split', sharedMemberIds: ['leila', 'sam'], personalAllocations: { sam: 600 }, status: 'confirmed' });
+});

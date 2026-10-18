@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "workspaceId": "demo-roommates",
+  "sourceMode": "sample",
+  "sampleNotice": "Fictional expense arithmetic example.",
+  "expense": {
+    "id": "expense-sample-1",
+    "totalCents": 2000,
+    "currency": "USD",
+    "payerId": "leila",
+    "mode": "split",
+    "sharedMemberIds": [
+      "leila",
+      "sam"
+    ],
+    "personalAllocations": {
+      "sam": 600
+    },
+    "status": "confirmed",
+    "allocations": {
+      "leila": 700,
+      "sam": 1300
+    }
+  },
+  "balances": [
+    {
+      "from": "sam",
+      "to": "leila",
+      "cents": 1300
+    }
+  ]
+}

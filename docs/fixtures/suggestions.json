@@ -96,5 +96,8 @@
         "deltaQuantity": 2
       }
     ]
-  }
+  },
+  "workspaceId": "demo-family",
+  "schemaVersion": 2,
+  "planDate": "2026-10-17"
 }

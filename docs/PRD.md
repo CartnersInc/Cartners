@@ -1,276 +1,211 @@
-# Common: decide dinner, share the shopping
+# Cartners — the final household shopping plan
 
-**PRD v1.1 · October 17, 2026 · 18-hour hackathon build**
+**PRD v2 · October 17, 2026 · planning specification, not implemented functionality**
 
-Status: a concrete build proposal for the team to review before implementation. It replaces the earlier broad feature scope and the navigation proposal in `UX_REVIEW.md`. The current demo remains a visual reference and a record of the interactions we are replacing. This document does not claim the overhaul is implemented or validated with users.
+Source of feature scope: [the team's final brainstorm](FINAL_BRAINSTORM.md). This supersedes the v1 two-page-navigation proposal. It retains the team's five areas and the approved green, warm visual direction. The goal remains a working hackathon demonstration, with an approximately eighteen-hour original build budget; use the actual time remaining when scheduling.
 
-**Team kickoff:** read sections 1, 5, 6, and 11 together, then freeze `API_CONTRACT.md`. Use the remaining sections as implementation and QA references; do not turn document review into a second project.
+**Read first:** sections 1, 3, 4, and 9; then agree on [API_CONTRACT.md](API_CONTRACT.md). [TEAM.md](TEAM.md) identifies owners and work branches. The old demo is a visual reference, not the interaction contract.
 
-## 1. The product decision
+## 1. The job
 
-Common helps people sharing a household decide what to eat and get the right things onto one shared shopping list. It works for a family organizing dinner, roommates sharing some meals, or friends bringing food to a gathering.
+Cartners helps families, roommates, and other groups turn “what should we eat or buy?” into an agreed plan, a shared shopping run, and a clear record of spending.
 
-**Problem statement:** Turning “what should we eat?” into an agreed meal and a usable shopping list takes repeated coordination. Preferences, requests, and shopping responsibilities are scattered, so one person often ends up assembling the plan and checking what everyone needs. A useful app should reduce that organizing work without requiring the household to maintain another system.
+The problem is coordination work: remembering different tastes, assembling requests, checking what is already requested, figuring out who is shopping, and accounting for actual purchases. One person often does that work for everyone. The app should carry information forward instead of asking that person to enter it again on five different pages.
 
-The 18-hour build proves one complete loop:
+**Primary path:** say what you want → AI prepares a meal or grocery draft → confirm once → shared cart → someone starts a store run → record what was bought and, optionally, the actual receipt total.
 
-**“What do you want to eat today?” → AI prepares a meal and shopping draft → refine if needed → Make this → shared list → someone claims the trip.**
+**Ordinary shortcut:** type “milk” directly into Shopping and press Enter. No recipe, event, vote, or AI call is required.
 
-Adding milk directly remains faster than that loop. Recipes, votes, and AI are never prerequisites for a shopping list.
+Diners, app users, shoppers, and people splitting costs are different sets. A family can cook four servings with two adults using the app and one pooled spending record. A roommate group can share dinner with only some people and keep personal requests separate.
 
-### Decisions already made
+### Evidence and assumptions
 
-- Audience is shared households, including families; roommate reimbursement is not the universal home screen.
-- Keep the approved garden-table visual direction: green, warm, natural food imagery, clear working controls.
-- Use React/Vite, Python/FastAPI, and a small SQL database. No framework switch during the build.
-- Spend the hackathon on generative AI and the connected shopping experience. Skip accounts and actual payments.
-- Real shared state matters: two browsers must see the same list and shopper claim.
-- The hackathon demo uses fictional household data. It is not ready for private household use.
+The earlier UW report supports list coordination, forgotten/wrong items, transportation, budget, and reimbursement as exploratory concerns; it included families and couples as well as students. Its duplicate-eggs opening was hypothetical. It does not establish current demand for this app or prove AI, weekly planning, price optimization, or countdowns are effective.
 
-### Assumptions to test
+The existing demo review found too many forms, repeated meal decisions, compulsory details, item-by-item assignments, and bookkeeping. We have not yet tested the new design with users. The scenarios and acceptance targets below are proposed tests, not measured outcomes.
 
-People will use a shared list often enough to keep it relevant; an AI conversation can turn a vague food preference into a useful meal and shopping draft; one review can replace several planning steps. These are product hypotheses, not established findings.
+## 2. What changes from the demo
 
-## 2. Evidence and its limits
+| Pain point | New rule |
+| --- | --- |
+| Ordinary dinner requires naming an event, setting a date/time, and choosing a theme. | Default to today and remembered servings. Occasion details are optional. |
+| Meal and ingredient decisions are scattered across successive dialogs. | Keep AI response, recipe, list changes, and confirmation together. |
+| A photo or detailed prompt seems necessary to get useful ideas. | Lead with “What do you want to eat today?” Accept vague requests using visible saved defaults. Photo input is not core. |
+| New items require a quantity, store, shopper, and participants. | Name is the only required field. Quantity defaults to one. Shared/Just me is an optional quick choice. |
+| Five pages feel like five required workflow stages. | Home handles discovery; every other page is independently usable and carries existing information forward. |
+| Likes, diners, buying permission, and debt overlap. | Choosing a meal adds the visible list changes; it never proves someone agreed to pay. Cost participation is explicit. Voting is not required. |
+| Assigning a shopper takes one action per item; claims can be silently overwritten. | Start one store run for the cart. Preserve the shopper until they end/release it. Per-item exceptions can follow later. |
+| A full pantry requires constant upkeep. | Offer Already have only within the current ingredient review. A shopping request is never proof of kitchen stock. |
+| Duplicate checks can hide quantity or product differences. | Compare compatible quantities, units, scope, and notes. Preserve constrained variants and personal requests. |
+| Itemized receipts require typing a price for every line. | Record one actual total; ask only for personal exceptions when splitting requires them. Unresolved receipts do not create debt. |
+| Family households see roommate repayment work by default. | Pooled spending records purchases without generating debts; split mode is optional per group. |
+| Saved hearts, theme chips, or photo controls have no complete result. | Omit unfinished controls. Every shipped control changes something visible or has an honest disabled reason. |
+| Store/price recommendations imply information the app does not have. | Use provider-backed data or conspicuously labeled samples; show coverage, missing products, and price freshness. |
+| Long copy, tiny controls, and disappearing context make phone use slow. | Plain labels, large targets, persistent drafts, one primary action per decision area. |
+| People add late requests without knowing whether the shopper will see them. | Show the store-run deadline and route requests after cutoff to the next run. Do not silently lose them. |
 
-The supplied UW report, *A Modern Way to Coordinate Your Shopping Trip*, describes four contextual inquiries across different household situations, including a family, couples, and college roommates. Pages 2–4 discuss list availability, forgotten or wrong items, transport, budget, preferred brands, and the burden of separating personal purchases and reimbursement. Its eventual design emphasizes list creation and accounting.
+## 3. Final feature map and build cuts
 
-Use that evidence to justify a shared, accessible list and clear responsibility. It does not prove demand for AI, themed dinners, unanimous voting, automatic inventory, or this product. The duplicate-eggs opening is a hypothetical scenario, not a measured prevalence statistic. The team has not yet done its own household interviews.
+P0 is the thin integrated demonstration. P1 follows only after the core path works. Gated capabilities require real access; fixtures may demonstrate the interface but must retain a sample label. No feature from the final brainstorm is silently discarded.
 
-The demo review supplies a second kind of evidence: observable interaction problems in our prototype. It is a design assessment, not a usability study. Sources are listed at the end.
-
-## 3. Who we are designing for
-
-These are illustrative scenarios, not real interview participants.
-
-| Person and situation | What they need | What the app must avoid |
+| Brainstorm area | P0: small working version | P1 / gated extension |
 | --- | --- | --- |
-| Leila organizes dinner for two adults and two children. Her partner can shop on the way home. | A manageable meal, four servings, and a list her partner can immediately use. | Asking every diner to vote, create an account, or owe an individual share. |
-| Maya shares a home with three other adults. Only two are eating together tonight. | A meal for two, a clear shared list, and room to add personal requests. | Treating everyone in the household as a diner or silently committing them to a purchase. |
-| Sam is already near a store. | Know what is still needed and tell the group “I’m getting it.” | Reading event setup, planning dates, or assigning twenty separate items. |
-| Alex is hosting a casual dinner. | Change the serving count and add drinks or paper plates alongside ingredients. | Building a guest-management system before making a list. |
+| Home | AI input for a recipe, meal idea, grocery request, or revision; five navigation tabs; last five actual group activities and quick links. | Photo inspiration or a larger saved collection. |
+| Plans | Save confirmed meals to dates, default today; simple current-week list/calendar; remembered editable preferences. | One AI request generates a seven-day draft; swap a day and confirm the batch. No drag-and-drop calendar library required. |
+| Shopping | Collaborative cart, Shared/Just me scope, quantities/notes, one run shopper, Bought status, shopping suggestions and a price-comparison result view. | Live nearby product/price feed if authorized access is verified; multiple shoppers and multi-store routes later. Otherwise comparison uses labeled fixtures. |
+| Spending | Actual total, payer, explicit pooled/split mode, personal allocation exceptions, exact-cent balances, member-provided Venmo/PayPal profile handoff. | Receipt extraction, custom weighted splits, repayment reconciliation. No actual payment integration. |
+| Groups | Switch between two seeded groups, view members, start a named store run with a default ten-minute request window, in-app alerts in another open browser. | Create/join real private households, invitations/accounts, and background web push. |
 
-**Primary user:** the person carrying the mental work of deciding and organizing a meal. **Second user:** the person doing the shopping. They may be the same person. The product should help both without requiring everyone else to participate.
+Do not build accounts, bank connections, automatic transfers, scraping infrastructure, a full pantry, loyalty-account linking, or a general-purpose assistant. A fake login or fake payment success screen is not a useful shortcut.
 
-Household members, diners, and shoppers are different concepts. Four servings can mean two adults cooking for four people; it does not require four app users.
+## 4. The experience, page by page
 
-## 4. What is wrong with the current demo
+### Home: AI is the first point of contact
 
-The full baseline review remains in `UX_REVIEW.md`. This table adds the consequences for the broader audience and makes the overhaul decisions explicit.
+The main input asks **“What do you want to eat today?”** A small hint makes groceries discoverable: “Or tell us what you need to buy.” Example prompts submit a useful request for people who have no idea where to start. No initial questionnaire.
 
-| Current pain point | Cost to the user | Overhaul decision |
+Visible context: active group, serving default, and relevant dietary preferences. Seed this context for judging. Real households would have to supply it; the model does not magically know preferences or kitchen stock.
+
+“Something fun for dinner” returns one recommended meal with approximate prep time, a fit explanation, and proposed cart changes. “Milk, eggs, and snacks for the weekend” returns a grocery draft without manufacturing a recipe. The same input handles “Make it quicker,” “Use beans instead,” or “Add paper plates.” Retain unchanged servings and restrictions across revisions.
+
+A request to make a meal healthier becomes a concrete editable change, such as more vegetables or less added salt, not an unverified nutrition score or medical recommendation. An allergen-related request must preserve saved restrictions, flag uncertain packaged ingredients, and never claim the generated recipe is guaranteed safe.
+
+One action, **Add to cart**, commits the visible draft. Meal confirmation also saves the meal to Plans, dated today unless changed. AI generation and refinement alone never mutate the shared cart. Show a concise saved message, View cart, and Undo. The last valid draft and previous version survive navigation; no paid call just to redraw the screen.
+
+The activity feed reflects saved events, such as Sam added milk or Leila started a store run. It is not a social feed to maintain. Keep the input dominant.
+
+### Plans: find or reuse what is already decided
+
+Show the current week and its saved dinners. Empty days say No meal planned; selecting one opens the same AI input with that date, rather than an event form. Preferences are editable here and summarized on Home; users do not re-enter them for each meal.
+
+P1 weekly generation produces one seven-day draft with relevant preferences and reasonable variety. Preview it before saving. Changing one day should retain the others. Preparing a week does not add seven dinners' ingredients automatically: save the plan, then choose which meals to shop for and review the combined quantities once. This prevents a planning action from unexpectedly filling the cart or committing money.
+
+Use ordinary date rows if a calendar grid is slower to build. Recurrence, reminders, and drag-and-drop scheduling are not required for the hackathon.
+
+### Shopping: the cart stays useful on its own
+
+An Add an item field needs only a name. Default Shared; offer Just me beside it. Quantity, brand, or substitution details expand only when needed. A shared request and someone's personal version remain separate underlying requests even if visually grouped.
+
+Rows show name, quantity, scope, relevant notes, and a large Bought checkbox. Keep infrequent editing in Details. Compare only current unbought requests. An eight-tortilla recipe with six compatible tortillas already requested adds the two-item shortfall. Do not convert a pack to grams without a known package size or merge products with different restrictions/notes. Already have excludes an ingredient from this draft; it does not delete another person's request. Quantities already committed to a different saved meal cannot satisfy this meal again: combine those needs or mark them for review.
+
+One visible action starts a store run for the active group. Show the shopper and destination. Existing claims cannot be silently taken. Bought requests collapse; unchecked ones remain. Finish run preserves unbought requests and ends the shopper claim. Finishing does not require entering money.
+
+**Nearby shopping and price comparison:** ask for or remember a demo ZIP/postal code once. Supported location data identifies the stores checked. Match recipe quantities to purchasable products, preserve restrictions, and compare the number of packages actually required. AI helps interpret and match; backend code calculates costs from source data.
+
+Default to the lowest-priced complete basket at one checked store. Offer per-item cheapest matches as an optional comparison; explain that extra stops and known fees may erase the savings. Incomplete baskets show missing products and are never ranked as complete cheapest options. Label provider, store/location, checked time, currency, fees included/excluded, and live/sample/unavailable status. A nearby retailer's name or hosted checkout link alone is not a product-price feed.
+
+Ethan's price-access task is a thirty-minute gate. With a usable provider, build one integration; without it, show the comparison using explicit sample data and record the blocker. The rest of the shopping path must still work. Do not claim cheapest everywhere or guaranteed inventory.
+
+### Spending: show the purchase, not a payment project
+
+Record purchase is optional after a run. Default payer to the current demo actor and prefill the run context; the only required number for a fully shared receipt is its actual total. Never turn an AI estimate into debt.
+
+A group can be **Pooled** or **Split**. Pooled shows totals and who paid, with no individual debts. Split shows the participating adults before saving; the number of diners never decides this set automatically.
+
+In split mode, personal bought requests trigger a compact exception section: enter each person's actual personal subtotal, not every receipt line. The remaining shared subtotal is divided equally among the selected people. Include tax/fees in the receipt total and allocate them consistently. If personal amounts are unknown, save Needs review and exclude that receipt from balances instead of silently making everyone pay.
+
+Validate nonnegative integer cents, personal subtotals no larger than the total, and at least one valid shared participant when a shared remainder exists. Deterministic cent rounding must sum exactly to the receipt total. Preserve who paid, what run the expense belongs to, and the allocations; retry cannot create a second expense.
+
+Show **Who paid** and **Who owes whom** from confirmed purchase records. Keep Venmo/PayPal profile links voluntary and member-provided. Display the recipient and amount to copy before opening their verified HTTPS provider link; no SDK, bank connection, automatic transfer, or invented recipient. Opening a link is not proof of payment. Repayment verification/reconciliation is later work.
+
+### Groups: one quick store-run announcement
+
+Show groups the demo actor belongs to, members, the active shopper, and the run countdown. P0 uses two seeded groups so switching is real without building invitations or accounts. All API state is scoped to the selected group.
+
+Starting a run uses a short sheet: destination and a default **10 minutes for requests**, editable to 5 or 15 minutes. Reuse the last destination if known; do not require GPS or an API lookup to announce a run.
+
+Other open browsers in the group see an in-app banner: **Sam is going to the store. Want anything? 9:42 left.** Add an item uses the same cart input. Requests accepted before the server deadline join the current run; later requests stay visible for the next run with a clear label. The shopper sees newly added requests. No scheduled background job is needed merely to display a server-timestamp countdown.
+
+Only one active run per group in P0. Concurrent starts yield one winner. End/release remains available to the shopper. Background push when the app is closed requires permissions and delivery infrastructure and is P1; do not describe open-page polling as native push.
+
+## 5. Defaults that remove work
+
+- Remember group, servings, preferences, and spending mode. Show them; allow corrections without making them a routine form.
+- Today is the default date, Shared the default request scope, current actor the default payer/shopper, and ten minutes the default request window.
+- Keep five labeled tabs, but never require visiting them in order. No introductory wizard, calendar setup, vote, or shopping-account link blocks use.
+- Make consequential writes explicit once; show pending writes and preserve failed input. Use the same action ID on retries.
+- Undo only the eligible changes from that draft, preserving prior requests and subsequently edited/bought items. Explain a partial reversal.
+- One primary action per response/area. At least 44-pixel touch targets, visible labels/focus, accessible save/error messages, no horizontal phone overflow, and reduced-motion support.
+
+## 6. AI and technical boundaries
+
+Use React/Vite, FastAPI, and one SQLite-backed server process. Start from the existing contract/fixtures, updating all affected callers together to contract v2. No new framework or provider abstraction. Keep server secrets out of React and Git.
+
+One AI endpoint takes the message, group preferences, and previous draft. It returns a validated meal recommendation, grocery draft, or one focused clarification. P1 adds a weekly draft. No full chat-history service, training, vector database, or agent swarm. For vague tastes, suggest something using visible defaults; ask a question only for a real blocking contradiction. Cap model output and preserve the last valid draft on failure.
+
+Wait state after roughly three seconds; recoverable timeout after twenty-five. Those are targets, not observed performance. Labeled samples can keep the rest demonstrable after a provider failure. Log outcome, duration, and request ID rather than prompts, photos, or credentials. No photo pipeline is needed for P0.
+
+FastAPI owns group scoping, current drafts/plans, list revisions, run deadlines/claims, expense calculations, and provider access. Use parameterized SQL and small shared data models. SQLite needs a writable disk and one process; do not pretend an ephemeral multi-instance deployment shares a durable file. Prove frontend/backend hosting early and restrict CORS to the agreed frontend origins.
+
+Poll the active group snapshot about every three seconds while visible; refresh after writes. Show stale/offline state on failure and pause hidden-tab polling. Native push, private accounts, and production access control are not implemented. The demo actor selector is attribution, not authentication: use fictional data only.
+
+## 7. Data and invariants
+
+Reuse one Group/Workspace, Actor, Draft, Plan, Item, Run, Expense, Activity, and replay/Undo action record. Store recipe bodies and generated draft content as validated JSON. Do not build a separate backend for each page.
+
+- Every draft, item, plan, run, expense, and activity belongs to a workspace ID. A group's data cannot be accidentally mixed into another group's view.
+- An item carries name, quantity/unit, notes, requester, Shared/Just me scope, bought status, version, and optional run assignment.
+- A run carries shopper, destination, server deadline, state, and bought request IDs. Late requests remain for the next run.
+- An expense records actual cents, payer, mode, selected participants, personal allocations, and review status. Only confirmed split expenses affect debts.
+- Live-price data retains source, checked time, store/product/package identifiers, coverage, and unknown fees. Unknown is not zero.
+- Successful action IDs are replay-safe. A replay returns original action metadata and a fresh workspace snapshot, not stale shared state.
+
+The exact endpoints and example payloads live in API_CONTRACT.md; that is the integration boundary to agree before coding.
+
+## 8. Acceptance checks
+
+| ID | Task | Pass condition |
 | --- | --- | --- |
-| Make a plan leads the home screen and asks for name, date, time, theme, and participants. | Buying groceries feels like organizing an event. | Default to today. Occasion name and scheduling leave the required path. |
-| Tonight and Our plans repeat the meal choices. | People must understand our sections before taking action. | One Dinner screen and one Shopping screen. |
-| Recipe → ingredients → confirmation uses successive dialogs. | Users repeatedly reorient and approve related information. | One meal review surface with the ingredients and the action together. |
-| New items require quantity and store before adding. | “We need milk” becomes a form. | Item name is the only required field. Quantity defaults to one; store is optional. |
-| Participants and household settings reappear in routine flows. | The app repeatedly asks for information it should remember. | Remember servings and preferences; show a compact summary and an Edit control. |
-| Likes, votes, diners, purchasing approval, and cost shares overlap. | A tap can mean several things. | P0 has no voting or debt inference. The organizer chooses the meal; reactions are optional later. |
-| Auto-add requires all four sample roommates. | Subgroups and families are forced into an irrelevant consensus rule. | Remove unanimous matching from the 18-hour build. |
-| Each item needs an assignment; reassignment can replace someone immediately. | One trip becomes many taps and ownership is unreliable. | Claim the current trip once. Existing ownership cannot be silently taken. |
-| Complete pantry controls require constant maintenance. | An outdated inventory creates work and false confidence. | No full pantry in P0. Offer “Already have this” only within the current meal review. |
-| Duplicate detection checks names without enough attention to quantity or constraints. | A list can look clean while still being wrong. | Compare quantity/unit and explicit notes; keep ambiguous items separate. Never equate a request with stock at home. |
-| Receipt entry requires purchased checkboxes and a price for every item. | The shopper performs bookkeeping after the trip. | Remove itemized accounting from P0. Optional trip total is the first extension. |
-| Spending and repayments occupy a main destination. | A family with pooled money sees work it does not need. | No Costs tab in P0. Later summaries live with completed trips and are optional. |
-| Saved hearts have no collection; themes mostly reorder the same results. | Controls promise more than they deliver. | Ship only controls with a clear result. Keep fun in the meal ideas and imagery. |
-| Food photo suggestions are always the same examples. | The apparent AI benefit is not real. | Replace the upload-led entry with a real AI conversation that prepares a meal and list. Photo inspiration is optional future work; label fallback examples honestly. |
-| Long headings and repeated explanatory notes compete with actions. | Shopping becomes reading. | Plain task headings, concise state labels, one obvious next action. |
-| Reloading or changing screens can lose the selected plan context. | People cannot trust where their work went. | The server stores the current meal and active trip; navigation does not create a new plan. |
+| A1 | “Something fun for dinner,” then “make it quicker.” | One coherent revised meal retains servings/restrictions; one confirmation saves its dated plan and cart changes. |
+| A2 | “Milk, eggs, paper plates” in Home, or just milk in Shopping. | Grocery requests work without creating a meal/event. Direct entry has one required field. |
+| A3 | Family vs roommate group. | Four diners do not require four users; pooled spending creates no debt; group switching preserves separate records. |
+| A4 | Existing quantities and personal variants. | Only compatible shortfalls are added; personal/shared or constrained products are not silently merged; retry adds nothing twice. |
+| A5 | Store-run countdown in two browsers. | Another actor sees the announcement within two successful polls, can add before the deadline, and sees late requests labeled for next run. |
+| A6 | Two shoppers start at once; one finishes a partial run. | Exactly one claim wins. Bought requests persist, unchecked ones survive, and run ownership ends correctly. |
+| A7 | Nearby basket comparison. | Every price has live/sample status and source; package counts are respected; incomplete baskets cannot win a complete-basket ranking. Missing fees remain explicit. |
+| A8 | Shared receipt: 1,001 cents among three adults. | Allocations total exactly 1,001 cents, with a deterministic one-cent remainder. |
+| A9 | 2,000-cent receipt with 600 personal cents and two shared participants. | Shared remainder is 1,400; shares are 700 each, plus the assigned person's 600. Unknown personal amounts yield Needs review, no debt. |
+| A10 | Payment link is opened. | Recipient/amount are visible; no transfer is triggered by the app and no automatic Paid state is invented. |
+| A11 | Plans and recent activity. | Confirmed meals appear on their dates; the feed contains actual saved events; drafts alone create no shopping or spending history. |
+| A12 | AI/API failure, refresh, phone, keyboard. | Work is retained, fallback is honest, important controls remain reachable/labeled, and no duplicate writes or horizontal overflow occur. |
+| P1 | Generate a week. | One batch returns seven dated draft meals, one day can change independently, and saving plans does not automatically add a week's groceries. |
 
-Do not turn these fixes into sixteen new settings. Most are defaults, removals, or consolidation.
+Test the ordinary flow with three people outside the team if possible. Watch hesitation and backtracking; do not claim saved time, money, waste, or higher conversion without measurements. If only one person is available, prioritize a family organizer who did not design the app.
 
-## 5. The new experience
+## 9. Owners and integration order
 
-### Dinner: the AI is the front door
-
-Home leads with **“What do you want to eat today?”** and one large input. It is an AI planning input, not keyword search against a recipe catalogue. Someone can type “Something cozy,” “Tacos for six,” or “A quick dinner, one vegetarian.” Small example prompts help people who do not know what to ask; tapping one submits that request. No upload, setup form, or separate Generate button is required to begin.
-
-The household summary stays visible: **4 servings · vegetarian · about 30 minutes**. These are remembered explicit defaults from the fictional demo household, not information the AI magically knows. They can be changed inline, or overridden for this meal in ordinary language where compatible with saved restrictions. A first-time real household would need to supply its basics; the hackathon avoids onboarding by using a seeded group.
-
-AI interprets the request, considers those defaults, and prepares **one recommended meal plus the proposed shopping changes**. For a vague request, use the visible defaults and make a useful suggestion. Do not ask the user to choose a cuisine, theme, date, store, shopper, and ingredients before returning an answer.
-
-The response shows the dish, a short reason it fits, servings, approximate preparation time, and an ingredient/list preview. Optional toppings or a shared base can accommodate differing tastes without requiring everyone to vote. Do not call a generated meal an exact restaurant or creator recipe. An appropriate illustrative image may support the result, but generated photography and food-photo upload are not P0 requirements.
-
-### Meal review: refine the answer, then act once
-
-Keep the recommendation and list preview together in the conversation. The primary action is **Make this — add items to list**. **Another idea** is secondary. The same input remains available for follow-ups such as “Make it quicker,” “No mushrooms,” or “Keep the tacos but use beans instead.” This updates the draft while retaining unchanged context; it does not make the user re-enter the whole request or visit a settings form.
-
-Changing a soft preference affects this meal, not the entire household profile. Saved hard restrictions are not relaxed by inference. Ask at most one focused question when a real contradiction blocks a safe interpretation; do not turn ordinary uncertainty about taste into an interview. Show important interpreted facts, such as serving count, in the answer so the user can correct them.
-
-Cooking steps are collapsed until wanted. List rows distinguish new ingredients, compatible quantity shortfalls, and items already requested. A collapsed **Already have something?** control lets someone exclude an ingredient from this addition. It is not a pantry database, and existing requests are not proof that food is at home.
-
-Nothing is written to the shared list during generation or refinement. **Make this** is the one consequential confirmation: choose dinner and apply the visible list changes together. Show “Dinner chosen · 5 items added” with **View list** and **Undo**. This does not buy anything, create debt, or require another household member to react.
-
-Keep the current draft when the user navigates away and back; do not pay for another model call just to redraw it. Refinements replace the current uncommitted draft, with a **Previous version** link for the immediately preceding recommendation. After confirmation, show the chosen meal; a change request prepares a new draft without silently removing purchased or unrelated list items. Undo remains available for the existing addition.
-
-### Shopping: work immediately, even without a meal
-
-The Shopping screen starts with a one-line **Add an item** field and the shared list. Pressing Enter adds the item. Optional details expand for quantity, a brand/substitution note, or a personal request label. Do not ask for a store or shopper at creation.
-
-A visible trip strip says either **Nobody’s shopping yet — I’m getting these**, **Maya is shopping**, or **You’re shopping — Finish trip**. Claiming applies to the currently unbought items as one errand. New requests added afterward are visibly marked as new, so they are not mistaken for things the shopper already saw. P0 supports one active shopper; a second person can still add requests and check the shared state.
-
-Rows show item name, quantity, and relevant notes. The main row action is a large Bought checkbox. Less frequent editing belongs behind a labeled Details control. Bought items move into a collapsed section; remaining items stay visible.
-
-**Finish trip** marks the trip complete using the items actually checked. Unbought items remain for the next trip. No receipt or price is required to finish. In P0, a confirmation says how many items were bought and what remains, then releases the shopper claim.
-
-## 6. Hackathon scope
-
-| Priority | Deliverable | Done means |
+| Person | Primary ownership | GitHub tasks |
 | --- | --- | --- |
-| P0 | Responsive React app with Dinner and Shopping | Both work on a phone; no onboarding or dead controls. |
-| P0 | One seeded demo household | At least two fictional actors, four default servings, editable relevant preferences. A small actor selector is labeled as a demo control, not authentication. |
-| P0 | AI-first meal discovery and refinement | The main input asks what the household wants to eat. A server-side AI call produces one complete meal and shopping draft; follow-up text adapts it without starting over. |
-| P0 | One review and ingredient-to-list confirmation | Existing requests and constraints are considered; repeated confirmation cannot duplicate the batch; Undo is available. |
-| P0 | Direct item entry and shared list | One required field; another browser can see a successful addition. |
-| P0 | One trip claim, bought status, finish | Two simultaneous claim attempts cannot both win. Unbought items survive completion. |
-| P0 | Honest failure and demo fallback | AI failure preserves work and offers retry, direct entry, or labeled sample ideas. |
-| P1 | Optional group reactions | “Like this idea” records preference without preventing the organizer from proceeding or implying cost consent. |
-| P1 | Optional trip spend | One actual total; optional equal split among explicitly selected adults. No account linking or transfers. Build only after all P0 checks pass. |
-| P2 | Food-photo inspiration, receipt extraction, payments, event calendar, recurring menus, saved collections | Explicitly outside the 18-hour commitment. |
-| P2 | Store routing, live offers/prices, linked memberships, full pantry, automatic habit learning | Deferred; none may be implied by the demo. |
+| Ibrahiim | Shared React shell, Home/AI conversation, Plans and preferences | Home task plus Plans task |
+| Suyash | Shopping, Groups/run UI, Spending UI | Shopping task plus Groups and Spending tasks |
+| Xavier | FastAPI, SQLite, shared schemas, group/run state, exact-cent expense logic, deployment | Backend foundation task; supplies routes for each UI |
+| Ethan | AI meal/grocery/refinement adapter; weekly generation after core; provider-backed store data if available | AI task and pricing-access task |
 
-Direct additions may include snacks, cleaning supplies, or party items. Specialized furniture purchasing, subscription management, and household chores are not separate features in this build.
+Ibrahiim owns shared frontend config/API client; Suyash does not generate a second app or rewrite the shell. Xavier owns server routes/models; Ethan supplies service functions instead of replacing the router. Keep the existing four work branches. Update issue checklists rather than creating parallel competing task sets.
 
-## 7. Rules that keep automation trustworthy
+Build order:
 
-1. **AI proposes; the user commits.** A generated idea cannot write to the shared list before confirmation. The server checks the response structure, limits, and list changes.
-2. **Remember confirmed preferences, not guessed habits.** P0 uses editable explicit preferences. A preference is not a guarantee of allergy safety; the result must name relevant ingredient uncertainty.
-3. **No silent restrictions override.** If a request conflicts with a saved restriction, explain the conflict and ask for a change. Do not automatically relax it. Never call a generated meal allergen-free based only on the model’s response.
-4. **A list request is not kitchen inventory.** “Already on list” and “Already have” are separate states. Exclusions apply to this meal addition only.
-5. **Compatible quantities only.** Normalize case/spacing and known singular/plural units. Compare quantities only in the same supported unit. Keep oat milk and dairy milk, and distinct brand/restriction notes, separate. Do not build a general food ontology in 18 hours.
-6. **Explicit consequential actions.** Choosing dinner does not charge anyone. Claiming a trip means responsibility, not proof of purchase. Bought status is not a financial ledger.
-7. **No local success before server success.** Show pending writes, retain the user's input on failure, and retry safely using the same action ID. A stale list returns a refreshed review rather than silently overwriting another person's change.
-8. **Safe reversal.** Undo reverses this batch's untouched changes only. It preserves earlier requests and items subsequently edited or bought by someone else; explain any portion that cannot safely be undone.
+1. **First hour:** agree on v2 response shapes, seed two groups, run/deploy a frontend shell and health/snapshot route. Time-box grocery-price access to thirty minutes.
+2. **First connected slice:** fixture meal/grocery draft → confirmed cart → another browser starts a run. Use real shared state before polishing five views.
+3. **Next:** connect live AI refinement; add dated Plans, group switching, countdown alerts, scope labels, and one-total Spending. Test expenses and run concurrency as they arrive.
+4. **Only after that:** weekly generation, richer live price coverage, and background push. Keep sample/live labels throughout.
+5. **Final three hours:** freeze features, run acceptance checks, fix material problems, rehearse, record a fallback, and submit.
 
-## 8. AI contract and failure behavior
+If time tightens, retain thin views and the complete core journey. Cut weekly generation and background push first. If price access fails, keep honest sample comparison. If expense allocations cannot be validated, retain purchase records as Needs review rather than shipping incorrect debts. No one should spend the last hours building accounts or payment infrastructure.
 
-Use one provider and a text model supporting structured results through FastAPI. Keep the provider/model configurable on the server, but do not build a provider framework. The same endpoint handles initial requests and follow-ups; the last server-stored draft supplies the context. No vector database, agent swarm, image pipeline, or model training is needed.
+## 10. Judging and remaining decisions
 
-AI owns interpreting the food request, proposing a suitable meal, suggesting a group-friendly base or substitutions, and adapting the draft to feedback. Regular server code validates the response and computes list matching, quantities, mutations, and shopper state. The user's simple interface should not expose those implementation boundaries as more steps.
+Demo one family meal and a roommate shopping run: conversational discovery, a natural refinement, one cart confirmation, another browser adding a request to a countdown run, a marked sample/live basket comparison, and a reviewed purchase total. Keep the main run to 2–3 minutes; use the secondary pages to answer questions, not force a page tour.
 
-Inputs: the current message, relevant explicit household preferences, serving default, and the immediately preceding draft for a follow-up. The current recommendation and its interpreted requirements carry context forward; no full chat-history infrastructure is required. Do not send real names, repayment records, live locations, or unrelated shopping history. Never place the provider key in React or Git.
+This fits the provided Visa track through discovery, decision-making, coordinated purchasing, and post-purchase clarity. A Visa payment integration is not required by the supplied text. Its pasted UX weights conflict, so verify the rubric with organizers rather than invent a weighting. No winning outcome or commercial impact is established.
 
-A normal result is one recommendation with ingredients, quantities, units, cooking steps, approximate preparation time, a fit explanation, specific uncertainties, and a short explanation of changes after refinement. Important constraints remain visible in a request summary. If a hard contradiction blocks a recommendation, the result can instead ask one specific clarification question in the same conversation, with no shopping changes.
+Team decisions to settle immediately: actual time left, one AI provider/key, one reachable backend host, the grocery provider/access result, and which P1 items can be attempted after core acceptance. All personal/example data used during judging must be fictional.
 
-No merchant price claim. A user's dollar budget is a planning target; without verified prices, say **Cost not verified** and suggest simpler or lower-cost ingredients rather than inventing an exact total. Generation does not prove allergy safety, available pantry stock, or what everyone will enjoy.
+## Sources
 
-Failure handling:
-
-- Empty input: show example prompts and the current draft, if any. No automatic paid call on a blank page load.
-- Vague request such as “I don’t know”: use visible household defaults to propose a meal; do not demand a detailed prompt.
-- Explicitly conflicting requirements: ask one focused clarification, keep context, and let the user answer in the same input.
-- Invalid output, an obvious restriction violation, or an unusable revision: retain the last valid draft and user message; offer retry or another idea.
-- Request takes longer than 3 seconds: show that the meal is still being prepared. End waiting at 25 seconds with a recovery action. These are implementation targets, not measured latency claims.
-- Provider unavailable or quota exhausted: show **Live suggestions unavailable**. Labeled samples can demonstrate the remaining flow; never present them as a live conversation.
-- Direct shopping remains usable while AI fails. Do not block Add an item behind the assistant.
-
-Disable repeated submission while pending and preserve the input on failure. Only an explicit new request, refinement, or Another idea starts another generation. Log request ID, duration, provider outcome, and schema validation result, not raw prompts. Confirm provider data handling before inviting real personal data; the judging demo uses samples. Food-photo inspiration is deferred to P2 for people who already have a dish they want to recreate.
-
-## 9. Architecture and shared contract
-
-Use a client-side React/Vite frontend, FastAPI HTTP endpoints, and SQLite for one backend process if a teammate knows SQL. Use Python's existing SQLite support and parameterized statements; a new ORM, migrations framework, event bus, and WebSocket server are not requirements. SQL unfamiliarity is an early mentor question. If persistence threatens the core demo, a documented in-memory emergency fallback may be used with the same response shape; disclose resets and process restarts.
-
-React owns presentation and form state. FastAPI owns committed meal/list/trip state, writes, duplicate rules, and the AI call. The AI response never becomes executable instructions or unrestricted database updates.
-
-Serve the frontend separately from the backend, with one configured API base URL and explicit allowed frontend origins. The API must be reachable from the second demo device. Use HTTPS when deployed. Deploy a health-check route and frontend shell during the first hour; do not discover hosting issues near submission.
-
-For the demo, SQLite must run on a writable local/persistent disk with one backend instance. Do not deploy a SQLite file to an ephemeral multi-instance/serverless filesystem and claim shared persistence. Pick one host the team already knows; no cloud platform migration during the hackathon.
-
-Poll the shared snapshot every 3 seconds while the page is visible and refresh after writes. Pause hidden-tab polling. Show a stale/offline indicator after failures; never promise real-time stock or offline write synchronization. No custom realtime infrastructure.
-
-The minimal entities are Household settings, generated Draft, chosen Meal, List item, Trip, and an Action record for replay protection/Undo. Store generated recipe bodies as validated JSON instead of a heavily normalized recipe database. Use generated IDs, server timestamps, and a list revision. The exact agreed endpoint shapes and example payloads are in `API_CONTRACT.md` and `fixtures/`.
-
-No accounts means no private user boundary. The demo actor selector is an attribution device and must not be presented as security. Use fictional data in an isolated judging workspace; do not open it for real families to store private information. Production identity, invitations, permissions, and private uploads are later work.
-
-## 10. Interaction and accessibility requirements
-
-- Two main destinations: **Dinner** and **Shopping**. A clear Preferences entry holds infrequent settings. No separate plan, pantry, or spending destination in P0.
-- Preserve green and warm surfaces, but use task language: Find a dinner, Add an item, I’m getting these, Bought, Finish trip.
-- One primary action per decision area. Do not require chat to navigate or add an item.
-- Phone targets at least 44×44 CSS pixels. Quantity and price inputs use appropriate keyboards. Desktop keyboard users can add items with Enter.
-- Give every input a visible label. Errors identify the problem and recovery. Focus enters a sheet/dialog and returns to its trigger when closed.
-- Announce saved/error states accessibly; never use color alone to communicate bought or claimed status.
-- Preserve form inputs when interrupted or a request fails. Return to the same recommendation without another paid generation call.
-- Keep the shopping trip action visible without requiring scrolling through the entire list. Respect reduced motion. Food photography supports appetite; it must not obscure ingredients, notes, or actions.
-
-## 11. The four-person build plan
-
-| Owner | Owns | Must agree before splitting | First usable handoff |
-| --- | --- | --- | --- |
-| A: Dinner frontend | React shell, primary AI input, conversational refinement, one meal/list review, preference summary | Snapshot and suggestion fixtures; confirm/Undo states | Entire flow working against fixtures by H3. |
-| B: Shopping frontend | Direct entry, list rows, trip strip, bought/finish states, mobile layout | Item IDs, trip states, conflict/error responses | Shopping interactions against fixtures by H3. |
-| C: Backend/data | FastAPI routes, SQLite state, list rules, trip concurrency, deployment of API | Endpoint names, revisions, action IDs, seeded household | Health + shared snapshot by H1; real add/claim by H3. |
-| D: AI and integration checks | One AI adapter, intent/context interpretation, follow-up refinement, response validation, deterministic fixtures, demo evidence | Same schema as fixture; timeout and restriction rules | Live initial recommendation and a coherent refinement by H5; error cases documented. |
-
-A owns shared frontend files; B contributes shopping components without simultaneously rewriting the shell. C owns route/data files; D supplies a small meal-generation function and schema rather than editing C's router. Put shared examples in `docs/fixtures/` first. Announce contract changes before changing keys. Integrate early; do not wait for all four branches to be “finished.”
-
-### Eighteen-hour checkpoints
-
-| Time from build start | Required outcome | Cut decision |
-| --- | --- | --- |
-| H0–H1 | Read this PRD together, freeze P0 contract, seed the household, run both apps, smoke-test hosting. | Remove disputed optional features now. |
-| H1–H3 | Fixture-based meal → list flow; real API list visible in two browsers. | Fix connectivity and state before visual refinements. |
-| H3–H6 | Live AI discovery and refinement reach the combined meal/list review; real confirm and trip claim connected. | At H6, drop P1 if any core path remains disconnected. |
-| H6–H10 | Complete vertical flow, safe retries, bought/finish, Undo; deploy the same build used in testing. | No new feature families after H10. |
-| H10–H13 | Three short usability sessions and targeted fixes; verify family and roommate scenarios. | Remove confusing controls instead of adding explanations/settings. |
-| H13–H15 | Run acceptance checks, test phone/desktop, create resettable demo and fallback recording. | Freeze functionality at H15. |
-| H15–H18 | Submission, demo rehearsal, evidence capture, bug fixes, buffer. | No accounts, payments, framework changes, or bonus integrations. |
-
-**If P0 slips:** cut every P1 first, then use seeded preferences instead of building their editor. Photo input is already outside P0. If refinement slips, retain a reliable first recommendation and say that the follow-up acceptance check was not met; do not fake conversational understanding. Do not trade away the shared list or the honest fallback state to finish decorative controls.
-
-Adjust the clock to the actual remaining submission time. These checkpoints include integration and submission work; they are not eighteen hours of uninterrupted feature coding.
-
-## 12. Acceptance checks
-
-These are release gates and evaluation targets, not results already achieved.
-
-| ID | Scenario | Pass condition |
-| --- | --- | --- |
-| U1 | Someone just needs milk. | One field + submit adds it, with no required date, store, diner, or AI call. |
-| U2 | Family of four, two adults using the app. | Four servings work without four accounts or a debt screen. |
-| U3 | Roommates, only two diners. | Serving count changes before generation; no household-wide voting gate. |
-| U4 | Someone types “Something cozy for four” and follows with “Make it quicker.” | Live AI prepares one usable meal/list draft, then returns a faster revision while retaining servings and restrictions; failures are explicit. |
-| U5 | One option is chosen. | One review + one commit creates the chosen dinner and correct list changes; repeated submit adds nothing twice. |
-| U6 | Some ingredients are already requested or explicitly excluded. | Compatible shortfalls are considered; constrained products remain distinct; excluded ingredients are not added. |
-| U7 | Two people claim simultaneously. | Exactly one claim wins; the other sees the current shopper and cannot silently replace them. |
-| U8 | Another browser changes the list. | Update appears within two successful polling cycles, normally about six seconds. Failed sync is visible. |
-| U9 | Shopper buys only part of the list and finishes. | Bought items are retained in history; unbought items remain; trip claim is released. No prices required. |
-| U10 | Undo follows a meal addition. | Earlier requests and subsequently edited/bought items are preserved. Any unsafe partial reversal is explained. |
-| U11 | AI/write request fails or is retried. | Input remains, loading ends, recovery is available, and no duplicate state is created. |
-| U12 | The app is used at 390 px width and by keyboard. | No horizontal overflow; primary actions are reachable, labeled, and have visible focus. |
-
-Have three people outside the team attempt U1, U5, and U9 without coaching. Aim for all three to finish without asking what the next button means. Record pauses, backtracking, and questions. If there is time for only one test, test the full task with a family organizer rather than asking whether the design looks good.
-
-Instrument only what the demo needs: generation requested/succeeded/failed, meal confirmed, item added, trip claimed/finished. No analytics platform required. Observe time and action count manually. Do not advertise time saved or waste reduced without a measured comparison.
-
-## 13. The judging story
-
-Use one ordinary scenario: “Two adults are feeding four people, and one can shop on the way home.” Type “Something fun for dinner.” Show the draft using the saved four servings and preferences. Follow with “Make it quicker,” show what changed, then confirm the meal into the shared list, then use a second browser to claim and finish part of the trip. Add a non-recipe item to demonstrate that the list stands on its own.
-
-For Visa Reimagine Shopping, the transformation is discovery and decision-making flowing into a coordinated shopping list. Show the real model call and why the result fits the supplied request. Describe fewer handoffs as the intended commerce benefit, not a quantified conversion or merchant-sales claim. Based on the supplied challenge text, a Visa payment API is not a stated requirement.
-
-The pasted rubric contains conflicting UX weights: the top table says 20%, while the detailed entry says 25%. Confirm that with organizers; do not invent a corrected scoring formula. A polished, functioning journey and honest treatment of AI uncertainty serve either version.
-
-Prepare a 2–3 minute run, a short initial request and a follow-up that visibly changes the draft, a reset script for fictional state, and a short fallback recording. If using cached samples, say so. Do not perform a real payment during judging.
-
-## 14. What happens after submission
-
-Prioritize observed adoption problems before adding features. If people use the shared list and want help remembering dinner, consider Make again and lightweight reactions. If reimbursement is a recurring problem in tested households, add reviewed receipt extraction and explicit purchase participation. If families mostly use pooled spending, keep repayment invisible. Real accounts, household access control, data retention and private sharing are prerequisites for a public product, not hackathon demo embellishments.
-
-## 15. Decisions the team must settle in the first hour
-
-1. Who owns A/B/C/D, and who can run/debug SQL? If nobody can, consult a mentor and choose the documented emergency storage fallback before building around it.
-2. Which single AI provider/model has a working key and structured-output support? Verify with one sample, not an architecture debate.
-3. Which known host provides a single writable backend process and a reachable frontend? Prove it early.
-4. What fictional preferences and two-turn conversation tell the demo story clearly? Avoid personally identifying household data.
-
-The rest of P0 is specified so these choices do not reopen the product scope.
-
-## Sources and precedence
-
-- Team brainstorm, user-approved visual direction, explicit feedback on manual steps, the supplied DubHacks technical guide, and the stated eighteen-hour deadline are the product constraints.
-- [UW project report: A Modern Way to Coordinate Your Shopping Trip](https://courses.cs.washington.edu/courses/cse440/14au/projects/groupshop/documents/Report1.pdf), especially pp. 1–4 and 12–15. Historical exploratory evidence, not current market validation.
-- [Baseline UX review](UX_REVIEW.md). Superseded by this PRD where navigation or scope differs.
-- [React: Sunsetting Create React App](https://react.dev/blog/2025/02/14/sunsetting-create-react-app). The supplied guide's CRA recommendation is dated; use the team's existing Vite decision.
-- [Vite getting started](https://vite.dev/guide/) and [FastAPI CORS](https://fastapi.tiangolo.com/tutorial/cors/) for the client/API boundary. Check current runtime requirements at setup; do not assume the old demo's Node minimum is the Vite minimum.
-- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs) support the proposed meal/list draft shape; schema compliance does not guarantee recipe correctness or safe ingredients.
+- [Final team brainstorm](FINAL_BRAINSTORM.md): all five page areas and requested capabilities are mapped in section 3.
+- The user's explicit AI-first, low-manual-work feedback and the original eighteen-hour deadline.
+- [Baseline UX findings](UX_REVIEW.md), used to avoid recreating the old workflow.
+- [UW exploratory report](https://courses.cs.washington.edu/courses/cse440/14au/projects/groupshop/documents/Report1.pdf), pp. 1–4 and 12–15; historical task evidence, not current market validation.
+- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs): one possible integration shape, not a recipe-safety guarantee.
+- [Instacart nearby retailers](https://docs.instacart.com/developer_platform_api/api/retailers/get_nearby_retailers/) and [shopping-list links](https://docs.instacart.com/developer_platform_api/api/products/create_shopping_list_page): these documented endpoints alone do not establish a direct cross-store price feed.

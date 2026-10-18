@@ -1,12 +1,26 @@
-# Common — shared household shopping
+# Cartners — shared household shopping
 
 DubHacks 2026 concept: help families, roommates, and other shared households decide dinner, keep one shopping list, and know who is picking things up. Parties and other shared household purchases can use the same list.
 
+**[Open the shared demo](https://common-table-household-demo.crisp-tide-4075.chatgpt.site)** — public frontend preview with labeled sample data. [Hosting and automatic update setup](docs/DEMO_HOSTING.md).
+
 ## Team development
 
-[Start here: owners, work branches, task workflow, and first checkpoints](docs/TEAM.md). The AI-first PRD and API fixtures describe the new app; `demo/` remains the earlier visual baseline.
+**[Start here: copy your AI prompt and begin your assigned work](docs/START_HERE.md).** [Team guide: owners, branches, and workflow](docs/TEAM.md). The React frontend foundation is in `frontend/`; the PRD and API fixtures define the shared integration. `demo/` remains the earlier visual baseline.
 
-## Run the demo
+## Run the React frontend
+
+See [frontend setup and integration](frontend/README.md) for requirements, the shared component interface, and checks.
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+Home and Plans run without a backend using visibly labeled previews. Live AI, committed cart changes, Undo, and preference saves require the team's backend. Shopping, Spending, and Groups remain teammate-owned integration points.
+
+## Run the earlier demo
 
 Install Python 3 and Node.js 20 or newer. No package installation or build is needed.
 
@@ -23,16 +37,18 @@ npm test
 
 ## What is here
 
-- `demo/dist/`: runnable HTML/CSS/JavaScript interface, photos, and local sample data.
+- `frontend/`: React/Vite shell, AI-first Home, Plans/preferences, API helper, and focused checks.
+- `demo/dist/`: original HTML/CSS/JavaScript visual reference, photos, and local sample data.
 - `demo/test/`: tests for money splits, repayment state, and ingredient deduplication.
-- [18-hour overhaul PRD](docs/PRD.md): current proposed scope, new interactions, team ownership, and release gates.
-- [P0 API contract and fixtures](docs/API_CONTRACT.md): frontend/backend integration agreement.
+- [Final-brainstorm PRD v2](docs/PRD.md): AI-first flow, all five page areas, build priorities, owners, and acceptance checks.
+- [Final brainstorm source](docs/FINAL_BRAINSTORM.md): the team’s requirements and their scope mapping.
+- [API contract v2 and fixtures](docs/API_CONTRACT.md): frontend/backend integration agreement.
 - [Baseline UX review](docs/UX_REVIEW.md): the original prototype findings; the new PRD takes precedence.
 - [Contribution guide](CONTRIBUTING.md): how the four teammates can work together.
 
-This is a design prototype, not the production React/Vite application. The intended production stack is React/Vite + Python/FastAPI + SQL. Use the demo to agree on interactions before porting them.
+The React frontend is the start of the shared application. The team is implementing Python/FastAPI, SQL persistence, and provider services separately. The original demo is retained as a visual reference.
 
-## Limits
+## Earlier demo limits
 
 Changes stay in each browser's localStorage. There is no login, shared backend, cross-device collaboration, live AI, real store prices/inventory, linked memberships, or payment transfer. Photo suggestions are explicitly simulated. Selecting a photo does not upload or analyze it. All people, votes, prices, and purchases are examples.
 
