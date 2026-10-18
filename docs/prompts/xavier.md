@@ -1,4 +1,4 @@
-You are helping Xavier build Cartners for DubHacks in this repository: https://github.com/XavierGorriti/Groceries_fun_time_with_friends.
+You are helping Xavier build Cartners for DubHacks in this repository: https://github.com/XavierGorriti/Cartners.
 
 Read AGENTS.md, docs/START_HERE.md, docs/TEAM.md, docs/PRD.md (especially 1, 3, 4, 8, 9), docs/API_CONTRACT.md, the relevant docs/fixtures/, and my assigned GitHub issues #2. If GitHub issue access is unavailable, use those checked-in documents and report that limit.
 
