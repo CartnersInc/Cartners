@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -23,6 +24,9 @@ Kind = Literal["recommendation", "clarification"]
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 DEFAULT_TIMEOUT_SECONDS = 25.0
 MAX_MESSAGE_CHARS = 500
+# Gemini 429/503 are capacity spikes. Retry a few times inside the wait budget.
+MAX_ATTEMPTS = 3
+RETRY_PAUSE_SECONDS = 2.0
 
 DEFAULT_PREFERENCES: dict[str, Any] = {
     "servings": 4,
@@ -209,15 +213,34 @@ def generate_suggestion(
             prompt,
         ]
 
-    response = client.models.generate_content(
-        model=model or DEFAULT_MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=GeminiMealOutput,
-            http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)),
-        ),
-    )
+    from google.genai import errors as genai_errors
+
+    response = None
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = client.models.generate_content(
+                model=model or DEFAULT_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=GeminiMealOutput,
+                    http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)),
+                ),
+            )
+            break
+        except genai_errors.APIError as exc:
+            last_error = exc
+            # 429 = rate limit, 503 = temporary capacity. Anything else is not a retry.
+            if getattr(exc, "code", None) not in {429, 503} or attempt == MAX_ATTEMPTS:
+                raise RuntimeError(
+                    "Live suggestions unavailable. Gemini is busy or over quota. "
+                    "Run the same command again in a few seconds."
+                ) from exc
+            time.sleep(RETRY_PAUSE_SECONDS)
+
+    if response is None:
+        raise RuntimeError("Live suggestions unavailable.") from last_error
 
     parsed = response.parsed
     if isinstance(parsed, GeminiMealOutput):
