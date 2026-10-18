@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApi, isWorkspace, isDraft } from '../../src/api/client.js';
+import { householdKind, isFamilyTable, splitsCosts } from '../../src/household.js';
 import { readFile } from 'node:fs/promises';
 
 test('writes preserve the caller action ID and structured conflicts', async () => {
@@ -44,4 +45,12 @@ test('draft boundary accepts contract variants and rejects malformed recipes', a
   };
   assert.ok(isDraft(week, 'demo-family'));
   assert.ok(!isDraft({ ...week, days: week.days.slice(0, 6) }, 'demo-family'));
+});
+
+test('family tables stay pooled; roommate tables split costs', () => {
+  assert.equal(householdKind({ workspaceId: 'demo-family', preferences: { spendingMode: 'pooled' } }), 'family');
+  assert.equal(householdKind({ workspaceId: 'demo-roommates', preferences: { spendingMode: 'split' } }), 'roommates');
+  assert.ok(isFamilyTable({ preferences: { householdKind: 'family', spendingMode: 'pooled' } }));
+  assert.ok(splitsCosts({ preferences: { spendingMode: 'split' } }));
+  assert.ok(!splitsCosts({ preferences: { spendingMode: 'pooled' } }));
 });

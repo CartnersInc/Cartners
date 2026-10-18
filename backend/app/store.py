@@ -78,14 +78,24 @@ class Store:
 
     def _seed(self) -> None:
         actors = [("leila", "Leila"), ("sam", "Sam"), ("jordan", "Jordan"), ("maya", "Maya")]
+        pay_links = {
+            "leila": {"venmo": "leila-p", "zelle": "leila@example.com"},
+            "sam": {"venmo": "sam-k", "cashapp": "samk"},
+            "jordan": {"paypal": "jordanm"},
+            "maya": {"venmo": "maya-r"},
+        }
         for actor_id, name in actors:
-            self.conn.execute("INSERT INTO actors(id, name) VALUES (?, ?)", (actor_id, name))
+            self.conn.execute(
+                "INSERT INTO actors(id, name, pay_links_json) VALUES (?, ?, ?)",
+                (actor_id, name, dumps(pay_links.get(actor_id, {}))),
+            )
 
         groups = [
             {
                 "id": "demo-family",
                 "name": "Family dinner",
                 "mode": "pooled",
+                "kind": "family",
                 "servings": 4,
                 "restrictions": ["vegetarian"],
                 "likes": ["Mexican food"],
@@ -96,6 +106,7 @@ class Store:
                 "id": "demo-roommates",
                 "name": "Roommate kitchen",
                 "mode": "split",
+                "kind": "roommates",
                 "servings": 2,
                 "restrictions": [],
                 "likes": ["pasta", "tacos"],
@@ -107,14 +118,15 @@ class Store:
             self.conn.execute(
                 """
                 INSERT INTO workspaces(
-                  id, name, spending_mode, servings, restrictions_json, likes_json,
+                  id, name, spending_mode, household_kind, servings, restrictions_json, likes_json,
                   max_prep_minutes, list_revision, last_store_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 """,
                 (
                     group["id"],
                     group["name"],
                     group["mode"],
+                    group["kind"],
                     group["servings"],
                     dumps(group["restrictions"]),
                     dumps(group["likes"]),
@@ -261,6 +273,7 @@ class Store:
                     "name": row["name"],
                     "memberIds": members,
                     "spendingMode": row["spending_mode"],
+                    "kind": row["household_kind"] if "household_kind" in row.keys() else "other",
                 }
             )
 
@@ -274,7 +287,10 @@ class Store:
         actors = []
         for actor_id in member_ids:
             actor = self.conn.execute("SELECT * FROM actors WHERE id = ?", (actor_id,)).fetchone()
-            actors.append({"id": actor["id"], "name": actor["name"]})
+            person = {"id": actor["id"], "name": actor["name"]}
+            if "pay_links_json" in actor.keys() and actor["pay_links_json"]:
+                person["payLinks"] = loads(actor["pay_links_json"], {})
+            actors.append(person)
 
         items = [self._item_dict(row) for row in self.conn.execute(
             "SELECT * FROM items WHERE workspace_id = ? ORDER BY created_at, id",
@@ -355,6 +371,7 @@ class Store:
                 "likes": loads(ws["likes_json"], []),
                 "maxPrepMinutes": ws["max_prep_minutes"],
                 "spendingMode": ws["spending_mode"],
+                "householdKind": ws["household_kind"] if "household_kind" in ws.keys() else "other",
             },
             "groups": groups,
             "actors": actors,

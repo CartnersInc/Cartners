@@ -1,4 +1,5 @@
 """Device memberships and invitation-only households; no passwords or email accounts."""
+import re
 from hashlib import sha256
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.db import dumps, transaction
 from app.errors import ApiError
+from app.schemas import WriteBase
 
 DEMO_IDS = {"demo-family", "demo-roommates"}
 PUBLIC_PATHS = {"/api/health", "/api/ai/health", "/api/ingredients", "/api/households", "/api/households/join"}
@@ -57,6 +59,33 @@ class NewHousehold(Membership):
     maxPrepMinutes: int = Field(default=30, ge=1, le=240)
 
 
+PAY_PATTERNS = {
+    'venmo': re.compile(r'^[A-Za-z0-9_-]{5,30}$'),
+    'cashapp': re.compile(r'^[A-Za-z][A-Za-z0-9]{0,19}$'),
+    'paypal': re.compile(r'^[A-Za-z0-9]{1,20}$'),
+    'zelle': re.compile(r'^([^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9 ()-]{7,20})$'),
+}
+
+
+class PayLinksPatch(WriteBase):
+    payLinks: dict[str, str] = Field(default_factory=dict)
+
+
+def cleaned_pay_links(raw: dict[str, str]) -> dict[str, str]:
+    unknown = set(raw) - set(PAY_PATTERNS)
+    if unknown:
+        raise ApiError(422, 'INVALID_PAY_LINK', 'Only Venmo, Cash App, PayPal, and Zelle handles are stored.')
+    cleaned = {}
+    for key, pattern in PAY_PATTERNS.items():
+        value = str(raw.get(key) or '').strip().lstrip('@$')
+        if not value:
+            continue
+        if not pattern.fullmatch(value):
+            raise ApiError(422, 'INVALID_PAY_LINK', f'Check the {key} handle.')
+        cleaned[key] = value
+    return cleaned
+
+
 def register_household_routes(app):
     def result(store, session):
         return {'workspace': store.snapshot(session['workspace_id']), 'actorId': session['actor_id']}
@@ -84,10 +113,10 @@ def register_household_routes(app):
             if store.conn.execute('SELECT 1 FROM household_invites WHERE code_hash = ?', (digest(body.inviteCode),)).fetchone():
                 raise ApiError(409, 'INVITE_EXISTS', 'Please restart setup to create a new invitation.')
             workspace_id = f'household-{uuid4()}'
-            # Spending starts as tracking only. Splitting is an explicit later choice.
-            store.conn.execute('''INSERT INTO workspaces(id,name,spending_mode,servings,restrictions_json,likes_json,max_prep_minutes,list_revision)
-                                  VALUES (?,?,'pooled',?,?,?,?,0)''',
-                               (workspace_id, body.householdName, body.servings, dumps(body.restrictions), dumps(body.likes), body.maxPrepMinutes))
+            spending_mode = 'split' if body.kind in {'roommates', 'friends'} else 'pooled'
+            store.conn.execute('''INSERT INTO workspaces(id,name,spending_mode,household_kind,servings,restrictions_json,likes_json,max_prep_minutes,list_revision)
+                                  VALUES (?,?,?,?,?,?,?,?,0)''',
+                               (workspace_id, body.householdName, spending_mode, body.kind, body.servings, dumps(body.restrictions), dumps(body.likes), body.maxPrepMinutes))
             store.conn.execute("INSERT INTO trips(id,workspace_id,version,state) VALUES (?,?,0,'idle')", (f'trip-{uuid4()}', workspace_id))
             store.conn.execute('INSERT INTO household_invites VALUES (?,?)', (workspace_id, digest(body.inviteCode)))
             session = add_member(store, body, workspace_id)
@@ -105,3 +134,14 @@ def register_household_routes(app):
                 raise ApiError(404, 'INVITE_NOT_FOUND', 'That invitation was not found. Check the code with your household.')
             session = add_member(store, body, invite['workspace_id'])
             return result(store, session)
+
+    @app.patch('/api/members/pay-links')
+    def save_pay_links(body: PayLinksPatch, request: Request):
+        store = request.app.state.store
+        store.require_workspace(body.workspaceId)
+        store.require_actor(body.workspaceId, body.actorId)
+        links = cleaned_pay_links(body.payLinks)
+        with transaction(store.conn):
+            store.conn.execute('UPDATE actors SET pay_links_json = ? WHERE id = ?', (dumps(links), body.actorId))
+            store.conn.execute('UPDATE workspaces SET list_revision = list_revision + 1 WHERE id = ?', (body.workspaceId,))
+        return {'workspace': store.snapshot(body.workspaceId), 'changeSummary': 'Saved your payment handles. Opening a link never marks a debt paid.'}

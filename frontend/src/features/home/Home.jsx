@@ -6,6 +6,7 @@ import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
 import KitchenArt from '../../components/KitchenArt.jsx';
 import { useSurfaceMotion } from '../../components/useMotion.js';
+import { isFamilyTable, splitsCosts } from '../../household.js';
 
 const IMESSAGE_LINE = String(import.meta.env.VITE_CARTNERS_IMESSAGE_LINE || '+14156055508').replace(/\s/g, '');
 function prettyPhone(value) {
@@ -14,7 +15,7 @@ function prettyPhone(value) {
   return value;
 }
 
-export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
+export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange, membership }) {
   const message = entry?.message || '';
   const setMessage = value => onEntryChange({ ...entry, message: value });
   const [pending, setPending] = useState('');
@@ -177,7 +178,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     {!draft ? <div className="discovery discovery-focused">
       <div className="home-request">
         <div className="home-hero"><h1>What sounds<br />good <span>today?</span></h1>
-        <p className="intro">One dinner idea. One shared list.<br />A little less “what’s for dinner?”</p><KitchenArt /></div>
+        <p className="intro">{isFamilyTable(workspace, membership) ? <>One family dinner. One shared grocery run.<br />Mom or dad can pick it up for the table.</> : splitsCosts(workspace) ? <>One shared list. Split the receipt after.<br />Venmo, Zelle, or Cash App — not a family budget.</> : <>One dinner idea. One shared list.<br />A little less “what’s for dinner?”</>}</p><KitchenArt /></div>
         {composer}{starters}{options}
       </div>
       <aside className="home-list" aria-labelledby="home-list-title">
@@ -187,8 +188,8 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <p className="home-run-status">{trip ? <><strong>{shopper?.name || 'Someone'} is at {trip.storeName}.</strong> New requests {trip.requestDeadlineAt && Date.parse(trip.requestDeadlineAt) > Date.now() ? 'can still join this run.' : 'will wait for the next run.'}</> : 'No one is shopping right now.'}</p>
         <button className="text-button" onClick={() => navigate('shopping')}>Open shared list<Icon name="arrow" /></button>
         <div className="home-text-line">
-          <p><strong>Dad’s heading to the store?</strong> Text Cartners from the car. A roommate can reply “need milk” and it lands on this list.</p>
-          <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
+          <p>{isFamilyTable(workspace, membership) ? <><strong>Mom or dad heading to the store?</strong> Text Cartners from the car. The rest of the family can reply “need milk” and it lands on this list.</> : <><strong>A roommate grabbing groceries?</strong> Text Cartners from the car. “Need milk” joins this run. Split the receipt later with Venmo, Zelle, or Cash App.</>}</p>
+          <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent(isFamilyTable(workspace, membership) ? 'Going to the store — what does everyone need?' : 'Going to the store — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
         </div>
       </aside>
     </div> : <div className="idea-page-heading"><h1>{week ? 'Your week' : meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}
