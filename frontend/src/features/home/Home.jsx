@@ -35,6 +35,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
   async function requestSuggestion(text) {
     if (busy.current || recoveringSave || !text.trim()) return;
     setMessage(text);
+    if (!planDate || Number.isNaN(new Date(`${planDate}T12:00:00`).getTime())) { setError('Choose a meal date before asking for an idea.'); return; }
     if (!connected) {
       setError('AI isn’t connected yet. Your request is saved. Try one of the sample ideas below.');
       return;
@@ -106,11 +107,12 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
     const unit = item.unit === 'count' ? '' : ` ${item.unit}${['can', 'pack'].includes(item.unit) && amount !== 1 ? 's' : ''}`;
     return `${item.name}${preview?.action === 'review' ? ' (check variant)' : ` (${preview?.action === 'increase' ? '+' : ''}${amount}${unit})`}${item.note ? ` · ${item.note}` : ''}`;
   }).join(', ');
-  const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(`${planDate}T12:00:00`));
+  const selectedDate = new Date(`${planDate}T12:00:00`);
+  const dateLabel = Number.isNaN(selectedDate.getTime()) ? 'Choose a date' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(selectedDate);
   const options = <details className="request-options">
     <summary>{dateLabel} · {workspace.preferences.servings} servings{workspace.preferences.restrictions.length ? ` · ${workspace.preferences.restrictions.join(', ')}` : ''}</summary>
     <div className="request-options-body">
-      <label className="date-control">Meal date<input aria-label="Meal date" type="date" value={planDate} onChange={e => onPlanDateChange(e.target.value)} disabled={locked} required /></label>
+      <label className="date-control">Meal date<input aria-label="Meal date" type="date" value={planDate} onChange={e => { const value = e.target.value; if (value && !Number.isNaN(new Date(`${value}T12:00:00`).getTime())) onPlanDateChange(value); }} disabled={locked} required /></label>
       <button className="text-button" onClick={() => navigate('plans')}>Edit preferences</button>
     </div>
   </details>;

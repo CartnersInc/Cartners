@@ -58,7 +58,12 @@ test('live contract save retries the same action and Undo updates server state',
   await page.getByRole('button', { name: 'Find an idea', exact: true }).click();
   await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
   await page.locator('.request-options > summary').click();
-  await page.getByLabel('Meal date', { exact: true }).fill('2026-10-19');
+  const dateInput = page.getByLabel('Meal date', { exact: true });
+  const previousDate = await dateInput.inputValue();
+  await dateInput.fill('');
+  await expect(dateInput).toHaveValue(previousDate);
+  await expect(page.getByRole('heading', { name: draft.recommendation.title })).toBeVisible();
+  await dateInput.fill('2026-10-19');
   await expect(page.getByText(/adding this idea keeps its original date/)).toBeVisible();
   await page.getByText('Review 5 ingredients and requests', { exact: true }).click();
   await page.getByRole('checkbox').first().uncheck();
