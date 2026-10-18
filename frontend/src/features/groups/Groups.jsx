@@ -9,7 +9,8 @@ import { PAY_APPS, isValidHandle, cleanHandle } from '../spending/proposal/payLi
 import PersonName from '../spending/proposal/PayHandleMarks.jsx';
 import { isFamilyTable, splitsCosts, withMemberPayLinks } from '../../household.js';
 import { readMembership, saveMembership } from '../onboarding/session.js';
-import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
+import { prettyPhone } from '../../imessageLine.js';
+import ImessageConnect from '../../components/ImessageConnect.jsx';
 
 // Groups (#9): who is in this group, the active shopper and countdown, the store-run sheet,
 // and the group's Pooled/Split spending preference. The shell's group menu does the switching.
@@ -47,10 +48,8 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
           </section>
 
           <section className="rm-card" aria-labelledby="rm-imessage">
-            <h2 id="rm-imessage" className="rm-h2">Text the household line</h2>
-            <p className="rm-help">{membership?.demo ? `Texts don’t change this sample list. Set up your own household, then text its invitation code to ${prettyPhone()}.` : `Text this household’s invitation code to ${prettyPhone()} once from each iPhone. After that, “need milk” lands on this list. A different household uses its own code.`}</p>
-            <p><a className="rm-btn" href={smsHref(isFamilyTable(workspace, membership) ? 'Going to the store. What does everyone need?' : 'Going to QFC. What do you guys need?')}>Text {prettyPhone()}</a></p>
-            <p className="rm-help">Line {IMESSAGE_LINE}. Open that thread, don’t start a new one to a different number.</p>
+            <h2 id="rm-imessage" className="rm-h2">Text {prettyPhone()}</h2>
+            <ImessageConnect membership={membership} />
           </section>
           <Preferences {...shared} />
           {!membership?.demo && <section className="rm-card"><h2 className="rm-h2">Invite someone to your table</h2><p className="rm-help">They can choose “Join with a code” on the welcome screen. Only share this code with people you want in your household.</p><details><summary>Show invitation code</summary><textarea className="invite-code" aria-label="Invitation code" readOnly value={membership?.inviteCode || ''} /><button className="rm-btn rm-secondary" onClick={async () => { try { await navigator.clipboard.writeText(membership.inviteCode); setCopied('Invitation copied.'); } catch { setCopied('Select the code above and copy it.'); } }}>Copy invitation code</button><p role="status">{copied}</p></details></section>}

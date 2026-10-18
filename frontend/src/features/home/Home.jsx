@@ -7,7 +7,7 @@ import RecipeCarousel from './RecipeCarousel.jsx';
 import KitchenArt from '../../components/KitchenArt.jsx';
 import { useSurfaceMotion } from '../../components/useMotion.js';
 import { isFamilyTable } from '../../household.js';
-import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
+import ImessageConnect from '../../components/ImessageConnect.jsx';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange, membership }) {
   const message = entry?.message || '';
@@ -182,11 +182,7 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         <p className="home-run-status">{trip ? <><strong>{shopper?.name || 'Someone'} is at {trip.storeName}.</strong> New requests {trip.requestDeadlineAt && Date.parse(trip.requestDeadlineAt) > Date.now() ? 'can still join this run.' : 'will wait for the next run.'}</> : 'No one is shopping right now.'}</p>
         <button className="text-button" onClick={() => navigate('shopping')}>Open shared list<Icon name="arrow" /></button>
         <div className="home-text-line">
-          {isFamilyTable(workspace, membership)
-            ? <><p><strong>Mom or dad heading to the store?</strong> Text Cartners from the car. The rest of the family can reply “need milk” and it lands on this list.</p>
-              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store. What does everyone need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>
-            : <><p><strong>Who’s grabbing groceries?</strong> Text “going to QFC. What do you guys need?” Roommates add “need milk.” Split later with Venmo, Zelle, or Cash App, not a family budget.</p>
-              <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to QFC. What do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a></>}
+          <ImessageConnect membership={membership} />
         </div>
       </aside>
     </div> : <div className="idea-page-heading"><h1>{week ? 'Your week' : meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}

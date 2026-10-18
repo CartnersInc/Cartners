@@ -222,6 +222,10 @@ button:disabled { opacity: .55; }
 .preferences-form input { font-size: .92rem; border-color: #baa78d; }
 .app-shell .household-settings .rm-main > .rm-card:first-child { background: var(--apron); }
 .invite-code { color: var(--ink); background: var(--ground); border: 1px solid #baa78d; border-radius: 9px; font-size: .9rem; }
+.imessage-steps { margin: 10px 0 12px; padding-left: 1.2rem; }
+.imessage-steps li { margin: 6px 0; }
+.home-text-line .imessage-steps { font-size: .76rem; color: var(--muted); }
+.home-text-line .invite-code { min-height: 72px; margin: 8px 0; font-size: .72rem; }
 .app-shell .household-spending { background: var(--sun-pale); padding: 0 24px; border-radius: 12px; }
 .page-heading { gap: 24px; align-items: center; }
 .page-heading .intro { font-size: .95rem; max-width: 58ch; }
