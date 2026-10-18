@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import { useWrite } from '../../shopping/lib/useWrite.js';
 import { formatCents, parseDollars, people, whenOf } from '../../shopping/lib/format.js';
 import { activeTrip, liveItems } from '../../shopping/lib/trip.js';
+import { allocateSplit, lastConfirmedSplit, rememberedPayer, rememberedSharers } from '../lib/remember.js';
 
 function centsToText(cents) {
   return (cents / 100).toFixed(2);
@@ -36,9 +37,14 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
     if (editing) return expense.runId || '';
     return runs.some(run => run.id === initialRunId) ? initialRunId : (runs[0]?.id || '');
   });
+  const selectedRun = runs.find(run => run.id === runId);
   const [totalText, setTotalText] = useState(() => (editing && Number.isInteger(expense.totalCents) ? centsToText(expense.totalCents) : ''));
-  const [payerId, setPayerId] = useState(editing ? expense.payerId : actorId);
-  const [sharedIds, setSharedIds] = useState(() => (editing && Array.isArray(expense.sharedMemberIds) ? expense.sharedMemberIds : members.map(m => m.id)));
+  const [payerId, setPayerId] = useState(() => {
+    if (editing) return expense.payerId;
+    const fromRun = rememberedPayer(workspace, members.map(member => member.id), runs.find(run => run.id === (runs.some(item => item.id === initialRunId) ? initialRunId : runs[0]?.id)));
+    return fromRun || actorId;
+  });
+  const [sharedIds, setSharedIds] = useState(() => (editing && Array.isArray(expense.sharedMemberIds) ? expense.sharedMemberIds : rememberedSharers(workspace, members.map(member => member.id))));
   const [personal, setPersonal] = useState(() => (editing ? personalFromExpense(expense.personalAllocations) : {})); // memberId → { text, unknown }
   const [extraIds, setExtraIds] = useState(() => (editing ? Object.keys(expense.personalAllocations || {}) : []));
   const [separate, setSeparate] = useState(false);
@@ -74,6 +80,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
         const entry = personal[id] || { text: '', unknown: false };
         if (entry.unknown) { allocations[id] = null; unknown = true; continue; }
         const cents = parseDollars(entry.text);
+        if (entry.text.trim() === '' && !entry.unknown) continue;
         if (cents == null) { errs.push(`Enter ${name(id) === 'You' ? 'your' : `${name(id)}'s`} personal subtotal, or choose "Don't know".`); continue; }
         if (cents > 0) { allocations[id] = cents; known += cents; }
       }
@@ -113,8 +120,10 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
         workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), message: aiNote.trim(), mode,
       } });
       setTotalText(Number.isInteger(result.totalCents) && result.totalCents > 0 ? (result.totalCents / 100).toFixed(2) : '');
-      setPayerId(workspace.actors.some(actor => actor.id === result.payerId) ? result.payerId : '');
-      if (Array.isArray(result.sharedMemberIds)) setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
+      if (workspace.actors.some(actor => actor.id === result.payerId)) setPayerId(result.payerId);
+      if (Array.isArray(result.sharedMemberIds) && result.sharedMemberIds.length) {
+        setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
+      }
       const parsed = result.personalAllocations && typeof result.personalAllocations === 'object' ? result.personalAllocations : {};
       const validIds = Object.keys(parsed).filter(id => members.some(member => member.id === id));
       {
@@ -138,13 +147,19 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   const setEntry = (id, patch) => setPersonal(map => ({ ...map, [id]: { text: '', unknown: false, ...map[id], ...patch } }));
   const addable = members.filter(m => !personalIds.includes(m.id));
   const retrying = write.state.phase === 'error' && write.state.retryable;
+  const lastSplit = lastConfirmedSplit(workspace.expenses);
+  const preview = mode === 'split' && Number.isInteger(body.totalCents) && body.totalCents > 0 && !needsReview
+    ? allocateSplit(body.totalCents, sharedIds, body.personalAllocations)
+    : null;
 
   return (
     <form className="rm-card rm-form" onSubmit={submit} noValidate aria-label={editing ? 'Resolve this receipt' : 'Record a purchase'}>
       <h2 className="rm-h2">{editing ? 'Resolve this receipt' : 'Record a purchase'}</h2>
       <div className="receipt-ai">
         <label htmlFor={`${ids.total}-note`}>Describe the receipt</label>
-        <p className="rm-help">For example: “I paid $42.18 at QFC. $8 was my snacks; the rest is shared.”</p>
+        <p className="rm-help">{mode === 'split'
+          ? 'Say the receipt total. Cartners remembers who split last time and even-splits the rest. Mention a personal amount only if one person kept something.'
+          : 'Say who paid and the receipt total. Family grocery runs stay pooled — nobody owes anyone.'}</p>
         <textarea id={`${ids.total}-note`} rows="2" maxLength="500" value={aiNote} onChange={event => setAiNote(event.target.value)} placeholder="Say who paid and the exact total…" disabled={!connected || aiPending || write.locked} />
         <div className="rm-actions"><button type="button" className="rm-btn rm-secondary" disabled={!connected || !aiNote.trim() || aiPending || write.locked} onClick={fillFromNote}>{aiPending ? 'Reading…' : 'Review purchase'}</button></div>
         {aiFilled && <p className="rm-notice" role="status">Check the amount and who paid below. Nothing is recorded until you confirm.</p>}
@@ -154,8 +169,8 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
         <legend>How should we record this?</legend>
         <div className="rm-checks"><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'pooled'} onChange={() => setMode('pooled')} />Just track who paid</label><label className="rm-check"><input type="radio" name="expense-mode" checked={mode === 'split'} onChange={() => setMode('split')} />Split with people</label></div>
       </fieldset>
-      <details className="receipt-review" open={aiFilled || editing || showErrors || Boolean(initialRunId) || undefined}>
-        <summary>{aiFilled || editing || initialRunId ? 'Review purchase details' : 'Or enter the receipt yourself'}</summary>
+      <details className="receipt-review" open={mode === 'split' || aiFilled || editing || showErrors || Boolean(initialRunId) || undefined}>
+        <summary>{aiFilled || editing || initialRunId ? 'Review purchase details' : 'Enter the total — we split it'}</summary>
       <fieldset disabled={write.locked || !connected} className="rm-fieldset">
         <div className="rm-field">
           <label htmlFor={ids.run}>Shopping trip (optional)</label>
@@ -190,11 +205,24 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
               <div className="rm-checks" role="group" aria-labelledby={ids.who}>
                 {members.map(m => <label key={m.id} className="rm-check"><input type="checkbox" checked={sharedIds.includes(m.id)} onChange={() => toggleShared(m.id)} /><span>{m.name}</span></label>)}
               </div>
-              <span className="rm-help">Choose the adults splitting this receipt; the number of diners doesn't decide it.</span>
+              <span className="rm-help">{lastSplit
+                ? `Same people as the last confirmed receipt${selectedRun ? `, unless you change it for ${selectedRun.storeName || 'this run'}` : ''}.`
+                : 'Everyone in the household is included until you uncheck someone.'}</span>
             </div>
+            {preview && (
+              <div className="rm-split-preview" role="status">
+                <p className="rm-label">Each person’s share</p>
+                <ul className="rm-plain">
+                  {Object.entries(preview).sort(([a], [b]) => a.localeCompare(b)).map(([id, cents]) => (
+                    <li key={id} className="rm-balance"><span>{name(id)}{id === payerId ? ' (paid the store)' : ''}</span><span className="rm-price">{formatCents(cents)}</span></li>
+                  ))}
+                </ul>
+                <p className="rm-help">Even split of what’s left after any personal amounts. Saving still needs your confirmation — this is not a payment.</p>
+              </div>
+            )}
             <div className="rm-field">
-              <span className="rm-label">Personal items</span>
-              {!personalIds.length && <p className="rm-help">Only needed when something on the receipt was just for one person.</p>}
+              <span className="rm-label">Personal items (optional)</span>
+              <p className="rm-help">Leave amounts blank to split the whole receipt evenly. Fill a row only if something was just for one person.</p>
               {personalIds.map(id => {
                 const entry = personal[id] || { text: '', unknown: false };
                 return (

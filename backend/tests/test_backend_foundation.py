@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.money import allocate_split, balances_from_expenses
+from app.money import allocate_split, balances_from_expenses, remembered_split
 
 
 @pytest.fixture()
@@ -345,6 +345,16 @@ def test_exact_cent_allocations():
     assert alloc["sam"] == 1300
     assert alloc["leila"] == 700
     assert sum(alloc.values()) == 2000
+
+    memory = remembered_split(
+        [
+            {"status": "confirmed", "mode": "pooled", "payerId": "maya", "sharedMemberIds": []},
+            {"status": "confirmed", "mode": "split", "payerId": "leila", "sharedMemberIds": ["leila", "sam", "gone"]},
+        ],
+        ["leila", "sam", "jordan"],
+    )
+    assert memory["payerId"] == "leila"
+    assert memory["sharedMemberIds"] == ["leila", "sam"]
 
     balances = balances_from_expenses(
         [
