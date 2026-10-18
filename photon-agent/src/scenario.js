@@ -8,25 +8,27 @@ const NAMED_RUN = /\b(?:is|are) going to (?:the )?(?:store|grocery store)\b/i;
 const FINISH_RUN = /\b(?:done shopping|i(?:'?m| am) done|leaving (?:now|the store)|heading (?:home|back)|at checkout|checking out|got everything|closing the run)\b/i;
 const CANCEL_RUN = /\b(?:not going(?: anymore)?|false alarm|cancel(?:led)? the (?:run|trip)|never mind the store)\b/i;
 const LIST_STATUS = /\b(?:what(?:'?s| is) on (?:the |our |my )?(?:shopping )?(?:list|cart)|show (?:the |our )?(?:list|cart)|what do we (?:need|have))\b/i;
+const FILLER = /^(?:hey|hi|hello|yo|please|ok|okay)[,! ]+(?=(?:can you |please )?(?:i |we )?(?:need|want|grab|get|add|going|heading)\b)/i;
 const NEED_PREFIX = /^(?:(?:please )?(?:can you )?(?:(?:i|we) )?(?:need|want|grab|get|add)(?: some)?\s+)/i;
 const MEALISH = /\b(?:tacos?|dinner|recipe|meal|cook|eat|for \d+|something (?:quick|easy|fun)|vegetarian|vegan)\b/i;
 const FOOD_REQUEST = /\b(?:what should we eat|what do you want to eat|what are we eating|dinner idea|meal idea|recipe idea|suggest (?:a |some )?(?:meal|recipe|dinner)|plan dinner|plan (?:this|our|the|my) week|week of meals|grocery list|groceries for)\b/i;
 
-export function helpReply(kind = 'family') {
+export function helpReply(kind = 'family', line = '') {
+  const number = line ? `\n\nText ${line} from your iPhone. That’s the Cartners line.` : '';
   if (kind === 'roommates' || kind === 'friends') {
     return [
       'I’m Cartners in this roommate thread — not a family grocery chat.',
       'Someone grabbing groceries? Text “going to QFC — what do you guys need?” I’ll start a 10-minute run.',
       '“Need milk” adds it to this run. Afterward, split the receipt in Cartners and settle with Venmo, Zelle, or Cash App. Opening a link never marks a debt paid.',
       '“What’s on the list?” anytime. “Done shopping” when you leave. Meal ideas still need “add it” before they hit the cart.',
-    ].join('\n\n');
+    ].join('\n\n') + number;
   }
   return [
     'I’m Cartners in this family thread.',
     'Mom or dad heading to the store? Text “going to the store — what does everyone need?” I’ll start a 10-minute run.',
     'Everyone else can text “need milk” and it lands on the list. “Tacos for four” is a meal draft; reply “add it” to confirm. “Plan this week” saves dinners, not groceries.',
     '“What’s on the list?” anytime. “Done shopping” when you’re leaving.',
-  ].join('\n\n');
+  ].join('\n\n') + number;
 }
 
 export const HELP_REPLY = helpReply('family');
@@ -46,12 +48,12 @@ export function activeTrip(workspace) {
   return trip;
 }
 
-export function windowOpen(trip, nowMs) {
+export function windowOpen(trip, nowMs = Date.now()) {
   if (!trip?.requestDeadlineAt) return false;
   return nowMs < Date.parse(trip.requestDeadlineAt);
 }
 
-export function minutesLeft(trip, nowMs) {
+export function minutesLeft(trip, nowMs = Date.now()) {
   if (!trip?.requestDeadlineAt) return 0;
   return Math.max(0, Math.ceil((Date.parse(trip.requestDeadlineAt) - nowMs) / 60000));
 }
@@ -79,8 +81,18 @@ export function parseNeedItems(text) {
   return rest.split(/\s*(?:,| and |\s+and\s+)\s*/i).map((part) => part.replace(/^(?:some|a|an)\s+/i, '').trim()).filter((part) => part.length > 1 && part.length <= 80);
 }
 
+export function groceryFromBareList(text) {
+  const clean = String(text || '').trim();
+  if (!clean || clean.length > 60 || /[?]/.test(clean) || MEALISH.test(clean) || FOOD_REQUEST.test(clean) || HELP.test(clean)) return [];
+  if (/\b(this is|sample idea|go to ibrahiim)\b/i.test(clean)) return [];
+  if (clean.split(/\s+/).length > 6) return [];
+  const items = parseNeedItems(NEED_PREFIX.test(clean) ? clean : `need ${clean}`);
+  if (!items.length || items.some((item) => /\b(?:the|this|that|going|should|would|could)\b/i.test(item))) return [];
+  return items;
+}
+
 export function classifyHousehold(text, { hasPendingDraft = false } = {}) {
-  const clean = String(text || '').replace(/\u2019/g, "'").trim();
+  const clean = String(text || '').replace(/\u2019/g, "'").replace(FILLER, '').trim();
   if (!clean) return { type: 'ignore' };
   if (SPECTRUM_ECHO.test(clean)) return { type: 'ignore' };
   if (hasPendingDraft && CONFIRM.test(clean)) return { type: 'confirm' };
@@ -91,11 +103,13 @@ export function classifyHousehold(text, { hasPendingDraft = false } = {}) {
     return { type: 'start_run', storeName: parseStoreName(clean), requestWindowMinutes: parseWindowMinutes(clean) };
   }
   if (LIST_STATUS.test(clean)) return { type: 'list' };
-  if (HELP.test(clean)) return { type: 'help' };
+  if (HELP.test(clean) || HELP.test(String(text || '').replace(/\u2019/g, "'").trim())) return { type: 'help' };
   if (NEED_PREFIX.test(clean) && !MEALISH.test(clean)) {
     const items = parseNeedItems(clean);
     if (items.length) return { type: 'need_items', items };
   }
+  const grocery = groceryFromBareList(clean);
+  if (grocery.length) return { type: 'need_items', items: grocery };
   if (FOOD_REQUEST.test(clean) || MEALISH.test(clean)) return { type: 'suggest' };
   return { type: 'ignore' };
 }

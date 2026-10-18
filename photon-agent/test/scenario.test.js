@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyHousehold, formatRunStarted, parseNeedItems, parseStoreName } from '../src/scenario.js';
+import { classifyHousehold, formatRunStarted, parseNeedItems, parseStoreName, windowOpen } from '../src/scenario.js';
 
 test('dad heading to the store starts a run, roommates add items, meals stay drafts', () => {
   assert.equal(classifyHousehold('Going to QFC — what do you guys need?').type, 'start_run');
@@ -18,6 +18,9 @@ test('dad heading to the store starts a run, roommates add items, meals stay dra
   assert.equal(classifyHousehold('Text cartners from your phone').type, 'help');
   assert.equal(classifyHousehold('Photon Spectrum is connected. You said: hello').type, 'ignore');
   assert.equal(classifyHousehold('add it', { hasPendingDraft: true }).type, 'confirm');
+  assert.deepEqual(classifyHousehold('milk').items, ['milk']);
+  assert.deepEqual(classifyHousehold('hey can you get eggs').items, ['eggs']);
+  assert.equal(classifyHousehold('going to the store').type, 'start_run');
 });
 
 test('parses a short grocery ask without treating it as a meal', () => {
@@ -34,4 +37,10 @@ test('run start copy names the shopper and leaves the cart empty until people re
   const text = formatRunStarted(workspace, 'sam');
   assert.match(text, /Sam is going to QFC/);
   assert.match(text, /list is empty/);
+});
+
+test('an open run still accepts requests when nowMs is omitted', () => {
+  const trip = { requestDeadlineAt: new Date(Date.now() + 10 * 60e3).toISOString() };
+  assert.equal(windowOpen(trip), true);
+  assert.equal(windowOpen({ requestDeadlineAt: new Date(Date.now() - 1000).toISOString() }), false);
 });

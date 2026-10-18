@@ -9,6 +9,7 @@ import { PAY_APPS, isValidHandle, cleanHandle } from '../spending/proposal/payLi
 import PersonName from '../spending/proposal/PayHandleMarks.jsx';
 import { isFamilyTable, splitsCosts, withMemberPayLinks } from '../../household.js';
 import { readMembership, saveMembership } from '../onboarding/session.js';
+import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
 
 // Groups (#9): who is in this group, the active shopper and countdown, the store-run sheet,
 // and the group's Pooled/Split spending preference. The shell's group menu does the switching.
@@ -45,6 +46,12 @@ export default function Groups({ workspace, actorId, api, onWorkspaceChange, nav
             </ul>
           </section>
 
+          <section className="rm-card" aria-labelledby="rm-imessage">
+            <h2 id="rm-imessage" className="rm-h2">Text the household line</h2>
+            <p className="rm-help">From an iPhone on this household, text Cartners at <strong>{prettyPhone()}</strong>. “Going to the store” starts a run. “Need milk” adds it. The website never sends those texts for you.</p>
+            <p><a className="rm-btn" href={smsHref(isFamilyTable(workspace, membership) ? 'Going to the store — what does everyone need?' : 'Going to QFC — what do you guys need?')}>Text {prettyPhone()}</a></p>
+            <p className="rm-help">Line {IMESSAGE_LINE}. Open that thread, don’t start a new one to a different number.</p>
+          </section>
           <Preferences {...shared} />
           {!membership?.demo && <section className="rm-card"><h2 className="rm-h2">Invite someone to your table</h2><p className="rm-help">They can choose “Join with a code” on the welcome screen. Only share this code with people you want in your household.</p><details><summary>Show invitation code</summary><textarea className="invite-code" aria-label="Invitation code" readOnly value={membership?.inviteCode || ''} /><button className="rm-btn rm-secondary" onClick={async () => { try { await navigator.clipboard.writeText(membership.inviteCode); setCopied('Invitation copied.'); } catch { setCopied('Select the code above and copy it.'); } }}>Copy invitation code</button><p role="status">{copied}</p></details></section>}
           <details className="household-spending" open={splitsCosts(workspace)}><summary>{isFamilyTable(workspace, membership) ? 'Family budget or split' : 'How you split purchases'}</summary><SpendingStyle {...shared} /></details>

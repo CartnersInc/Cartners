@@ -7,13 +7,7 @@ import RecipeCarousel from './RecipeCarousel.jsx';
 import KitchenArt from '../../components/KitchenArt.jsx';
 import { useSurfaceMotion } from '../../components/useMotion.js';
 import { isFamilyTable } from '../../household.js';
-
-const IMESSAGE_LINE = String(import.meta.env.VITE_CARTNERS_IMESSAGE_LINE || '+14156055508').replace(/\s/g, '');
-function prettyPhone(value) {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  return value;
-}
+import { IMESSAGE_LINE, prettyPhone, smsHref } from '../../imessageLine.js';
 
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange, membership }) {
   const message = entry?.message || '';
