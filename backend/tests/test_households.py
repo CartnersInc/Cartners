@@ -96,3 +96,33 @@ def test_private_household_idea_reaches_joined_members(tmp_path, monkeypatch):
         assert seen.status_code == 200
         assert [item['name'] for item in seen.json()['items'] if not item['removed']] == [item['name'] for item in saved.json()['workspace']['items'] if not item['removed']]
         assert seen.json()['items']
+        common = {'workspaceId': wid, 'actorId': actor}
+        started = client.patch('/api/trip', headers=owner_headers, json={
+            **common, 'requestId': str(uuid4()),
+            'expectedTripVersion': saved.json()['workspace']['trip']['version'],
+            'action': 'start', 'storeName': 'QFC', 'requestWindowMinutes': 10,
+        })
+        assert started.status_code == 200, started.text
+        guest_view = client.get('/api/workspace', params={'workspaceId': wid}, headers=member_headers).json()
+        assert guest_view['trip']['claimedBy'] == actor
+        assert guest_view['trip']['storeName'] == 'QFC'
+        item = next(row for row in started.json()['workspace']['items'] if not row['removed'])
+        bought = client.patch(f"/api/items/{item['id']}", headers=owner_headers, json={
+            **common, 'requestId': str(uuid4()), 'expectedItemVersion': item['version'], 'bought': True,
+        })
+        assert bought.status_code == 200, bought.text
+        finished = client.patch('/api/trip', headers=owner_headers, json={
+            **common, 'requestId': str(uuid4()),
+            'expectedTripVersion': bought.json()['workspace']['trip']['version'], 'action': 'finish',
+        })
+        assert finished.status_code == 200, finished.text
+        receipt = client.post('/api/expenses', headers=owner_headers, json={
+            **common, 'requestId': str(uuid4()), 'totalCents': 1299, 'payerId': actor,
+            'mode': 'pooled', 'sharedMemberIds': [actor, joined.json()['actorId']],
+            'personalAllocations': {}, 'status': 'confirmed',
+        })
+        assert receipt.status_code == 200, receipt.text
+        review = client.get('/api/workspace', params={'workspaceId': wid}, headers=member_headers).json()
+        assert review['expenses']
+        assert review['expenses'][-1]['totalCents'] == 1299
+        assert review['expenses'][-1]['status'] == 'confirmed'

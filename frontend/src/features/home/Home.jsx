@@ -5,6 +5,13 @@ import { starterPrompts } from '../../samples.js';
 import { activeTrip, liveItems } from '../shopping/lib/trip.js';
 import RecipeCarousel from './RecipeCarousel.jsx';
 
+const IMESSAGE_LINE = String(import.meta.env.VITE_CARTNERS_IMESSAGE_LINE || '+14156055508').replace(/\s/g, '');
+function prettyPhone(value) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return value;
+}
+
 export default function Home({ workspace, actorId, api, onWorkspaceChange, navigate, notify, active, connected, entry, onEntryChange, planDate, onPlanDateChange }) {
   const message = entry?.message || '';
   const setMessage = value => onEntryChange({ ...entry, message: value });
@@ -165,6 +172,10 @@ export default function Home({ workspace, actorId, api, onWorkspaceChange, navig
         {neededItems.length > 4 && <p className="home-list-more">and {neededItems.length - 4} more</p>}
         <p className="home-run-status">{trip ? <><strong>{shopper?.name || 'Someone'} is at {trip.storeName}.</strong> New requests {trip.requestDeadlineAt && Date.parse(trip.requestDeadlineAt) > Date.now() ? 'can still join this run.' : 'will wait for the next run.'}</> : 'No one is shopping right now.'}</p>
         <button className="text-button" onClick={() => navigate('shopping')}>Open shared list<Icon name="arrow" /></button>
+        <div className="home-text-line">
+          <p><strong>Dad’s heading to the store?</strong> Text Cartners from the car. A roommate can reply “need milk” and it lands on this list.</p>
+          <a className="text-button" href={`sms:${IMESSAGE_LINE}?body=${encodeURIComponent('Going to the store — what do you guys need?')}`}>Text {prettyPhone(IMESSAGE_LINE)}<Icon name="arrow" /></a>
+        </div>
       </aside>
     </div> : <div className="idea-page-heading"><h1>{meal ? 'Your dinner idea' : draft.kind === 'grocery_list' ? 'Your grocery list' : 'One thing to check'}</h1>{options}<button className="text-button" disabled={locked} onClick={() => navigate('home-new')}>Start a new idea</button></div>}
 

@@ -14,7 +14,6 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
   const [matchedStore, setMatchedStore] = useState('');
   const [itemPrices, setItemPrices] = useState({});
   const [showStores, setShowStores] = useState(false);
-  const [showRun, setShowRun] = useState(false);
   const [clearState, setClearState] = useState({ phase: 'idle', message: '' });
   const serverNowMs = useServerNow(workspace.serverNow);
   const trip = activeTrip(workspace);
@@ -51,7 +50,7 @@ export default function Shopping({ workspace, actorId, api, onWorkspaceChange, n
       {needed.length ? <><h2 className="rm-h2">To pick up</h2><ul className="rm-items">{needed.map(row)}</ul></> : <div className="rm-empty-state"><h2>{bought.length ? 'Everything is picked up.' : 'Your list starts here.'}</h2><p>{bought.length ? 'Add more groceries whenever you need them.' : 'Type an item above, or let Cartners build a list from your dinner idea.'}</p><button className="rm-btn" onClick={() => navigate('home-new')}>Find a meal or groceries</button></div>}
       {bought.length > 0 && <details className="purchased-list"><summary>Purchased · {bought.length}</summary><p className="rm-help">Uncheck an item to put it back on the list.</p><ul className="rm-items">{bought.map(row)}</ul></details>}
     </section>
-    {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Use the list as it is, or check products and prices at nearby Kroger stores.</p>{needed.length > 0 && <button className="rm-btn rm-secondary" onClick={() => setShowStores(value => !value)} aria-expanded={showStores}>{showStores ? 'Hide store comparison' : 'Find groceries at Kroger'}</button>}{!trip && <button className="rm-btn" onClick={() => setShowRun(value => !value)} aria-expanded={showRun}>{showRun ? 'Hide trip details' : 'I’m going shopping'}</button>}{(showRun || trip) && <TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} />}</aside>}
+    {(needed.length > 0 || trip) && <aside className="shopping-next"><h2 className="rm-h2">Ready to shop?</h2><p className="rm-help">Start a store run from this list. Kroger prices are optional and labeled live when they come from the store API.</p>{needed.length > 0 && <button className="rm-btn rm-secondary" onClick={() => setShowStores(value => !value)} aria-expanded={showStores}>{showStores ? 'Hide store comparison' : 'Find groceries at Kroger'}</button>}<TripPanel {...shared} serverNowMs={serverNowMs} startRef={startRef} preferredStoreName={matchedStore} /></aside>}
     </div>
     {needed.length > 0 && showStores && <BasketCompare key={workspace.listRevision} {...shared} items={needed} onPrices={values => setItemPrices({ revision: workspace.listRevision, values })} onStoreFound={setMatchedStore} />}
   </div>;

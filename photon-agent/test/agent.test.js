@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyMessage, formatDraft, handleMessage, makeRequestId } from '../src/agent.js';
+import { handleSpectrumMessage, HELP_REPLY } from '../src/spectrum.js';
 
 const draft = {
   draftId: 'draft-1', workspaceId: 'demo-family', listRevision: 3, sourceMode: 'live_ai', kind: 'recommendation',
@@ -89,4 +90,107 @@ test('messages from unapproved senders are ignored without touching Cartners', a
   assert.equal(handled, false);
   assert.equal(f.suggestions.length, 0);
   assert.equal(f.sent.length, 0);
+});
+
+test('Spectrum greets without writing the cart, and treats a craving as a draft', async () => {
+  const replies = [];
+  const suggestions = [];
+  const hello = await handleSpectrumMessage({
+    space: { id: 'space-1' },
+    message: {
+      direction: 'inbound',
+      id: 'm1',
+      sender: { id: '+14155551234' },
+      content: { type: 'text', text: 'Hello Photon' },
+      async reply(body) { replies.push(body); },
+    },
+    config: { allowedSenders: new Set(), actorBySender: new Map(), workspaceId: 'demo-family' },
+    api: { async suggest() { throw new Error('should not suggest'); } },
+    state: { pendingBySpace: {}, async save() {} },
+  });
+  assert.equal(hello, true);
+  assert.equal(replies[0], HELP_REPLY);
+
+  const dinner = await handleSpectrumMessage({
+    space: { id: 'space-1' },
+    message: {
+      direction: 'inbound',
+      id: 'm2',
+      sender: { id: '+14155551234' },
+      content: { type: 'text', text: 'tacos for four' },
+      async reply(body) { replies.push(body); },
+    },
+    config: { allowedSenders: new Set(), actorBySender: new Map([['+14155551234', 'leila']]), workspaceId: 'demo-family' },
+    api: { async suggest(input) { suggestions.push(input); return draft; } },
+    state: { pendingBySpace: {}, async save() {} },
+  });
+  assert.equal(dinner, true);
+  assert.equal(suggestions.length, 1);
+  assert.match(replies[1], /Nothing has been added yet/);
+});
+
+test('Spectrum starts a store run for dad and adds a roommate request to the same cart', async () => {
+  const replies = [];
+  let trip = { version: 1, claimedBy: null, state: 'idle', storeName: null };
+  const items = [];
+  const workspace = () => ({
+    workspaceId: 'demo-family',
+    trip,
+    items: items.map((item) => ({ ...item })),
+    actors: [{ id: 'sam', name: 'Sam' }, { id: 'lee', name: 'Lee' }],
+  });
+  const api = {
+    async getWorkspace() { return workspace(); },
+    async patchTrip(body) {
+      trip = {
+        version: trip.version + 1,
+        claimedBy: body.actorId,
+        storeName: body.storeName,
+        requestDeadlineAt: new Date(Date.now() + body.requestWindowMinutes * 60e3).toISOString(),
+        state: 'accepting_requests',
+      };
+      return { workspace: workspace(), changeSummary: 'Started a store run.' };
+    },
+    async addItem(body) {
+      items.push({ id: `item-${items.length}`, name: body.name, quantity: 1, unit: 'count', bought: false, removed: false });
+      return { workspace: workspace(), changeSummary: `Added ${body.name}.` };
+    },
+    async suggest() { throw new Error('should not suggest'); },
+  };
+  const config = {
+    allowedSenders: new Set(['+15550000001', '+15550000002']),
+    actorBySender: new Map([['+15550000001', 'sam'], ['+15550000002', 'lee']]),
+    workspaceId: 'demo-family',
+  };
+  const dad = await handleSpectrumMessage({
+    space: { id: 'family-thread' },
+    message: {
+      direction: 'inbound',
+      id: 'run-1',
+      sender: { id: '+15550000001' },
+      content: { type: 'text', text: 'Going to QFC — what do you guys need?' },
+      async reply(body) { replies.push(body); },
+    },
+    config,
+    api,
+    state: { pendingBySpace: {}, async save() {} },
+  });
+  const roommate = await handleSpectrumMessage({
+    space: { id: 'family-thread' },
+    message: {
+      direction: 'inbound',
+      id: 'need-1',
+      sender: { id: '+15550000002' },
+      content: { type: 'text', text: 'need milk and eggs' },
+      async reply(body) { replies.push(body); },
+    },
+    config,
+    api,
+    state: { pendingBySpace: {}, async save() {} },
+  });
+  assert.equal(dad, true);
+  assert.equal(roommate, true);
+  assert.match(replies[0], /Sam is going to QFC/);
+  assert.match(replies[1], /Added milk, eggs/);
+  assert.equal(items.length, 2);
 });

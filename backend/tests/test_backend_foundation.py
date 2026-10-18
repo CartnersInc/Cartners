@@ -27,6 +27,7 @@ def test_health_and_two_group_snapshots(client: TestClient):
     health = client.get("/api/health").json()
     assert health["ok"] is True
     assert health["schemaVersion"] == 2
+    assert health["households"] is True
 
     family = client.get("/api/workspace", params={"workspaceId": "demo-family"}).json()
     roommates = client.get("/api/workspace", params={"workspaceId": "demo-roommates"}).json()

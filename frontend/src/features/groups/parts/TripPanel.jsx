@@ -38,7 +38,7 @@ export default function TripPanel({ workspace, actorId, api, onWorkspaceChange, 
 }
 
 function StartTrip({ workspace, actorId, api, onWorkspaceChange, connected, notify, setNotice, startRef, preferredStoreName }) {
-  const [store, setStore] = useState(() => lastStore(workspace) || preferredStoreName || '');
+  const [store, setStore] = useState(() => lastStore(workspace) || preferredStoreName || 'the grocery store');
   const [minutes, setMinutes] = useState(10);
   const [missing, setMissing] = useState(false);
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });

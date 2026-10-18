@@ -227,6 +227,7 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
             "ok": True,
             "service": "cartners",
             "schemaVersion": 2,
+            "households": True,
             "aiAvailable": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
             "krogerConfigured": bool(os.getenv("KROGER_CLIENT_ID") and os.getenv("KROGER_CLIENT_SECRET")),
         }
