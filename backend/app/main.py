@@ -31,7 +31,7 @@ from app.schemas import (
     UndoRequest,
 )
 from app.money import remembered_split, shopper_for_unrecorded_run
-from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, generate_weekly_plan, suggest_for_event
+from app.services.gemini_suggestions import EventOption, Preferences, draft_expense_from_note, generate_suggestion, generate_weekly_plan, stated_expense_from_note, suggest_for_event
 from app.store import Store
 from app.households import authorize_household, register_household_routes
 from app.suggestions import build_suggestion, require_message, wants_weekly_plan, week_dates
@@ -429,50 +429,55 @@ def create_app(db_path: Path | str | None = None) -> FastAPI:
                 if member_id in names_by_id
             ],
         }
+        roster_names = [person["name"] for person in roster]
+        source_mode = "live_ai"
         try:
             parsed = await run_in_threadpool(
                 draft_expense_from_note,
                 body.message,
-                members=[person["name"] for person in roster],
+                members=roster_names,
                 mode=mode,
                 context=context,
             )
-            by_name = {person["name"].strip().casefold(): person["id"] for person in roster}
-            member_ids = [person["id"] for person in roster]
-            memory = remembered_split(snapshot.get("expenses") or [], member_ids)
-            payer_id = by_name.get((parsed.get("payerName") or "").strip().casefold())
-            if not payer_id:
-                shopper = shopper_for_unrecorded_run(snapshot)
-                payer_id = shopper if shopper in member_ids else memory.get("payerId")
-            allocations = {}
-            for item in parsed.get("personalAmounts", []):
-                member_id = by_name.get((item.get("personName") or "").strip().casefold())
-                if member_id:
-                    allocations[member_id] = item.get("amountCents")
-            shared_ids = [by_name[name.strip().casefold()] for name in parsed.get("sharedNames", []) if name.strip().casefold() in by_name]
-            if mode == "split" and not shared_ids:
-                shared_ids = list(memory.get("sharedMemberIds") or member_ids)
-            unresolved = []
-            if parsed.get("totalCents") is None: unresolved.append("receipt total")
-            if not payer_id: unresolved.append("who paid")
-            return {
-                "totalCents": parsed.get("totalCents"),
-                "payerId": payer_id,
-                "sharedMemberIds": shared_ids,
-                "personalAllocations": allocations,
-                "clarification": parsed.get("clarification"),
-                "missing": unresolved,
-                "rememberedFrom": "last confirmed split" if memory.get("payerId") or (memory.get("sharedMemberIds") and snapshot.get("expenses")) else None,
-                "sourceMode": "live_ai",
-                "saved": False,
-            }
         except RuntimeError as exc:
-            message = str(exc)
-            if "Set GEMINI_API_KEY" in message:
-                message = "Set GEMINI_API_KEY in backend/.env, then restart the backend."
-            return JSONResponse(status_code=503, content={"error": {"code": "AI_UNAVAILABLE", "message": message, "retryable": True, "requestId": body.requestId}})
+            if "Set GEMINI_API_KEY" not in str(exc) and "GOOGLE_API_KEY" not in str(exc):
+                return JSONResponse(status_code=503, content={"error": {"code": "AI_UNAVAILABLE", "message": str(exc), "retryable": True, "requestId": body.requestId}})
+            parsed = stated_expense_from_note(body.message, members=roster_names, actor_name=context.get("currentActorName"))
+            source_mode = "sample"
         except ValueError as exc:
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_EXPENSE_NOTE", "message": str(exc), "retryable": False, "requestId": body.requestId}})
+        by_name = {person["name"].strip().casefold(): person["id"] for person in roster}
+        member_ids = [person["id"] for person in roster]
+        memory = remembered_split(snapshot.get("expenses") or [], member_ids)
+        payer_id = by_name.get((parsed.get("payerName") or "").strip().casefold())
+        if not payer_id:
+            shopper = shopper_for_unrecorded_run(snapshot)
+            payer_id = shopper if shopper in member_ids else memory.get("payerId")
+        allocations = {}
+        for item in parsed.get("personalAmounts", []):
+            member_id = by_name.get((item.get("personName") or "").strip().casefold())
+            if member_id:
+                allocations[member_id] = item.get("amountCents")
+        shared_ids = [by_name[name.strip().casefold()] for name in parsed.get("sharedNames", []) if name.strip().casefold() in by_name]
+        if mode == "split" and not shared_ids:
+            shared_ids = list(memory.get("sharedMemberIds") or member_ids)
+        unresolved = []
+        if parsed.get("totalCents") is None: unresolved.append("receipt total")
+        if not payer_id: unresolved.append("who paid")
+        notice = parsed.get("clarification")
+        if source_mode == "sample" and parsed.get("totalCents"):
+            notice = "Read from your note. Gemini is not configured here — confirm the total before anything is saved."
+        return {
+            "totalCents": parsed.get("totalCents"),
+            "payerId": payer_id,
+            "sharedMemberIds": shared_ids,
+            "personalAllocations": allocations,
+            "clarification": notice,
+            "missing": unresolved,
+            "rememberedFrom": "last confirmed split" if memory.get("payerId") or (memory.get("sharedMemberIds") and snapshot.get("expenses")) else None,
+            "sourceMode": source_mode,
+            "saved": False,
+        }
 
     @application.post("/api/baskets/compare")
     def compare_baskets(body: BasketCompareRequest, request: Request) -> dict[str, Any]:

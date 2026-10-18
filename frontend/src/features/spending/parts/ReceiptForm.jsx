@@ -1,6 +1,6 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useWrite } from '../../shopping/lib/useWrite.js';
-import { formatCents, parseDollars, people, whenOf } from '../../shopping/lib/format.js';
+import { amountInNote, formatCents, parseDollars, people, whenOf } from '../../shopping/lib/format.js';
 import { activeTrip, liveItems } from '../../shopping/lib/trip.js';
 import { allocateSplit, lastConfirmedSplit, rememberedPayer, rememberedSharers } from '../lib/remember.js';
 import PersonName from '../proposal/PayHandleMarks.jsx';
@@ -61,6 +61,7 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
   const [aiError, setAiError] = useState('');
   const [aiFilled, setAiFilled] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(editing);
+  const draftedFor = useRef('');
   const write = useWrite({ api, workspace, actorId, onWorkspaceChange });
   const ids = { run: useId(), total: useId(), payer: useId(), who: useId() };
 
@@ -120,14 +121,17 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
     onDone();
   }
 
-  async function fillFromNote() {
-    if (!connected || !aiNote.trim() || aiPending) return;
+  async function fillFromNote(force = false) {
+    const message = aiNote.trim();
+    if (!connected || !message || aiPending) return;
+    if (!force && draftedFor.current === message) return;
+    draftedFor.current = message;
     setAiPending(true); setAiError(''); setAiFilled(false);
     try {
       const result = await api.request('/api/ai/expense-draft', { method: 'POST', body: {
-        workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), message: aiNote.trim(), mode,
+        workspaceId: workspace.workspaceId, actorId, requestId: crypto.randomUUID(), message, mode,
       } });
-      setTotalText(Number.isInteger(result.totalCents) && result.totalCents > 0 ? (result.totalCents / 100).toFixed(2) : '');
+      if (Number.isInteger(result.totalCents) && result.totalCents > 0) setTotalText((result.totalCents / 100).toFixed(2));
       if (workspace.actors.some(actor => actor.id === result.payerId)) setPayerId(result.payerId);
       if (Array.isArray(result.sharedMemberIds) && result.sharedMemberIds.length) {
         setSharedIds(result.sharedMemberIds.filter(id => members.some(member => member.id === id)));
@@ -148,9 +152,21 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
       setAiFilled(true);
       setReviewOpen(missing.length > 0);
       if (missing.length || result.clarification) setAiError(result.clarification || `Please fill in ${missing.join(' and ')} below. AI only uses details you included.`);
-    } catch (error) { setAiError(error.message || 'Could not read that purchase. Try again or fill the receipt in below.'); }
+    } catch (error) {
+      draftedFor.current = '';
+      setAiError(error.message || 'Could not read that purchase. Try again or fill the receipt in below.');
+    }
     finally { setAiPending(false); }
   }
+
+  useEffect(() => {
+    if (editing || !connected || write.locked) return;
+    const cents = amountInNote(aiNote);
+    if (cents != null && cents > 0) setTotalText(centsToText(cents));
+    if (!aiNote.trim() || amountInNote(aiNote) == null) return;
+    const wait = setTimeout(() => { fillFromNote(); }, 400);
+    return () => clearTimeout(wait);
+  }, [aiNote, connected, editing, write.locked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleShared = id => setSharedIds(list => (list.includes(id) ? list.filter(x => x !== id) : [...list, id]));
   const setEntry = (id, patch) => setPersonal(map => ({ ...map, [id]: { text: '', unknown: false, ...map[id], ...patch } }));
@@ -161,25 +177,30 @@ export default function ReceiptForm({ workspace, actorId, api, onWorkspaceChange
     ? allocateSplit(body.totalCents, sharedIds, body.personalAllocations)
     : null;
 
-  const compactReady = (aiFilled || editing) && Number.isInteger(body.totalCents) && body.totalCents > 0 && !errors.length;
+  const hasTotal = Number.isInteger(body.totalCents) && body.totalCents > 0;
+  const compactReady = (hasTotal && !errors.length && !aiPending) || editing;
 
   return (
     <form className="rm-card rm-form" onSubmit={submit} noValidate aria-label={editing ? 'Resolve this receipt' : 'Record a purchase'}>
       <h2 className="rm-h2">{editing ? 'Resolve this receipt' : 'Record a purchase'}</h2>
       <div className="receipt-ai">
-        <label htmlFor={`${ids.total}-note`}>Describe the receipt</label>
+        <label htmlFor={`${ids.total}-note`}>Receipt total</label>
         <p className="rm-help">{mode === 'split'
-          ? 'One sentence with the store total. Cartners fills who paid and the even split from last time. Confirm before anything is saved.'
-          : 'One sentence with who paid and the store total. This records the grocery run, not a debt.'}</p>
+          ? 'Type the store total. Who paid and the even split fill in from last time. Confirm before anything is saved.'
+          : 'Type the store total. This records the grocery run, not a debt.'}</p>
         <textarea id={`${ids.total}-note`} rows="2" maxLength="500" value={aiNote} onChange={event => setAiNote(event.target.value)}
-          placeholder={mode === 'split' ? 'I paid $54.20 at QFC…' : 'I paid $54.20 for groceries…'}
-          disabled={!connected || aiPending || write.locked}
-          onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); fillFromNote(); } }} />
-        <div className="rm-actions"><button type="button" className="rm-btn" disabled={!connected || !aiNote.trim() || aiPending || write.locked} onClick={fillFromNote}>{aiPending ? 'Reading…' : 'Fill from this'}</button></div>
+          placeholder={mode === 'split' ? '$54.20 at QFC' : '$54.20 for groceries'}
+          disabled={!connected || write.locked}
+          onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); fillFromNote(true); } }} />
+        <div className="rm-actions">
+          {aiPending
+            ? <p className="rm-help" role="status">Reading the receipt…</p>
+            : <button type="button" className="rm-btn rm-secondary" disabled={!connected || !aiNote.trim() || write.locked} onClick={() => fillFromNote(true)}>{aiFilled ? 'Read this again' : 'Fill from this'}</button>}
+        </div>
         {aiFilled && <p className="rm-notice" role="status">Check this. Nothing is recorded until you save.</p>}
         {aiError && <p className="rm-help" role="status">{aiError}</p>}
       </div>
-      {compactReady && (
+      {hasTotal && (
         <div className="receipt-compact" role="status">
           <p><strong>{formatCents(body.totalCents)}</strong> · paid by <PersonName workspace={workspace} actorId={payerId}>{name(payerId)}</PersonName></p>
           {mode === 'pooled' ? <p className="rm-help">Household record only. Nobody owes anyone.</p> : preview ? (

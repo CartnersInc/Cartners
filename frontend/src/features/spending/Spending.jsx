@@ -44,7 +44,7 @@ function Receipts({ workspace, actorId, api, onWorkspaceChange, navigate, notify
           ? <>This is a <strong>family grocery budget</strong>. Describe the store total — we remember who paid. Nobody owes anyone.{mode === 'split' ? ' This group was switched to split — debts appear below.' : ''}</>
           : <>{mode === 'pooled'
             ? <>This household <strong>tracks who paid</strong>. Describe the receipt; nothing is saved until you confirm.</>
-            : <>Describe the store total. Cartners <strong>fills the split from last time</strong>. Opening a pay link never marks a debt paid.{lastSplit ? ` Last split: ${(lastSplit.sharedMemberIds || []).map(name).join(', ')}.` : ''}</>}</>}{' '}
+            : <>Type the store total. Cartners <strong>fills who paid and the split</strong>. Opening a pay link never marks a debt paid.{lastSplit ? ` Last split: ${(lastSplit.sharedMemberIds || []).map(name).join(', ')}.` : ''}</>}</>}{' '}
         <button type="button" className="rm-link" onClick={() => navigate('groups')}>Household settings</button>
       </p>
 

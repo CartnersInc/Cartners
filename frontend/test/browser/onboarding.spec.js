@@ -68,7 +68,7 @@ test('welcome → own household → return → purchase and invite; no fictional
   await expect(page.getByRole('textbox',{name:'Invitation code'})).toHaveValue(setup.inviteCode);
   await page.getByRole('link',{name:'Spending',exact:true}).click();
   await expect(page.getByRole('tab',{name:'Payments'})).toHaveCount(0);
-  await expect(page.getByLabel('Describe the receipt')).toBeVisible();
+  await expect(page.getByLabel('Receipt total')).toBeVisible();
   await expect(page.getByRole('textbox',{name:'Actual total',exact:true})).not.toBeVisible();
 });
 

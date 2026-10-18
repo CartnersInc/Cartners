@@ -187,8 +187,7 @@ test('AI fills a receipt draft, but the user must review and save it', async ({ 
   await page.goto('/#spending');
   await expect(page.getByText('Enter the total yourself')).toBeVisible();
   await expect(page.getByLabel('Actual total')).toBeHidden();
-  await page.getByLabel('Describe the receipt').fill("I paid $42.18 at QFC; $8 was Sam's personal snacks, rest shared.");
-  await page.getByRole('button', { name: 'Fill from this' }).click();
+  await page.getByRole('form', { name: 'Record a purchase' }).getByRole('textbox').fill("I paid $42.18 at QFC; $8 was Sam's personal snacks, rest shared.");
   await expect(page.getByText('$42.18')).toBeVisible();
   expect(calls.some(call => call.path === '/api/expenses')).toBe(false);
   await page.getByText('Adjust details').click();
